@@ -13,6 +13,9 @@ export const AppRoutes = () => {
                     <Contato />
                 } />
 
+                <Route path='/eventos' element={
+                    <p>Eventos</p>
+                } />
                 <Route path='*' element={<Navigate to='/home' />} />
 
             </Routes>
