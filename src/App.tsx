@@ -6,19 +6,24 @@ import Contato from './pages/Contato';
 import Footer from './components/Footer';
 
 function App() {
-
-
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      <Home />
-      <Agenda />
-      <Eventos />
-      <div className="h-dvh">
-        <Contato />
-        <Footer />
+      <div className="flex flex-col gap-8">
+        <section id="home">
+          <Home />
+        </section>
+        <section id="agenda">
+          <Agenda />
+        </section>
+        <section id="eventos">
+          <Eventos />
+        </section>
+        <section id="contato" className="h-dvh">
+          <Contato />
+          <Footer />
+        </section>
       </div>
-
     </div>
   );
 }

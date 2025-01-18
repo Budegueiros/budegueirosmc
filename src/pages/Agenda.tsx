@@ -3,10 +3,10 @@ import EventCard from '../components/EventCard';
 
 export default function Agenda() {
     return (
-        <section id="agenda" className="py-20 bg-zinc-900 h-dvh">
+        <section id="agenda" className="py-20 bg-zinc-900 min-h-dvh">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl font-bold mb-12 text-center">Próximos Encontros</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
 
             {[
               {
