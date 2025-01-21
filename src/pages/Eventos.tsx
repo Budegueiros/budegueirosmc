@@ -23,16 +23,19 @@ export default function Eventos() {
   ];
 
   return (
-    <section id="eventos" className="py-20 min-h-dvh">
+    <section id="eventos" className="py-12 md:py-20">
       <div className="container mx-auto px-4">
-        <h2 className="text-4xl font-bold mb-12 text-center">Eventos Realizados</h2>
-        <div className="grid md:grid-cols-2 gap-8">
+        <h2 className="text-3xl md:text-4xl font-bold mb-8 md:mb-12 text-center">Eventos Realizados</h2>
+        <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
-            <div className="text-center">
-              <h3 className="text-2xl font-bold">Fundação Budegueiros</h3>
-              <p className="text-gray-300">Festa de lançamento do clube, realizada no dia 14 de abril de 2024, com a presença de mais de 500 motociclistas</p>
+            <div className="text-center px-4">
+              <h3 className="text-xl md:text-2xl font-bold mb-2">Fundação Budegueiros</h3>
+              <p className="text-gray-300 text-sm md:text-base">
+                Festa de lançamento do clube, realizada no dia 14 de abril de 2024, 
+                com a presença de mais de 500 motociclistas
+              </p>
             </div>
-            <div className="relative h-80 group overflow-hidden rounded-lg">
+            <div className="relative h-64 md:h-80 group overflow-hidden rounded-lg">
               <Swiper
                 modules={[Navigation, Pagination, Autoplay]}
                 navigation
@@ -54,11 +57,14 @@ export default function Eventos() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <div className="text-center">
-              <h3 className="text-2xl font-bold">1° Point Budegueiros</h3>
-              <p className="text-yellow-500">No dia 01 de setembro de 2024, foi realizado o primeiro point do clube, com a presença de mais de 100 motociclistas</p>
+            <div className="text-center px-4">
+              <h3 className="text-xl md:text-2xl font-bold mb-2">1° Point Budegueiros</h3>
+              <p className="text-yellow-500 text-sm md:text-base">
+                No dia 01 de setembro de 2024, foi realizado o primeiro point do clube, 
+                com a presença de mais de 100 motociclistas
+              </p>
             </div>
-            <div className="relative h-80 group overflow-hidden rounded-lg">
+            <div className="relative h-64 md:h-80 group overflow-hidden rounded-lg">
               <Swiper
                 modules={[Navigation, Pagination, Autoplay]}
                 navigation
