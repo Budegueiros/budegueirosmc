@@ -1,5 +1,6 @@
 import Header from './components/Header';
 import Home from './pages/Home';
+import Sobre from './pages/Sobre';  
 import Agenda from './pages/Agenda';
 import Eventos from './pages/Eventos';
 import Contato from './pages/Contato';
@@ -12,6 +13,9 @@ function App() {
       <div className="flex flex-col gap-8">
         <section id="home">
           <Home />
+        </section>
+        <section id="sobre">
+          <Sobre />
         </section>
         <section id="agenda">
           <Agenda />

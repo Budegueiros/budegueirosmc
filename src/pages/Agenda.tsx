@@ -33,7 +33,14 @@ export default function Agenda() {
                 time: 'Saída: 10:00',
                 km: '48',
                 mapUrl: 'https://maps.app.goo.gl/FZgCKT8o6w5FABEy7'
-              }
+              },
+              {
+                date: '02 de Fevereiro',
+                title: 'Reunião Mensal - Exclusivo para Membros',
+                destino: 'Sede do Clube',
+                time: '11:00',
+                mapUrl: 'https://maps.app.goo.gl/AWvor6LWMKCwUZ7H9'
+              },
             ].map((event, index) => (
 
               <EventCard key={index}
