@@ -1,25 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Serif:ital,opsz,wght@0,8..144,100..900;1,8..144,100..900&display=swap');
+@import url('https://fonts.cdnfonts.com/css/rebel-bones');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-head {
-  display: none;
+.font-rebel {
+  font-family: 'Rebel Bones', sans-serif;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  display: flex;
+.swiper-button-next,
+.swiper-button-prev {
+    color: white !important;
+    z-index: 30 !important;
 }
 
-@font-face {
-  font-family: "Rebel Bones";
-  src: url("/fonts/rebel-bones.woff2") format("woff2"),
-    url("/fonts/rebel-bones.woff") format("woff"),
-    url("/fonts/rebel-bones.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
+.swiper-pagination {
+    z-index: 30 !important;
+}
+
+.swiper-pagination-bullet {
+    background: white !important;
+}
+
+.swiper-pagination-bullet-active {
+    background: white !important;
 }
