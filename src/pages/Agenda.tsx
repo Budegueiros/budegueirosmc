@@ -8,11 +8,14 @@ export default function Agenda() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('https://script.googleusercontent.com/macros/echo?user_content_key=JQ-xhRrWbVIMN-UM4xXsXWNo4svEpBrHjl9cHTxSy5R3qAl2_UPkHrUFQT39yj8QKU5wRsQPw2KDqZJVvONkusK4mUVtA3yUm5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnCwde3IyQBDWzwvy2bu5_-K3SL6aU6l7strFn_1slwVsfx6Y_u4sbl2ScrpJDYgCKxV48OH3SAL96TLGqs9n2NhOuEbufL4BfQ&lib=M1-3B5857F6Ryg5HIZfa8d7CA5b8gKEx2');
+        const response = await fetch(
+          `${import.meta.env.VITE_APP_URL_API}?Authorization=${import.meta.env.VITE_APP_API_KEY}&route=agenda`,
+          {
+            method: 'GET'
+          });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
