@@ -44,6 +44,7 @@ export default function Agenda() {
 
             <EventCard key={index}
               title={event.titulo}
+              type={event.tipo}
               date={event.dia}
               month={event.Mes}
               origem={event.origem}
