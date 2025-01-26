@@ -3,6 +3,7 @@ import { Calendar, MapPin,MapPinned, Clock, Bike } from 'lucide-react';
 
 interface EventCardProps {
     title: string;
+    type: string;
     date: string;
     month: string;
     origem?: string;
@@ -12,7 +13,7 @@ interface EventCardProps {
     km?: string;
 }
 
-export default function EventCard({ title, date, month, origem, destino, time, mapUrl, km }: EventCardProps) {
+export default function EventCard({ title, type, date, month, origem, destino, time, mapUrl, km }: EventCardProps) {
     const newDate = new Date(time);
   const hours = String(newDate.getHours()).padStart(2, '0');
   const minutes = String(newDate.getMinutes()).padStart(2, '0');
@@ -21,7 +22,7 @@ export default function EventCard({ title, date, month, origem, destino, time, m
         <div className="bg-zinc-800 p-6 rounded-lg">
             <Calendar className="w-8 h-8 mb-4 text-yellow-500" />
             <h3 className="text-xl font-bold mb-2">{date} de {month}</h3>
-            <p className="text-lg mb-4">{title}</p>
+            <p className="text-lg mb-4">{title} - {type}</p>
             <div className="flex flex-col gap-2 text-gray-400">
                 {origem && (
                     <div className="flex items-center gap-2">
