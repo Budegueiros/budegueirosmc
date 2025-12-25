@@ -1,3 +1,4 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Home from './pages/Home';
 import Sobre from './pages/Sobre';  
@@ -8,27 +9,21 @@ import Footer from './components/Footer';
 
 function App() {
   return (
-    <div className="min-h-screen bg-black text-white">
-      <Header />
-      <div className="flex flex-col gap-8">
-        <section id="home">
-          <Home />
-        </section>
-        <section id="sobre">
-          <Sobre />
-        </section>
-        <section id="agenda">
-          <Agenda />
-        </section>
-        <section id="eventos">
-          <Eventos />
-        </section>
-        <section id="contato" className="h-dvh">
-          <Contato />
-          <Footer />
-        </section>
+    <Router>
+      <div className="min-h-screen bg-black text-white">
+        <Header />
+        <main>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/sobre" element={<Sobre />} />
+            <Route path="/agenda" element={<Agenda />} />
+            <Route path="/eventos" element={<Eventos />} />
+            <Route path="/contato" element={<Contato />} />
+          </Routes>
+        </main>
+        <Footer />
       </div>
-    </div>
+    </Router>
   );
 }
 
