@@ -8,6 +8,10 @@
   font-family: 'Rebel Bones', sans-serif;
 }
 
+.font-oswald {
+  font-family: 'Oswald', sans-serif;
+}
+
 .swiper-button-next,
 .swiper-button-prev {
     color: white !important;

@@ -20,7 +20,7 @@ export default function EventCard({ title, type, date, month, origem, destino, t
   const formattedTime = `${hours}:${minutes}`;
     return (
         <div className="bg-zinc-800 p-6 rounded-lg">
-            <Calendar className="w-8 h-8 mb-4 text-yellow-500" />
+            <Calendar className="w-8 h-8 mb-4 text-brand-red" />
             <h3 className="text-xl font-bold mb-2">{date} de {month}</h3>
             <p className="text-lg mb-4">{title} - {type}</p>
             <div className="flex flex-col gap-2 text-gray-400">
