@@ -49,7 +49,7 @@ export default function Home() {
             <div 
                 className="absolute inset-0 bg-cover bg-center opacity-10"
                 style={{
-                    backgroundImage: `url(/Brasao.jpg)`,
+                    backgroundImage: `url(/brasao.jpg)`,
                     backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',

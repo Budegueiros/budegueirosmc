@@ -69,7 +69,7 @@ export default function Sobre() {
                     </div>
                     <div className="flex justify-center items-center rounded-xl">
                         <img
-                            src="/Brasao.jpg"
+                            src="/brasao.jpg"
                             alt="Brasão Budegueiros MC"
                             className="max-w-md w-full h-auto rounded-3xl"
                         />
