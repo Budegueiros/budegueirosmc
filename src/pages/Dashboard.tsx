@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield, User } from 'lucide-react';
+import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield, User, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
 
 interface MembroData {
+  id: string;
   nome_completo: string;
   nome_guerra: string;
   cargo: string;
   foto_url: string | null;
   data_inicio: string;
   numero_carteira: string;
+  endereco_cidade?: string;
+  endereco_estado?: string;
 }
 
 interface MotoData {
@@ -29,6 +32,7 @@ interface EventoData {
   cidade: string;
   estado: string;
   distancia_km: number | null;
+  descricao?: string;
 }
 
 export default function Dashboard() {
@@ -41,6 +45,8 @@ export default function Dashboard() {
   const [proximoEvento, setProximoEvento] = useState<EventoData | null>(null);
   const [mensalidadeEmDia, setMensalidadeEmDia] = useState(true);
   const [confirmados, setConfirmados] = useState(0);
+  const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
+  const [confirmandoPresenca, setConfirmandoPresenca] = useState(false);
 
   useEffect(() => {
     carregarDados();
@@ -97,6 +103,17 @@ export default function Dashboard() {
             .eq('status', 'Confirmado');
 
           setConfirmados(count || 0);
+
+          // Verificar se o usuário já confirmou presença neste evento
+          const { data: minhaConfirmacao } = await supabase
+            .from('confirmacoes_presenca')
+            .select('id')
+            .eq('evento_id', eventoData.id)
+            .eq('membro_id', membroData.id)
+            .eq('status', 'Confirmado')
+            .maybeSingle();
+
+          setConfirmacaoId(minhaConfirmacao?.id || null);
         }
 
         // Verificar status da mensalidade atual
@@ -122,8 +139,53 @@ export default function Dashboard() {
     navigate('/login');
   };
 
+  const handleConfirmarPresenca = async () => {
+    if (!membro || !proximoEvento || confirmandoPresenca) return;
+
+    setConfirmandoPresenca(true);
+    
+    try {
+      if (confirmacaoId) {
+        // Usuário já confirmou - cancelar confirmação
+        const { error } = await supabase
+          .from('confirmacoes_presenca')
+          .delete()
+          .eq('id', confirmacaoId);
+
+        if (error) throw error;
+
+        setConfirmacaoId(null);
+        setConfirmados(prev => Math.max(0, prev - 1));
+      } else {
+        // Criar nova confirmação
+        const { data, error } = await supabase
+          .from('confirmacoes_presenca')
+          .insert({
+            evento_id: proximoEvento.id,
+            membro_id: membro.id,
+            status: 'Confirmado',
+            data_confirmacao: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+
+        setConfirmacaoId(data.id);
+        setConfirmados(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Erro ao confirmar presença:', error);
+      alert('Erro ao processar confirmação. Tente novamente.');
+    } finally {
+      setConfirmandoPresenca(false);
+    }
+  };
+
   const formatarData = (data: string) => {
-    return new Date(data).toLocaleDateString('pt-BR');
+    // Adiciona 'T00:00:00' para garantir que seja interpretado como horário local
+    const [ano, mes, dia] = data.split('T')[0].split('-');
+    return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia)).toLocaleDateString('pt-BR');
   };
 
   // Se não tem dados do membro, redirecionar para completar perfil
@@ -219,11 +281,35 @@ export default function Dashboard() {
                 </Link>
                 
                 <Link
+                  to="/manage-events"
+                  className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Gerenciar Eventos
+                </Link>
+                
+                <Link
                   to="/invite-member"
                   className="flex items-center gap-2 bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition"
                 >
                   <UserPlus className="w-4 h-4" />
                   Convidar Membro
+                </Link>
+
+                <Link
+                  to="/create-event"
+                  className="flex items-center gap-2 bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Criar Evento
+                </Link>
+
+                <Link
+                  to="/manage-payments"
+                  className="flex items-center gap-2 bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  Mensalidades
                 </Link>
               </div>
             </div>
@@ -331,11 +417,14 @@ export default function Dashboard() {
         </div>
 
         {/* STATUS FINANCEIRO */}
-        <div className={`${
-          mensalidadeEmDia 
-            ? 'bg-green-950/30 border-green-600/50' 
-            : 'bg-red-950/30 border-brand-red/50'
-        } border-2 rounded-xl p-5`}>
+        <Link
+          to="/my-payments"
+          className={`block ${
+            mensalidadeEmDia 
+              ? 'bg-green-950/30 border-green-600/50 hover:bg-green-950/40' 
+              : 'bg-red-950/30 border-brand-red/50 hover:bg-red-950/40'
+          } border-2 rounded-xl p-5 transition`}
+        >
           <div className="flex items-start gap-4">
             {mensalidadeEmDia ? (
               <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
@@ -351,17 +440,21 @@ export default function Dashboard() {
                   ? 'Sua contribuição fortalece a irmandade. Valeu, parceiro!' 
                   : 'Regularize sua contribuição para manter os benefícios ativos.'}
               </p>
+              <p className="text-gray-400 text-xs mt-2 flex items-center gap-1">
+                <DollarSign className="w-3 h-3" />
+                Clique para ver seu histórico de mensalidades
+              </p>
             </div>
           </div>
-        </div>
+        </Link>
 
-        {/* PRÓXIMA RODADA */}
+        {/* PRÓXIMA Role */}
         {proximoEvento ? (
           <div className="bg-brand-gray border border-brand-red/30 rounded-xl overflow-hidden">
             <div className="bg-brand-red/10 px-5 py-3 border-b border-brand-red/30">
               <h3 className="text-brand-red font-oswald text-sm uppercase font-bold tracking-wider flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Próxima Rodada
+                Próximo Role
               </h3>
             </div>
             
@@ -370,6 +463,11 @@ export default function Dashboard() {
                 <h4 className="text-white font-oswald text-xl md:text-2xl uppercase font-bold leading-tight">
                   {proximoEvento.nome}
                 </h4>
+                {proximoEvento.descricao && (
+                  <p className="text-gray-400 text-sm mt-2">
+                    {proximoEvento.descricao}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -401,7 +499,7 @@ export default function Dashboard() {
                   <p className="text-white font-semibold text-sm">
                     {proximoEvento.local_saida} - {proximoEvento.cidade}/{proximoEvento.estado}
                   </p>
-                  {proximoEvento.distancia_km && (
+                  {proximoEvento.distancia_km && proximoEvento.distancia_km > 0 && (
                     <p className="text-gray-400 text-xs mt-0.5">
                       {proximoEvento.distancia_km} km de distância
                     </p>
@@ -410,8 +508,28 @@ export default function Dashboard() {
               </div>
 
               {/* Botão de Confirmação - Grande e acessível */}
-              <button className="w-full bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-base py-4 px-6 rounded-lg transition-all duration-200 active:scale-95 shadow-lg shadow-brand-red/30 min-h-[52px]">
-                Confirmar Presença
+              <button 
+                onClick={handleConfirmarPresenca}
+                disabled={confirmandoPresenca}
+                className={`w-full font-oswald uppercase font-bold text-base py-4 px-6 rounded-lg transition-all duration-200 active:scale-95 shadow-lg min-h-[52px] flex items-center justify-center gap-2 ${
+                  confirmacaoId 
+                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-600/30' 
+                    : 'bg-brand-red hover:bg-red-700 text-white shadow-brand-red/30'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {confirmandoPresenca ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processando...
+                  </>
+                ) : confirmacaoId ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Presença Confirmada
+                  </>
+                ) : (
+                  'Confirmar Presença'
+                )}
               </button>
             </div>
           </div>
@@ -479,12 +597,18 @@ export default function Dashboard() {
 
         {/* Ações Rápidas */}
         <div className="grid grid-cols-2 gap-4 pt-2">
-          <button className="bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-4 px-4 rounded-lg transition-all duration-200 min-h-[52px]">
+          <Link
+            to="/agenda"
+            className="bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-4 px-4 rounded-lg transition-all duration-200 min-h-[52px] flex items-center justify-center"
+          >
             Ver Eventos
-          </button>
-          <button className="bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-4 px-4 rounded-lg transition-all duration-200 min-h-[52px]">
+          </Link>
+          <Link
+            to="/contato"
+            className="bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-4 px-4 rounded-lg transition-all duration-200 min-h-[52px] flex items-center justify-center"
+          >
             Contato
-          </button>
+          </Link>
         </div>
 
       </div>
