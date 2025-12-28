@@ -57,7 +57,12 @@ export default function Dashboard() {
         .eq('user_id', user.id)
         .single();
 
-      if (membroError) throw membroError;
+      // Se não encontrou o membro, redirecionar para completar perfil
+      if (membroError || !membroData) {
+        navigate('/complete-profile');
+        return;
+      }
+      
       setMembro(membroData);
 
       // Buscar moto ativa do membro
@@ -203,69 +208,101 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* CARTEIRINHA DIGITAL - Destaque Premium */}
-        <div className="relative bg-gradient-to-br from-brand-gray via-brand-dark to-black border-2 border-brand-red rounded-xl overflow-hidden shadow-2xl shadow-brand-red/20">
-          {/* Detalhe visual de tarja */}
-          <div className="absolute top-0 left-0 w-2 h-full bg-brand-red"></div>
-          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red/10 rounded-full blur-3xl"></div>
+        {/* CARTEIRINHA DIGITAL - Estilo Cartão Premium */}
+        <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-2xl overflow-hidden shadow-2xl border-4 border-brand-red/30">
+          {/* Bordas vermelhas nas laterais */}
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-0 left-0 w-3 h-full bg-gradient-to-r from-brand-red to-transparent"></div>
+            <div className="absolute top-0 right-0 w-3 h-full bg-gradient-to-l from-brand-red to-transparent"></div>
+          </div>
           
-          <div className="relative p-6 space-y-4">
-            {/* Header da Carteirinha */}
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-brand-red text-xs font-oswald uppercase tracking-wider">
-                  Carteira de Membro
-                </p>
-                <h3 className="text-white font-oswald text-xl uppercase font-bold mt-1">
-                  Budegueiros MC
+          <div className="relative p-6 pb-8">
+            {/* Header - Logo e Chip */}
+            <div className="flex items-start justify-between mb-8">
+              <div>
+                <h3 className="text-white font-oswald text-xl md:text-2xl uppercase font-bold tracking-wider leading-tight">
+                  BUDEGUEIROS
                 </h3>
+                <p className="text-brand-red text-sm md:text-base font-oswald uppercase tracking-widest">
+                  MOTO CLUBE
+                </p>
               </div>
               
-              {/* Foto do Membro */}
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-lg border-2 border-brand-red overflow-hidden bg-brand-gray flex items-center justify-center">
-                {membro.foto_url ? (
-                  <img 
-                    src={membro.foto_url} 
-                    alt={membro.nome_guerra}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-brand-red text-3xl font-bold">
-                    {membro.nome_guerra[0]}
+              {/* Chip dourado */}
+              <div className="w-12 h-10 bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 rounded-md relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-yellow-300/30 to-transparent"></div>
+                <div className="absolute inset-2 border border-yellow-600/50 rounded-sm"></div>
+              </div>
+            </div>
+
+            {/* Conteúdo Principal - Foto e Dados */}
+            <div className="flex items-start gap-6">
+              {/* Foto do Membro com Badge de Ano */}
+              <div className="relative flex-shrink-0">
+                <div className="w-24 h-24 md:w-28 md:h-28 rounded-full border-3 border-gray-700 overflow-hidden bg-gray-800 flex items-center justify-center">
+                  {membro.foto_url ? (
+                    <img 
+                      src={membro.foto_url} 
+                      alt={membro.nome_guerra}
+                      className="w-full h-full object-cover grayscale"
+                    />
+                  ) : (
+                    <div className="text-gray-500 text-4xl font-bold">
+                      {membro.nome_guerra[0]}
+                    </div>
+                  )}
+                </div>
+                {/* Badge com o ano de entrada */}
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-brand-red text-white font-oswald font-bold text-sm px-4 py-1 rounded-full shadow-lg">
+                  {new Date(membro.data_inicio).getFullYear()}
+                </div>
+              </div>
+
+              {/* Informações */}
+              <div className="flex-1 space-y-3 pt-1">
+                <div>
+                  <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Nome de Guerra</p>
+                  <h2 className="text-white font-oswald text-3xl md:text-4xl uppercase font-bold leading-none tracking-wide">
+                    {membro.nome_guerra}
+                  </h2>
+                </div>
+
+                {/* Cargo Badge */}
+                <div>
+                  <span className="inline-block bg-gray-800 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm font-oswald uppercase tracking-wide">
+                    {membro.cargo}
+                  </span>
+                </div>
+
+                {/* Localização */}
+                {(membro.endereco_cidade || membro.endereco_estado) && (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <Shield className="w-4 h-4" />
+                    <span className="uppercase font-medium">
+                      {membro.endereco_cidade && membro.endereco_estado 
+                        ? `${membro.endereco_cidade} - ${membro.endereco_estado}`
+                        : membro.endereco_cidade || membro.endereco_estado}
+                    </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Informações do Membro */}
-            <div className="space-y-3 border-t border-brand-red/20 pt-4">
-              <div>
-                <p className="text-gray-500 text-xs uppercase tracking-wide">Nome de Guerra</p>
-                <p className="text-white font-oswald text-2xl uppercase font-bold">
-                  {membro.nome_guerra}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+            {/* Rodapé - Número da Carteira */}
+            <div className="mt-6 pt-4 border-t border-gray-800">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wide">Cargo</p>
-                  <p className="text-white font-semibold text-sm mt-0.5">
-                    {membro.cargo}
+                  <p className="text-gray-600 text-xs uppercase tracking-wide">Nº Carteira</p>
+                  <p className="text-brand-red font-mono text-sm font-bold tracking-wider mt-0.5">
+                    {membro.numero_carteira}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wide">Desde</p>
-                  <p className="text-white font-semibold text-sm mt-0.5">
+                <div className="text-right">
+                  <p className="text-gray-600 text-xs uppercase tracking-wide">Membro desde</p>
+                  <p className="text-gray-400 text-sm font-semibold mt-0.5">
                     {formatarData(membro.data_inicio)}
                   </p>
                 </div>
-              </div>
-
-              <div className="pt-2">
-                <p className="text-gray-500 text-xs uppercase tracking-wide">Nº Carteira</p>
-                <p className="text-brand-red font-mono text-sm font-bold mt-0.5 tracking-wider">
-                  {membro.numero_carteira}
-                </p>
               </div>
             </div>
           </div>
