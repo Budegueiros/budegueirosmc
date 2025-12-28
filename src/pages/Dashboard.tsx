@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield } from 'lucide-react';
+import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
@@ -175,13 +175,22 @@ export default function Dashboard() {
               Tudo pronto para rodar?
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-gray-300 hover:text-white px-4 py-2 rounded-lg transition text-sm font-oswald uppercase"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden md:inline">Sair</span>
-          </button>
+          <div className="flex flex-col gap-2">
+            <Link
+              to="/edit-profile"
+              className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm font-oswald uppercase"
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden md:inline">Editar Perfil</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-gray-300 hover:text-white px-4 py-2 rounded-lg transition text-sm font-oswald uppercase"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden md:inline">Sair</span>
+            </button>
+          </div>
         </div>
 
         {/* Painel de Admin - Apenas para administradores */}

@@ -13,6 +13,7 @@ import AcceptInvite from './pages/AcceptInvite';
 import CompleteProfile from './pages/CompleteProfile';
 import InviteMember from './pages/InviteMember';
 import ManageMembers from './pages/ManageMembers';
+import EditProfile from './pages/EditProfile';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
@@ -55,6 +56,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ManageMembers />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/edit-profile" 
+                element={
+                  <ProtectedRoute>
+                    <EditProfile />
                   </ProtectedRoute>
                 } 
               />

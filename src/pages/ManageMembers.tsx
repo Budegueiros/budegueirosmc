@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, Check, X, Loader2 } from 'lucide-react';
+import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, Check, X, Loader2, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
@@ -12,6 +12,7 @@ interface Membro {
   nome_guerra: string;
   cargo: string;
   numero_carteira: string;
+  data_inicio: string | null;
   telefone: string | null;
   email: string;
   endereco_cidade: string | null;
@@ -19,6 +20,17 @@ interface Membro {
   ativo: boolean;
   is_admin: boolean;
   created_at: string;
+}
+
+interface EditingMembro {
+  nome_completo: string;
+  nome_guerra: string;
+  cargo: string;
+  numero_carteira: string;
+  data_inicio: string;
+  telefone: string;
+  endereco_cidade: string;
+  endereco_estado: string;
 }
 
 interface Cargo {
@@ -37,7 +49,7 @@ export default function ManageMembers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editCargo, setEditCargo] = useState('');
+  const [editingData, setEditingData] = useState<EditingMembro | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -81,33 +93,69 @@ export default function ManageMembers() {
     }
   };
 
-  const handleEditCargo = (membro: Membro) => {
+  const handleEditMembro = (membro: Membro) => {
     setEditingId(membro.id);
-    setEditCargo(membro.cargo);
+    setEditingData({
+      nome_completo: membro.nome_completo,
+      nome_guerra: membro.nome_guerra,
+      cargo: membro.cargo,
+      numero_carteira: membro.numero_carteira,
+      data_inicio: membro.data_inicio || '',
+      telefone: membro.telefone || '',
+      endereco_cidade: membro.endereco_cidade || '',
+      endereco_estado: membro.endereco_estado || '',
+    });
   };
 
-  const handleSaveCargo = async (membroId: string) => {
+  const handleSaveMembro = async (membroId: string) => {
+    if (!editingData) return;
+    
     setSaving(true);
     try {
       const { error } = await supabase
         .from('membros')
-        .update({ cargo: editCargo })
+        .update({
+          nome_completo: editingData.nome_completo,
+          nome_guerra: editingData.nome_guerra.toUpperCase(),
+          cargo: editingData.cargo,
+          numero_carteira: editingData.numero_carteira,
+          data_inicio: editingData.data_inicio || null,
+          telefone: editingData.telefone || null,
+          endereco_cidade: editingData.endereco_cidade || null,
+          endereco_estado: editingData.endereco_estado || null,
+        })
         .eq('id', membroId);
 
       if (error) throw error;
 
       // Atualizar lista local
       setMembros(membros.map(m => 
-        m.id === membroId ? { ...m, cargo: editCargo } : m
+        m.id === membroId ? { 
+          ...m, 
+          nome_completo: editingData.nome_completo,
+          nome_guerra: editingData.nome_guerra.toUpperCase(),
+          cargo: editingData.cargo,
+          numero_carteira: editingData.numero_carteira,
+          data_inicio: editingData.data_inicio || null,
+          telefone: editingData.telefone || null,
+          endereco_cidade: editingData.endereco_cidade || null,
+          endereco_estado: editingData.endereco_estado || null,
+        } : m
       ));
 
       setEditingId(null);
+      setEditingData(null);
     } catch (error) {
-      console.error('Erro ao atualizar cargo:', error);
-      alert('Erro ao atualizar cargo');
+      console.error('Erro ao atualizar membro:', error);
+      alert('Erro ao atualizar dados do membro');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingData(null);
   };
 
   const handleToggleAtivo = async (membro: Membro) => {
@@ -217,19 +265,16 @@ export default function ManageMembers() {
 
         {/* Busca */}
         <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
+              placeholder="Buscar membro por nome, email ou carteira..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nome, email ou carteira..."
-              className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-12 pr-4 py-3 text-white focus:outline-none focus:border-brand-red transition"
+              className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-red"
             />
           </div>
-          <p className="text-gray-500 text-xs mt-2">
-            Total: {membrosFiltrados.length} {membrosFiltrados.length === 1 ? 'membro' : 'membros'}
-          </p>
         </div>
 
         {/* Lista de Membros */}
@@ -241,47 +286,60 @@ export default function ManageMembers() {
                 membro.ativo ? 'border-brand-red/30' : 'border-gray-700'
               } rounded-xl p-5 ${!membro.ativo ? 'opacity-60' : ''}`}
             >
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                
-                {/* Info Principal */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-white font-oswald text-xl uppercase font-bold">
-                      {membro.nome_guerra}
-                    </h3>
-                    {membro.is_admin && (
-                      <span className="inline-flex items-center gap-1 bg-brand-red/20 border border-brand-red/50 text-brand-red px-2 py-0.5 rounded text-xs font-oswald uppercase">
-                        <Shield className="w-3 h-3" />
-                        Admin
-                      </span>
-                    )}
-                    {!membro.ativo && (
-                      <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-400 px-2 py-0.5 rounded text-xs font-oswald uppercase">
-                        Inativo
-                      </span>
-                    )}
-                  </div>
-                  
-                  <p className="text-gray-400 text-sm mb-2">{membro.nome_completo}</p>
-                  
-                  <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                    <span>📧 {membro.email}</span>
-                    <span>🎫 {membro.numero_carteira}</span>
-                    {membro.telefone && <span>📱 {membro.telefone}</span>}
-                    {membro.endereco_cidade && membro.endereco_estado && (
-                      <span>📍 {membro.endereco_cidade} - {membro.endereco_estado}</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Cargo */}
-                <div className="md:w-48">
-                  {editingId === membro.id ? (
+              {editingId === membro.id && editingData ? (
+                /* Modo de Edição */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Membro</h3>
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => handleSaveMembro(membro.id)}
+                        disabled={saving}
+                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                      >
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Salvar
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={saving}
+                        className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Nome Completo</label>
+                      <input
+                        type="text"
+                        value={editingData.nome_completo}
+                        onChange={(e) => setEditingData({ ...editingData, nome_completo: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Nome de Guerra</label>
+                      <input
+                        type="text"
+                        value={editingData.nome_guerra}
+                        onChange={(e) => setEditingData({ ...editingData, nome_guerra: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red uppercase"
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Cargo</label>
                       <select
-                        value={editCargo}
-                        onChange={(e) => setEditCargo(e.target.value)}
-                        className="flex-1 bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        value={editingData.cargo}
+                        onChange={(e) => setEditingData({ ...editingData, cargo: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
                         disabled={saving}
                       >
                         {cargos.map((cargo) => (
@@ -290,64 +348,154 @@ export default function ManageMembers() {
                           </option>
                         ))}
                       </select>
-                      <button
-                        onClick={() => handleSaveCargo(membro.id)}
-                        disabled={saving}
-                        className="bg-green-600 hover:bg-green-700 text-white p-2 rounded transition disabled:opacity-50"
-                      >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        disabled={saving}
-                        className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded transition disabled:opacity-50"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1 bg-gray-800 text-gray-300 px-3 py-2 rounded text-sm font-medium">
-                        {membro.cargo}
-                      </span>
-                      <button
-                        onClick={() => handleEditCargo(membro)}
-                        className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition"
-                        title="Editar cargo"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
 
-                {/* Ações */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleToggleAdmin(membro)}
-                    className={`${
-                      membro.is_admin
-                        ? 'bg-brand-red/20 hover:bg-brand-red/30 text-brand-red'
-                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    } p-2 rounded transition`}
-                    title={membro.is_admin ? 'Remover admin' : 'Tornar admin'}
-                  >
-                    {membro.is_admin ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
-                  </button>
-                  
-                  <button
-                    onClick={() => handleToggleAtivo(membro)}
-                    className={`${
-                      membro.ativo
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        : 'bg-green-600/20 hover:bg-green-600/30 text-green-500'
-                    } px-3 py-2 rounded transition text-sm font-oswald uppercase`}
-                    title={membro.ativo ? 'Desativar membro' : 'Ativar membro'}
-                  >
-                    {membro.ativo ? 'Desativar' : 'Ativar'}
-                  </button>
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Número da Carteira</label>
+                      <input
+                        type="text"
+                        value={editingData.numero_carteira}
+                        onChange={(e) => setEditingData({ ...editingData, numero_carteira: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                        placeholder="000"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Data de Início</label>
+                      <input
+                        type="date"
+                        value={editingData.data_inicio}
+                        onChange={(e) => setEditingData({ ...editingData, data_inicio: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Telefone</label>
+                      <input
+                        type="tel"
+                        value={editingData.telefone}
+                        onChange={(e) => setEditingData({ ...editingData, telefone: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                        placeholder="(11) 99999-9999"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Cidade</label>
+                      <input
+                        type="text"
+                        value={editingData.endereco_cidade}
+                        onChange={(e) => setEditingData({ ...editingData, endereco_cidade: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Estado</label>
+                      <select
+                        value={editingData.endereco_estado}
+                        onChange={(e) => setEditingData({ ...editingData, endereco_estado: e.target.value })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                      >
+                        <option value="">Selecione</option>
+                        <option value="SP">São Paulo</option>
+                        <option value="RJ">Rio de Janeiro</option>
+                        <option value="MG">Minas Gerais</option>
+                        <option value="ES">Espírito Santo</option>
+                        <option value="PR">Paraná</option>
+                        <option value="SC">Santa Catarina</option>
+                        <option value="RS">Rio Grande do Sul</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-700">
+                    <p className="text-gray-500 text-xs">
+                      📧 Email: <span className="text-gray-400">{membro.email}</span> (não editável)
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* Modo de Visualização */
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  {/* Info Principal */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-white font-oswald text-xl uppercase font-bold">
+                        {membro.nome_guerra}
+                      </h3>
+                      {membro.is_admin && (
+                        <span className="inline-flex items-center gap-1 bg-brand-red/20 border border-brand-red/50 text-brand-red px-2 py-0.5 rounded text-xs font-oswald uppercase">
+                          <Shield className="w-3 h-3" />
+                          Admin
+                        </span>
+                      )}
+                      {!membro.ativo && (
+                        <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-400 px-2 py-0.5 rounded text-xs font-oswald uppercase">
+                          Inativo
+                        </span>
+                      )}
+                    </div>
+                    
+                    <p className="text-gray-400 text-sm mb-2">{membro.nome_completo}</p>
+                    <p className="text-gray-500 text-xs mb-2">Cargo: <span className="text-gray-400">{membro.cargo}</span></p>
+                    
+                    <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                      <span>📧 {membro.email}</span>
+                      <span>🎫 {membro.numero_carteira}</span>
+                      {membro.data_inicio && (
+                        <span>📅 {new Date(membro.data_inicio).toLocaleDateString('pt-BR')}</span>
+                      )}
+                      {membro.telefone && <span>📱 {membro.telefone}</span>}
+                      {membro.endereco_cidade && membro.endereco_estado && (
+                        <span>📍 {membro.endereco_cidade} - {membro.endereco_estado}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditMembro(membro)}
+                      className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition"
+                      title="Editar membro"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleToggleAdmin(membro)}
+                      className={`${
+                        membro.is_admin
+                          ? 'bg-brand-red/20 hover:bg-brand-red/30 text-brand-red'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      } p-2 rounded transition`}
+                      title={membro.is_admin ? 'Remover admin' : 'Tornar admin'}
+                    >
+                      {membro.is_admin ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                    </button>
+                    
+                    <button
+                      onClick={() => handleToggleAtivo(membro)}
+                      className={`${
+                        membro.ativo
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                          : 'bg-green-600/20 hover:bg-green-600/30 text-green-500'
+                      } px-3 py-2 rounded transition text-sm font-oswald uppercase`}
+                      title={membro.ativo ? 'Desativar membro' : 'Ativar membro'}
+                    >
+                      {membro.ativo ? 'Desativar' : 'Ativar'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
