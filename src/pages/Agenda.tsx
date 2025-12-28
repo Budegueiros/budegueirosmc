@@ -1,38 +1,53 @@
 import { useState, useEffect } from 'react';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import EventCard from '../components/EventCard';
+
+interface Evento {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipo_evento: string;
+  data_evento: string;
+  hora_saida: string | null;
+  local_saida: string;
+  local_destino: string | null;
+  distancia_km: number | null;
+  foto_capa_url: string | null;
+  cidade: string;
+  estado: string;
+}
 
 export default function Agenda() {
 
-  const [data, setData] = useState(null);
+  const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchEventos = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_APP_URL_API}?Authorization=${import.meta.env.VITE_APP_API_KEY}&route=agenda`,
-          {
-            method: 'GET'
-          });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const json = await response.json();
-        setData(json);
-      } catch (err) {
-        setError(err);
+        const { data, error } = await supabase
+          .from('eventos')
+          .select('*')
+          .eq('status', 'Ativo')
+          .gte('data_evento', new Date().toISOString().split('T')[0])
+          .order('data_evento', { ascending: true });
+
+        if (error) throw error;
+        setEventos(data || []);
+      } catch (err: any) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchEventos();
   }, []);
 
   if (loading) return <div className='flex justify-center items-center text-center text-white h-dvh'>Loading...</div>;
-  if (error) return <div className='flex justify-center items-center text-center text-white h-dvh'>Error: {error.message}</div>;
+  if (error) return <div className='flex justify-center items-center text-center text-white h-dvh'>Error: {error}</div>;
 
   return (
     <section className="relative py-20 bg-zinc-900 min-h-screen pt-24 overflow-hidden">
@@ -79,23 +94,36 @@ export default function Agenda() {
 
       <div className="container mx-auto px-4 pl-16 md:pl-24">
         <h2 className="text-4xl font-bold mb-12 text-center font-oswald">Próximos Encontros</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
-
-          {data && data.map((event, index) => (
-
-            <EventCard key={index}
-              title={event.titulo}
-              type={event.tipo}
-              date={event.dia}
-              month={event.Mes}
-              origem={event.origem}
-              destino={event.destino}
-              time={event.hora}
-              km={event.kms}
-              mapUrl={event.googleMaps}
-            />
-          ))}
-        </div>
+        
+        {eventos.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-400 text-lg">Nenhum evento agendado no momento.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
+            {eventos.map((evento) => {
+              const dataEvento = new Date(evento.data_evento + 'T00:00:00');
+              const dia = dataEvento.getDate().toString();
+              const mes = dataEvento.toLocaleDateString('pt-BR', { month: 'long' });
+              
+              return (
+                <EventCard 
+                  key={evento.id}
+                  title={evento.nome}
+                  type={evento.tipo_evento}
+                  date={dia}
+                  month={mes}
+                  origem={evento.local_saida}
+                  destino={evento.local_destino || `${evento.cidade} - ${evento.estado}`}
+                  time={evento.hora_saida || '00:00'}
+                  km={evento.distancia_km?.toString()}
+                  descricao={evento.descricao ?? ''}
+                  mapUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.local_saida)}`}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   )

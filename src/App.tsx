@@ -14,6 +14,10 @@ import CompleteProfile from './pages/CompleteProfile';
 import InviteMember from './pages/InviteMember';
 import ManageMembers from './pages/ManageMembers';
 import EditProfile from './pages/EditProfile';
+import CreateEvent from './pages/CreateEvent';
+import ManageEvents from './pages/ManageEvents';
+import ManagePayments from './pages/ManagePayments';
+import MyPayments from './pages/MyPayments';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
@@ -64,6 +68,38 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <EditProfile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/create-event" 
+                element={
+                  <ProtectedRoute>
+                    <CreateEvent />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/manage-events" 
+                element={
+                  <ProtectedRoute>
+                    <ManageEvents />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/manage-payments" 
+                element={
+                  <ProtectedRoute>
+                    <ManagePayments />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/my-payments" 
+                element={
+                  <ProtectedRoute>
+                    <MyPayments />
                   </ProtectedRoute>
                 } 
               />
