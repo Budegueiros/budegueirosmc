@@ -11,6 +11,7 @@
     "openmobile": "node ./node_modules/openmobile/ip.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "lucide-react": "^0.344.0",
     "openmobile": "^1.2.3",
     "react": "^18.3.1",
