@@ -12,6 +12,7 @@ import ResetPassword from './pages/ResetPassword';
 import AcceptInvite from './pages/AcceptInvite';
 import CompleteProfile from './pages/CompleteProfile';
 import InviteMember from './pages/InviteMember';
+import ManageMembers from './pages/ManageMembers';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
@@ -46,6 +47,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <InviteMember />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/manage-members" 
+                element={
+                  <ProtectedRoute>
+                    <ManageMembers />
                   </ProtectedRoute>
                 } 
               />
