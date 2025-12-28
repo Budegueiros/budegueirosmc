@@ -187,23 +187,36 @@ export default function Dashboard() {
         {/* Painel de Admin - Apenas para administradores */}
         {isAdmin && (
           <div className="bg-gradient-to-r from-brand-red/10 to-transparent border border-brand-red/30 rounded-xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-white font-oswald text-lg uppercase font-bold flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-brand-red" />
-                  Painel do Administrador
-                </h3>
-                <p className="text-gray-400 text-sm mt-1">
-                  Gerencie membros e eventos do clube
-                </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-white font-oswald text-lg uppercase font-bold flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-brand-red" />
+                    Painel do Administrador
+                  </h3>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Gerencie membros e eventos do clube
+                  </p>
+                </div>
               </div>
-              <Link
-                to="/invite-member"
-                className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
-              >
-                <UserPlus className="w-4 h-4" />
-                Convidar Membro
-              </Link>
+              
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/manage-members"
+                  className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition"
+                >
+                  <Users className="w-4 h-4" />
+                  Gerenciar Membros
+                </Link>
+                
+                <Link
+                  to="/invite-member"
+                  className="flex items-center gap-2 bg-brand-gray border border-brand-red/30 hover:bg-brand-red/10 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Convidar Membro
+                </Link>
+              </div>
             </div>
           </div>
         )}
