@@ -37,6 +37,7 @@ function Header() {
             <Link to="/agenda" className={`${isActive('/agenda') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Agenda</Link>
             <Link to="/eventos" className={`${isActive('/eventos') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Eventos</Link>
             <Link to="/contato" className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Contato</Link>
+            <Link to="/dashboard" className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Área do Membro</Link>
           </div>
         </div>
 
@@ -74,10 +75,17 @@ function Header() {
               </Link>
               <Link
                 to="/contato"
-                className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition text-center py-3 font-oswald uppercase`}
+                className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition text-center py-3 border-b border-brand-red/10 font-oswald uppercase`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contato
+              </Link>
+              <Link
+                to="/dashboard"
+                className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition text-center py-3 font-oswald uppercase`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Área do Membro
               </Link>
             </div>
           </div>
