@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Bike, MapPin, Phone, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+
+interface Cargo {
+  id: string;
+  nome: string;
+  nivel: number;
+  descricao: string | null;
+}
 
 export default function CompleteProfile() {
   const { user } = useAuth();
@@ -19,12 +26,39 @@ export default function CompleteProfile() {
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
 
+  // Lista de cargos
+  const [cargos, setCargos] = useState<Cargo[]>([]);
+
   // Dados da Moto
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
   const [placa, setPlaca] = useState('');
   const [ano, setAno] = useState('');
   const [cor, setCor] = useState('');
+
+  // Carregar cargos do banco de dados
+  useEffect(() => {
+    const carregarCargos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cargos')
+          .select('*')
+          .eq('ativo', true)
+          .order('nivel', { ascending: true });
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setCargos(data);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar cargos:', err);
+        // Manter cargos padrão em caso de erro
+      }
+    };
+
+    carregarCargos();
+  }, []);
 
   const handleSubmitMembro = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,8 +231,18 @@ export default function CompleteProfile() {
                   onChange={(e) => setCargo(e.target.value)}
                   className="w-full bg-black border border-brand-red/30 rounded-lg px-4 py-4 text-white focus:outline-none focus:border-brand-red transition min-h-[52px]"
                 >
-                  <option value="Próspero">Próspero</option>
-                  <option value="Prospectado">Prospectado</option>
+                  {cargos.length > 0 ? (
+                    cargos.map((cargoItem) => (
+                      <option key={cargoItem.id} value={cargoItem.nome}>
+                        {cargoItem.nome}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Próspero">Próspero</option>
+                      <option value="Prospectado">Prospectado</option>
+                    </>
+                  )}
                 </select>
               </div>
 
