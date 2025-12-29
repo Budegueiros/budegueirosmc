@@ -46,8 +46,6 @@ export default function MyPayments() {
         return;
       }
 
-      setMembroId(membroData.id);
-
       // Carregar mensalidades do membro
       const { data: mensalidadesData, error: mensalidadesError } = await supabase
         .from('mensalidades')

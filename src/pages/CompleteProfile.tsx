@@ -1,15 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Bike, MapPin, Phone, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-
-interface Cargo {
-  id: string;
-  nome: string;
-  nivel: number;
-  descricao: string | null;
-}
+import { StatusMembroEnum } from '../types/database.types';
 
 export default function CompleteProfile() {
   const { user } = useAuth();
@@ -21,13 +15,10 @@ export default function CompleteProfile() {
   // Dados do Membro
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeGuerra, setNomeGuerra] = useState('');
-  const [cargo, setCargo] = useState('Próspero');
+  const [statusMembro, setStatusMembro] = useState<StatusMembroEnum>('Aspirante');
   const [telefone, setTelefone] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
-
-  // Lista de cargos
-  const [cargos, setCargos] = useState<Cargo[]>([]);
 
   // Dados da Moto
   const [marca, setMarca] = useState('');
@@ -35,30 +26,6 @@ export default function CompleteProfile() {
   const [placa, setPlaca] = useState('');
   const [ano, setAno] = useState('');
   const [cor, setCor] = useState('');
-
-  // Carregar cargos do banco de dados
-  useEffect(() => {
-    const carregarCargos = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('cargos')
-          .select('*')
-          .eq('ativo', true)
-          .order('nivel', { ascending: true });
-
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          setCargos(data);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar cargos:', err);
-        // Manter cargos padrão em caso de erro
-      }
-    };
-
-    carregarCargos();
-  }, []);
 
   const handleSubmitMembro = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +58,7 @@ export default function CompleteProfile() {
           user_id: user.id,
           nome_completo: nomeCompleto,
           nome_guerra: nomeGuerra.toUpperCase(),
-          cargo: cargo,
+          status_membro: statusMembro,
           numero_carteira: numeroCarteira,
           telefone: telefone || null,
           email: user.email,
@@ -220,30 +187,25 @@ export default function CompleteProfile() {
                 </p>
               </div>
 
-              {/* Cargo */}
+              {/* Status Inicial */}
               <div>
-                <label htmlFor="cargo" className="block text-gray-400 text-sm uppercase tracking-wide mb-2">
-                  Cargo Inicial
+                <label htmlFor="status" className="block text-gray-400 text-sm uppercase tracking-wide mb-2">
+                  Status Inicial
                 </label>
                 <select
-                  id="cargo"
-                  value={cargo}
-                  onChange={(e) => setCargo(e.target.value)}
+                  id="status"
+                  value={statusMembro}
+                  onChange={(e) => setStatusMembro(e.target.value as StatusMembroEnum)}
                   className="w-full bg-black border border-brand-red/30 rounded-lg px-4 py-4 text-white focus:outline-none focus:border-brand-red transition min-h-[52px]"
                 >
-                  {cargos.length > 0 ? (
-                    cargos.map((cargoItem) => (
-                      <option key={cargoItem.id} value={cargoItem.nome}>
-                        {cargoItem.nome}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="Próspero">Próspero</option>
-                      <option value="Prospectado">Prospectado</option>
-                    </>
-                  )}
+                  <option value="Aspirante">Aspirante</option>
+                  <option value="Prospect">Prospect</option>
+                  <option value="Brasionado">Brasionado</option>
+                  <option value="Nomade">Nômade</option>
                 </select>
+                <p className="text-gray-500 text-xs mt-1">
+                  O administrador poderá alterar seu status posteriormente
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

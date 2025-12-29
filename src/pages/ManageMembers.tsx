@@ -1,31 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, Check, X, Loader2, Save } from 'lucide-react';
+import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, X, Loader2, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
-
-interface Membro {
-  id: string;
-  user_id: string;
-  nome_completo: string;
-  nome_guerra: string;
-  cargo: string;
-  numero_carteira: string;
-  data_inicio: string | null;
-  telefone: string | null;
-  email: string;
-  endereco_cidade: string | null;
-  endereco_estado: string | null;
-  ativo: boolean;
-  is_admin: boolean;
-  created_at: string;
-}
+import { Membro, StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
 
 interface EditingMembro {
   nome_completo: string;
   nome_guerra: string;
-  cargo: string;
+  status_membro: StatusMembroEnum;
   numero_carteira: string;
   data_inicio: string;
   telefone: string;
@@ -33,10 +17,12 @@ interface EditingMembro {
   endereco_estado: string;
 }
 
-interface Cargo {
-  id: string;
-  nome: string;
-  nivel: number;
+interface MembroWithCargos extends Membro {
+  cargos_ativos?: Array<{
+    id: string;
+    nome: string;
+    tipo_cargo: string;
+  }>;
 }
 
 export default function ManageMembers() {
@@ -44,13 +30,17 @@ export default function ManageMembers() {
   const { isAdmin, loading: adminLoading } = useAdmin();
   const navigate = useNavigate();
   
-  const [membros, setMembros] = useState<Membro[]>([]);
-  const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [membros, setMembros] = useState<MembroWithCargos[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<EditingMembro | null>(null);
   const [saving, setSaving] = useState(false);
+  
+  // Estados para gerenciamento de cargos
+  const [todosOsCargos, setTodosOsCargos] = useState<Array<{ id: string; nome: string; tipo_cargo: string; nivel: number }>>([]);
+  const [cargosSelecionados, setCargosSelecionados] = useState<string[]>([]);
+  const [cargosOriginais, setCargosOriginais] = useState<string[]>([]);
 
   useEffect(() => {
     // Redirecionar se não for admin
@@ -68,24 +58,44 @@ export default function ManageMembers() {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      // Carregar todos os membros
+      // Carregar todos os membros com seus cargos ativos (LEFT JOIN para incluir membros sem cargos)
       const { data: membrosData, error: membrosError } = await supabase
         .from('membros')
-        .select('*')
+        .select(`
+          *,
+          membro_cargos (
+            id,
+            ativo,
+            cargos (
+              id,
+              nome,
+              tipo_cargo
+            )
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (membrosError) throw membrosError;
-      setMembros(membrosData || []);
-
-      // Carregar cargos
+      
+      // Transformar dados para incluir apenas cargos ativos
+      const membrosTransformados = (membrosData || []).map((m: any) => ({
+        ...m,
+        cargos_ativos: m.membro_cargos
+          ?.filter((mc: any) => mc.cargos && mc.ativo)
+          .map((mc: any) => mc.cargos) || []
+      }));
+      
+      setMembros(membrosTransformados);
+      
+      // Carregar todos os cargos disponíveis
       const { data: cargosData, error: cargosError } = await supabase
         .from('cargos')
-        .select('id, nome, nivel')
+        .select('id, nome, tipo_cargo, nivel')
         .eq('ativo', true)
         .order('nivel', { ascending: true });
-
+      
       if (cargosError) throw cargosError;
-      setCargos(cargosData || []);
+      setTodosOsCargos(cargosData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -93,18 +103,53 @@ export default function ManageMembers() {
     }
   };
 
-  const handleEditMembro = (membro: Membro) => {
+  const handleEditMembro = (membro: MembroWithCargos) => {
     setEditingId(membro.id);
     setEditingData({
       nome_completo: membro.nome_completo,
       nome_guerra: membro.nome_guerra,
-      cargo: membro.cargo,
+      status_membro: membro.status_membro,
       numero_carteira: membro.numero_carteira,
       data_inicio: membro.data_inicio || '',
       telefone: membro.telefone || '',
       endereco_cidade: membro.endereco_cidade || '',
       endereco_estado: membro.endereco_estado || '',
     });
+    
+    // Carregar cargos atuais do membro
+    const cargosAtuaisIds = membro.cargos_ativos?.map(c => c.id) || [];
+    setCargosSelecionados(cargosAtuaisIds);
+    setCargosOriginais(cargosAtuaisIds);
+  };
+
+  const handleSaveCargos = async (membroId: string) => {
+    // Identificar cargos a adicionar e remover
+    const cargosParaAdicionar = cargosSelecionados.filter(id => !cargosOriginais.includes(id));
+    const cargosParaRemover = cargosOriginais.filter(id => !cargosSelecionados.includes(id));
+    
+    // Adicionar novos cargos
+    for (const cargoId of cargosParaAdicionar) {
+      const { error } = await supabase
+        .from('membro_cargos')
+        .insert({
+          membro_id: membroId,
+          cargo_id: cargoId,
+          ativo: true
+        });
+      
+      if (error) throw error;
+    }
+    
+    // Remover cargos (desativar)
+    for (const cargoId of cargosParaRemover) {
+      const { error } = await supabase
+        .from('membro_cargos')
+        .update({ ativo: false })
+        .eq('membro_id', membroId)
+        .eq('cargo_id', cargoId);
+      
+      if (error) throw error;
+    }
   };
 
   const handleSaveMembro = async (membroId: string) => {
@@ -117,7 +162,7 @@ export default function ManageMembers() {
         .update({
           nome_completo: editingData.nome_completo,
           nome_guerra: editingData.nome_guerra.toUpperCase(),
-          cargo: editingData.cargo,
+          status_membro: editingData.status_membro,
           numero_carteira: editingData.numero_carteira,
           data_inicio: editingData.data_inicio || null,
           telefone: editingData.telefone || null,
@@ -127,24 +172,17 @@ export default function ManageMembers() {
         .eq('id', membroId);
 
       if (error) throw error;
-
-      // Atualizar lista local
-      setMembros(membros.map(m => 
-        m.id === membroId ? { 
-          ...m, 
-          nome_completo: editingData.nome_completo,
-          nome_guerra: editingData.nome_guerra.toUpperCase(),
-          cargo: editingData.cargo,
-          numero_carteira: editingData.numero_carteira,
-          data_inicio: editingData.data_inicio || null,
-          telefone: editingData.telefone || null,
-          endereco_cidade: editingData.endereco_cidade || null,
-          endereco_estado: editingData.endereco_estado || null,
-        } : m
-      ));
+      
+      // Salvar alterações de cargos
+      await handleSaveCargos(membroId);
+      
+      // Recarregar dados para refletir mudanças
+      await carregarDados();
 
       setEditingId(null);
       setEditingData(null);
+      setCargosSelecionados([]);
+      setCargosOriginais([]);
     } catch (error) {
       console.error('Erro ao atualizar membro:', error);
       alert('Erro ao atualizar dados do membro');
@@ -156,6 +194,8 @@ export default function ManageMembers() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditingData(null);
+    setCargosSelecionados([]);
+    setCargosOriginais([]);
   };
 
   const handleToggleAtivo = async (membro: Membro) => {
@@ -335,18 +375,17 @@ export default function ManageMembers() {
                     </div>
 
                     <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Cargo</label>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
                       <select
-                        value={editingData.cargo}
-                        onChange={(e) => setEditingData({ ...editingData, cargo: e.target.value })}
+                        value={editingData.status_membro}
+                        onChange={(e) => setEditingData({ ...editingData, status_membro: e.target.value as StatusMembroEnum })}
                         className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
                         disabled={saving}
                       >
-                        {cargos.map((cargo) => (
-                          <option key={cargo.id} value={cargo.nome}>
-                            {cargo.nome}
-                          </option>
-                        ))}
+                        <option value="Aspirante">Aspirante</option>
+                        <option value="Prospect">Prospect</option>
+                        <option value="Brasionado">Brasionado</option>
+                        <option value="Nomade">Nômade</option>
                       </select>
                     </div>
 
@@ -416,6 +455,41 @@ export default function ManageMembers() {
                     </div>
                   </div>
 
+                  {/* Seção de Cargos */}
+                  <div className="pt-4 border-t border-gray-700">
+                    <h4 className="text-white font-oswald text-sm uppercase font-bold mb-3">Cargos</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {todosOsCargos.map((cargo) => {
+                        const isSelected = cargosSelecionados.includes(cargo.id);
+                        return (
+                          <button
+                            key={cargo.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setCargosSelecionados(cargosSelecionados.filter(id => id !== cargo.id));
+                              } else {
+                                setCargosSelecionados([...cargosSelecionados, cargo.id]);
+                              }
+                            }}
+                            disabled={saving}
+                            className={`px-3 py-2 rounded text-xs transition ${
+                              isSelected
+                                ? 'bg-brand-red text-white border border-brand-red'
+                                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-brand-red/50'
+                            } disabled:opacity-50`}
+                          >
+                            <div className="font-semibold">{cargo.nome}</div>
+                            <div className="text-xs opacity-75">{cargo.tipo_cargo}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {cargosSelecionados.length === 0 && (
+                      <p className="text-gray-500 text-xs mt-2">Nenhum cargo selecionado</p>
+                    )}
+                  </div>
+
                   <div className="pt-3 border-t border-gray-700">
                     <p className="text-gray-500 text-xs">
                       📧 Email: <span className="text-gray-400">{membro.email}</span> (não editável)
@@ -445,7 +519,28 @@ export default function ManageMembers() {
                     </div>
                     
                     <p className="text-gray-400 text-sm mb-2">{membro.nome_completo}</p>
-                    <p className="text-gray-500 text-xs mb-2">Cargo: <span className="text-gray-400">{membro.cargo}</span></p>
+                    
+                    {/* Badge de Status */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${STATUS_STYLES[membro.status_membro].bg} ${STATUS_STYLES[membro.status_membro].text}`}>
+                        {membro.status_membro}
+                      </span>
+                      
+                      {/* Cargos Ativos */}
+                      {membro.cargos_ativos && membro.cargos_ativos.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {membro.cargos_ativos.map((cargo) => (
+                            <span
+                              key={cargo.id}
+                              className="inline-flex px-2 py-1 rounded text-xs bg-gray-700 text-gray-300"
+                              title={cargo.tipo_cargo}
+                            >
+                              {cargo.nome}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     
                     <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                       <span>📧 {membro.email}</span>

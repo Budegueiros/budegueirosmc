@@ -4,17 +4,23 @@ import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
+import { StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
 
 interface MembroData {
   id: string;
   nome_completo: string;
   nome_guerra: string;
-  cargo: string;
+  status_membro: StatusMembroEnum;
   foto_url: string | null;
   data_inicio: string;
   numero_carteira: string;
   endereco_cidade?: string;
   endereco_estado?: string;
+  cargos?: Array<{
+    id: string;
+    nome: string;
+    tipo_cargo: string;
+  }>;
 }
 
 interface MotoData {
@@ -35,6 +41,15 @@ interface EventoData {
   descricao?: string;
 }
 
+interface MensalidadeData {
+  id: string;
+  mes_referencia: string;
+  valor: number;
+  data_vencimento: string;
+  status: 'Pendente' | 'Pago' | 'Atrasado' | 'Aberto';
+  created_at: string;
+}
+
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
@@ -43,7 +58,8 @@ export default function Dashboard() {
   const [membro, setMembro] = useState<MembroData | null>(null);
   const [moto, setMoto] = useState<MotoData | null>(null);
   const [proximoEvento, setProximoEvento] = useState<EventoData | null>(null);
-  const [mensalidadeEmDia, setMensalidadeEmDia] = useState(true);
+  const [mensalidadesPendentes, setMensalidadesPendentes] = useState<MensalidadeData[]>([]);
+  const [mensalidadesAtrasadas, setMensalidadesAtrasadas] = useState<MensalidadeData[]>([]);
   const [confirmados, setConfirmados] = useState(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
   const [confirmandoPresenca, setConfirmandoPresenca] = useState(false);
@@ -56,11 +72,23 @@ export default function Dashboard() {
     if (!user) return;
 
     try {
-      // Buscar dados do membro
+      // Buscar dados do membro com seus cargos ativos
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
-        .select('*')
+        .select(`
+          *,
+          membro_cargos (
+            id,
+            ativo,
+            cargos (
+              id,
+              nome,
+              tipo_cargo
+            )
+          )
+        `)
         .eq('user_id', user.id)
+        .eq('membro_cargos.ativo', true)
         .single();
 
       // Se não encontrou o membro, redirecionar para completar perfil
@@ -69,7 +97,15 @@ export default function Dashboard() {
         return;
       }
       
-      setMembro(membroData);
+      // Transformar dados para incluir apenas cargos ativos
+      const membroComCargos = {
+        ...membroData,
+        cargos: membroData.membro_cargos
+          ?.filter((mc: any) => mc.cargos && mc.ativo)
+          .map((mc: any) => mc.cargos) || []
+      };
+      
+      setMembro(membroComCargos);
 
       // Buscar moto ativa do membro
       if (membroData) {
@@ -116,16 +152,42 @@ export default function Dashboard() {
           setConfirmacaoId(minhaConfirmacao?.id || null);
         }
 
-        // Verificar status da mensalidade atual
-        const mesAtual = new Date().toISOString().slice(0, 7) + '-01';
-        const { data: mensalidadeData } = await supabase
+        // Buscar mensalidades pendentes e atrasadas
+        console.log('🔍 Iniciando busca de mensalidades para membro:', membroData.id);
+        const hoje = new Date();
+        const { data: mensalidadesData, error: mensalidadesError } = await supabase
           .from('mensalidades')
-          .select('status')
+          .select('*')
           .eq('membro_id', membroData.id)
-          .eq('mes_referencia', mesAtual)
-          .single();
+          .neq('status', 'Pago')
+          .order('mes_referencia', { ascending: true });
 
-        setMensalidadeEmDia(mensalidadeData?.status === 'Pago');
+        console.log('📊 Mensalidades query resultado:', { 
+          total: mensalidadesData?.length || 0,
+          mensalidadesData, 
+          mensalidadesError, 
+          membroId: membroData.id 
+        });
+
+        if (!mensalidadesError && mensalidadesData) {
+          // Separar pendentes e atrasadas baseado na data de vencimento
+          const atrasadas = mensalidadesData.filter(m => {
+            const vencimento = new Date(m.data_vencimento);
+            return vencimento < hoje;
+          });
+          
+          const pendentes = mensalidadesData.filter(m => {
+            const vencimento = new Date(m.data_vencimento);
+            return vencimento >= hoje;
+          });
+
+          console.log('Mensalidades separadas:', { atrasadas, pendentes });
+
+          setMensalidadesAtrasadas(atrasadas);
+          setMensalidadesPendentes(pendentes);
+        } else if (mensalidadesError) {
+          console.error('Erro ao buscar mensalidades:', mensalidadesError);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -215,6 +277,30 @@ export default function Dashboard() {
     <div className="min-h-screen bg-black pt-20 pb-24">
       {/* Container Principal - Mobile First */}
       <div className="max-w-2xl mx-auto px-4 space-y-6">
+        
+        {/* Alerta de Mensalidades Atrasadas - Topo da Página */}
+        {mensalidadesAtrasadas.length > 0 && (
+          <div className="bg-red-950/50 border-2 border-brand-red rounded-xl p-5 animate-pulse">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="w-6 h-6 text-brand-red flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-brand-red font-oswald text-lg uppercase font-bold">
+                  Mensalidades em Atraso
+                </h3>
+                <p className="text-gray-300 text-sm mt-1">
+                  Você possui {mensalidadesAtrasadas.length} mensalidade{mensalidadesAtrasadas.length > 1 ? 's' : ''} em atraso. Regularize sua situação para manter os benefícios ativos.
+                </p>
+                <Link
+                  to="/my-payments"
+                  className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm font-oswald uppercase mt-3"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  Ver Mensalidades
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Saudação Personalizada com Botão de Logout */}
         <div className="pt-4 flex items-start justify-between">
@@ -375,11 +461,27 @@ export default function Dashboard() {
                   </h2>
                 </div>
 
-                {/* Cargo Badge */}
-                <div>
-                  <span className="inline-block bg-gray-800 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm font-oswald uppercase tracking-wide">
-                    {membro.cargo}
+                {/* Status e Cargos */}
+                <div className="flex flex-wrap gap-2">
+                  {/* Badge de Status */}
+                  <span className={`inline-block px-3 py-1.5 rounded text-sm font-oswald uppercase tracking-wide ${STATUS_STYLES[membro.status_membro].bg} ${STATUS_STYLES[membro.status_membro].text}`}>
+                    {membro.status_membro}
                   </span>
+                  
+                  {/* Badges de Cargos */}
+                  {membro.cargos && membro.cargos.length > 0 && (
+                    <>
+                      {membro.cargos.map((cargo) => (
+                        <span
+                          key={cargo.id}
+                          className="inline-block bg-gray-800 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm font-oswald uppercase tracking-wide"
+                          title={cargo.tipo_cargo}
+                        >
+                          {cargo.nome}
+                        </span>
+                      ))}
+                    </>
+                  )}
                 </div>
 
                 {/* Localização */}
@@ -416,37 +518,85 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* STATUS FINANCEIRO */}
-        <Link
-          to="/my-payments"
-          className={`block ${
-            mensalidadeEmDia 
-              ? 'bg-green-950/30 border-green-600/50 hover:bg-green-950/40' 
-              : 'bg-red-950/30 border-brand-red/50 hover:bg-red-950/40'
-          } border-2 rounded-xl p-5 transition`}
-        >
-          <div className="flex items-start gap-4">
-            {mensalidadeEmDia ? (
-              <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
-            ) : (
-              <AlertCircle className="w-6 h-6 text-brand-red flex-shrink-0 mt-1" />
-            )}
-            <div className="flex-1">
-              <h3 className="text-white font-oswald text-lg uppercase font-bold">
-                {mensalidadeEmDia ? 'Contribuição em Dia' : 'Atenção Necessária'}
-              </h3>
-              <p className="text-gray-300 text-sm mt-1 leading-relaxed">
-                {mensalidadeEmDia 
-                  ? 'Sua contribuição fortalece a irmandade. Valeu, parceiro!' 
-                  : 'Regularize sua contribuição para manter os benefícios ativos.'}
-              </p>
-              <p className="text-gray-400 text-xs mt-2 flex items-center gap-1">
-                <DollarSign className="w-3 h-3" />
-                Clique para ver seu histórico de mensalidades
-              </p>
-            </div>
+        {/* STATUS FINANCEIRO - MENSALIDADES PENDENTES */}
+        <div className="bg-brand-gray border border-brand-red/30 rounded-xl overflow-hidden">
+          <div className="bg-brand-red/10 px-5 py-3 border-b border-brand-red/30">
+            <h3 className="text-brand-red font-oswald text-sm uppercase font-bold tracking-wider flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Mensalidades
+            </h3>
           </div>
-        </Link>
+          
+          <div className="p-5">
+            {mensalidadesPendentes.length === 0 && mensalidadesAtrasadas.length === 0 ? (
+              <div className="text-center py-4">
+                <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                <p className="text-green-500 font-oswald text-sm uppercase font-bold">Todas em dia!</p>
+                <p className="text-gray-400 text-xs mt-1">Você não possui mensalidades pendentes</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Mensalidades Atrasadas */}
+                {mensalidadesAtrasadas.map((mensalidade) => {
+                  const mesAno = new Date(mensalidade.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                  const vencimento = new Date(mensalidade.data_vencimento).toLocaleDateString('pt-BR');
+                  const diasAtraso = Math.floor((new Date().getTime() - new Date(mensalidade.data_vencimento).getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  return (
+                    <div key={mensalidade.id} className="bg-red-950/30 border border-brand-red/50 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <AlertCircle className="w-4 h-4 text-brand-red" />
+                            <p className="text-white font-semibold text-sm capitalize">{mesAno}</p>
+                          </div>
+                          <p className="text-gray-400 text-xs">Vencimento: {vencimento}</p>
+                          <p className="text-brand-red text-xs font-bold mt-1">{diasAtraso} dia{diasAtraso > 1 ? 's' : ''} em atraso</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-brand-red font-bold text-lg">R$ {mensalidade.valor.toFixed(2)}</p>
+                          <span className="inline-block bg-brand-red/20 text-brand-red px-2 py-0.5 rounded text-xs font-bold mt-1">
+                            ATRASADO
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Mensalidades Pendentes */}
+                {mensalidadesPendentes.map((mensalidade) => {
+                  const mesAno = new Date(mensalidade.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                  const vencimento = new Date(mensalidade.data_vencimento).toLocaleDateString('pt-BR');
+                  
+                  return (
+                    <div key={mensalidade.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-white font-semibold text-sm capitalize">{mesAno}</p>
+                          <p className="text-gray-400 text-xs">Vencimento: {vencimento}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white font-bold text-lg">R$ {mensalidade.valor.toFixed(2)}</p>
+                          <span className="inline-block bg-yellow-900/50 text-yellow-500 px-2 py-0.5 rounded text-xs font-bold mt-1">
+                            PENDENTE
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                <Link
+                  to="/my-payments"
+                  className="block text-center bg-brand-red hover:bg-red-700 text-white font-oswald uppercase text-sm py-2 px-4 rounded-lg transition mt-4"
+                >
+                  Ver Todas as Mensalidades
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* PRÓXIMA Role */}
         {proximoEvento ? (
