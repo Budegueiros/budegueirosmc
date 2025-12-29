@@ -372,7 +372,7 @@ export default function EditProfile() {
               </div>
               
               <p className="text-gray-500 text-xs mt-4">
-                Para alterar cargo, número da carteira ou outros dados administrativos, entre em contato com um administrador.
+                Para alterar status, cargos, número da carteira ou outros dados administrativos, entre em contato com um administrador.
               </p>
             </div>
           </div>
