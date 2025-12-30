@@ -8,5 +8,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: 'supabase.auth.token',
+    flowType: 'pkce',
   },
+});
+
+// Adicionar listener global para erros de autenticação
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'TOKEN_REFRESHED') {
+    console.log('Token atualizado com sucesso');
+  } else if (event === 'SIGNED_OUT') {
+    console.log('Usuário deslogado');
+  } else if (event === 'USER_UPDATED') {
+    console.log('Usuário atualizado');
+  }
 });

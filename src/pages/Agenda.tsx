@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { Calendar, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import EventCard from '../components/EventCard';
+import { AgendaEventCard } from '../components/AgendaEventCard';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Evento {
   id: string;
@@ -18,114 +19,177 @@ interface Evento {
   estado: string;
 }
 
-export default function Agenda() {
+interface MembroData {
+  id: string;
+  nome_guerra: string;
+}
 
+export default function Agenda() {
+  const { user } = useAuth();
+  const [membro, setMembro] = useState<MembroData | null>(null);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
   useEffect(() => {
-    const fetchEventos = async () => {
+    const carregarDados = async () => {
       try {
-        const { data, error } = await supabase
+        // Buscar eventos (público - não requer autenticação)
+        const { data: eventosData, error: eventosError } = await supabase
           .from('eventos')
           .select('*')
           .eq('status', 'Ativo')
-          .gte('data_evento', new Date().toISOString().split('T')[0])
           .order('data_evento', { ascending: true });
 
-        if (error) throw error;
-        setEventos(data || []);
+        console.log('Query response:', { eventosData, eventosError });
+
+        if (eventosError) {
+          console.error('Erro ao buscar eventos:', eventosError);
+          throw eventosError;
+        }
+        
+        console.log('Eventos recebidos:', eventosData);
+        console.log('Total de eventos:', eventosData?.length || 0);
+        
+        setEventos(eventosData || []);
+
+        // Buscar dados do membro (só se estiver autenticado)
+        if (user) {
+          const { data: membroData, error: membroError } = await supabase
+            .from('membros')
+            .select('id, nome_guerra')
+            .eq('user_id', user.id)
+            .single();
+
+          if (membroError) {
+            console.error('Erro ao buscar membro:', membroError);
+          } else {
+            setMembro(membroData);
+          }
+        }
+        
+        setError(null);
       } catch (err: any) {
-        setError(err.message);
+        console.error('Erro ao carregar dados:', err);
+        setError(err.message || 'Erro ao carregar dados');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEventos();
-  }, []);
+    carregarDados();
+  }, [user]);
 
-  if (loading) return <div className='flex justify-center items-center text-center text-white h-dvh'>Loading...</div>;
-  if (error) return <div className='flex justify-center items-center text-center text-white h-dvh'>Error: {error}</div>;
+  const handleRSVP = async (eventId: string, status: 'confirmed' | 'maybe') => {
+    if (!membro) {
+      alert('Você precisa estar logado para confirmar presença');
+      return;
+    }
+    
+    // TODO: Implementar lógica de RSVP no banco de dados
+    console.log(`Membro ${membro.nome_guerra} confirmou ${status} para evento ${eventId}`);
+  };
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const filteredEvents = eventos.filter(e => {
+    const eventDate = new Date(e.data_evento + 'T00:00:00');
+    const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+    
+    console.log('Evento:', e.nome, 'Data:', e.data_evento, 'Today:', today, 'Event:', eventDateOnly);
+    
+    if (activeTab === 'upcoming') {
+      return eventDateOnly >= today;
+    }
+    return eventDateOnly < today;
+  }).sort((a, b) => {
+    const dateA = new Date(a.data_evento).getTime();
+    const dateB = new Date(b.data_evento).getTime();
+    return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA;
+  });
+
+  console.log('Active Tab:', activeTab);
+  console.log('Filtered Events:', filteredEvents.length);
+
+  if (loading) return <div className='flex justify-center items-center text-center text-white h-dvh'>Carregando...</div>;
+
+  if (error) {
+    return (
+      <section className="relative py-20 bg-zinc-900 min-h-screen pt-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center py-16 bg-red-900/20 rounded-lg border border-red-900/50">
+              <h3 className="text-white font-bold text-lg mb-2">Erro ao carregar dados</h3>
+              <p className="text-red-400">{error}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative py-20 bg-zinc-900 min-h-screen pt-24 overflow-hidden">
-      {/* Barra Lateral Vermelha com Redes Sociais */}
-      <div className="fixed left-0 top-0 h-full w-12 md:w-16 bg-brand-red z-40 flex flex-col items-center justify-between py-8">
-        {/* Texto Vertical "BUDEGUEIROS" */}
-        <div className="flex-1 flex items-center justify-center">
-          <span className="transform -rotate-90 origin-center text-white font-oswald font-bold text-sm md:text-base tracking-[0.3em] whitespace-nowrap">
-            BUDEGUEIROS
-          </span>
-        </div>
-
-        {/* Ícones Sociais */}
-        <div className="flex flex-col gap-6 pb-4">
-          <a 
-            href="https://facebook.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Facebook"
-          >
-            <Facebook className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://www.instagram.com/budegueirosmc/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Instagram"
-          >
-            <Instagram className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://twitter.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Twitter"
-          >
-            <Twitter className="w-5 h-5" />
-          </a>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 pl-16 md:pl-24">
-        <h2 className="text-4xl font-bold mb-12 text-center font-oswald">Próximos Encontros</h2>
-        
-        {eventos.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">Nenhum evento agendado no momento.</p>
+      <div className="container mx-auto px-4">
+        <div className="animate-fade-in max-w-5xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2 font-oswald">
+              <Calendar className="text-red-600" /> Agenda & Eventos
+            </h2>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
-            {eventos.map((evento) => {
-              const dataEvento = new Date(evento.data_evento + 'T00:00:00');
-              const dia = dataEvento.getDate().toString();
-              const mes = dataEvento.toLocaleDateString('pt-BR', { month: 'long' });
-              
-              return (
-                <EventCard 
-                  key={evento.id}
-                  title={evento.nome}
-                  type={evento.tipo_evento}
-                  date={dia}
-                  month={mes}
-                  origem={evento.local_saida}
-                  destino={evento.local_destino || `${evento.cidade} - ${evento.estado}`}
-                  time={evento.hora_saida || '00:00'}
-                  km={evento.distancia_km?.toString()}
-                  descricao={evento.descricao ?? ''}
-                  fotoCapa={evento.foto_capa_url}
-                  mapUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.local_saida)}`}
+
+          {/* Tabs */}
+          <div className="flex border-b border-gray-800 mb-8 overflow-x-auto">
+            <button 
+              onClick={() => setActiveTab('upcoming')}
+              className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'upcoming' 
+                  ? 'border-red-600 text-white' 
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              PRÓXIMOS ROLÊS
+            </button>
+            <button 
+              onClick={() => setActiveTab('past')}
+              className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'past' 
+                  ? 'border-red-600 text-white' 
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              HISTÓRICO
+            </button>
+          </div>
+
+          {/* Content */}
+          <div>
+            {filteredEvents.length > 0 ? (
+              filteredEvents.map(event => (
+                <AgendaEventCard 
+                  key={event.id}
+                  event={event}
+                  currentMember={membro}
+                  onRSVP={handleRSVP}
                 />
-              );
-            })}
+              ))
+            ) : (
+              <div className="text-center py-16 bg-[#1a1d23]/50 rounded-lg border border-dashed border-gray-800 flex flex-col items-center">
+                <Filter className="text-gray-600 mb-4" size={48} />
+                <h3 className="text-white font-bold text-lg">Nenhum evento encontrado</h3>
+                <p className="text-gray-500 mt-2">
+                  {activeTab === 'upcoming' 
+                    ? 'Não há eventos agendados para os próximos dias.' 
+                    : 'Nenhum evento passado registrado.'}
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </section>
-  )
+  );
 }
