@@ -19,9 +19,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Verificar sessão ativa
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Erro ao obter sessão:', error);
+        // Se houver erro ao obter a sessão, limpar tokens inválidos
+        supabase.auth.signOut();
+      }
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch((err) => {
+      console.error('Erro crítico ao verificar sessão:', err);
+      setSession(null);
+      setUser(null);
       setLoading(false);
     });
 
@@ -32,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Se o evento for TOKEN_REFRESHED com falha, fazer logout
+      if (_event === 'TOKEN_REFRESHED' && !session) {
+        console.warn('Token refresh falhou, fazendo logout');
+      }
     });
 
     return () => subscription.unsubscribe();
