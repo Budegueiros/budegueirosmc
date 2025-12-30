@@ -15,15 +15,23 @@ export default function AcceptInvite() {
 
   useEffect(() => {
     let subscription: any;
+    let mounted = true;
 
     // Verificar se há um token de convite na URL
     const checkInviteToken = async () => {
       try {
+        const hash = window.location.hash;
+        console.log('Hash da URL:', hash);
+        
         // Verificar se há erro no hash da URL (token expirado, inválido, etc)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hashParams = new URLSearchParams(hash.substring(1));
         const error = hashParams.get('error');
         const errorCode = hashParams.get('error_code');
         const errorDescription = hashParams.get('error_description');
+        const type = hashParams.get('type');
+        const accessToken = hashParams.get('access_token');
+
+        console.log('Params:', { error, errorCode, type, hasToken: !!accessToken });
 
         if (error) {
           console.error('Erro no link de convite:', { error, errorCode, errorDescription });
@@ -39,13 +47,20 @@ export default function AcceptInvite() {
           return;
         }
 
-        // Aguardar um pouco para o Supabase processar o hash
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Se temos type=invite mas nenhuma sessão ainda, forçar o Supabase a processar o hash
+        if (type === 'invite' && accessToken) {
+          console.log('Forçando processamento do token de convite...');
+          
+          // O Supabase pode demorar um pouco para processar, aguardar
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
 
-        // Primeiro, obter a sessão atual (pode já estar processada)
-        const { data: { session } } = await supabase.auth.getSession();
+        // Verificar sessão atual
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (session?.user) {
+        console.log('Sessão obtida:', { hasSession: !!session, error: sessionError });
+        
+        if (session?.user && mounted) {
           setInviteValid(true);
           setValidatingToken(false);
           if (timeoutRef.current) {
@@ -54,12 +69,11 @@ export default function AcceptInvite() {
           return;
         }
 
-        // Se não há sessão, aguardar o processamento do hash
-        // O Supabase processa automaticamente tokens no hash (#access_token=...)
+        // Escutar mudanças de autenticação
         subscription = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log('Auth event:', event, session?.user?.email);
           
-          if (session?.user) {
+          if (session?.user && mounted) {
             setInviteValid(true);
             setValidatingToken(false);
             if (timeoutRef.current) {
@@ -68,23 +82,28 @@ export default function AcceptInvite() {
           }
         });
 
-        // Se após 5 segundos não houver sessão, mostrar erro
+        // Timeout de segurança
         timeoutRef.current = setTimeout(() => {
-          setError('Link de convite inválido ou expirado. Solicite um novo convite à diretoria.');
-          setValidatingToken(false);
-          setInviteValid(false);
-        }, 5000);
+          if (mounted) {
+            setError('Link de convite inválido ou expirado. Solicite um novo convite à diretoria.');
+            setValidatingToken(false);
+            setInviteValid(false);
+          }
+        }, 8000);
 
       } catch (err) {
         console.error('Erro ao validar convite:', err);
-        setError('Erro ao validar o convite.');
-        setValidatingToken(false);
+        if (mounted) {
+          setError('Erro ao validar o convite.');
+          setValidatingToken(false);
+        }
       }
     };
 
     checkInviteToken();
 
     return () => {
+      mounted = false;
       if (subscription?.data?.subscription) {
         subscription.data.subscription.unsubscribe();
       }
