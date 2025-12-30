@@ -19,6 +19,26 @@ export default function AcceptInvite() {
     // Verificar se há um token de convite na URL
     const checkInviteToken = async () => {
       try {
+        // Verificar se há erro no hash da URL (token expirado, inválido, etc)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const error = hashParams.get('error');
+        const errorCode = hashParams.get('error_code');
+        const errorDescription = hashParams.get('error_description');
+
+        if (error) {
+          console.error('Erro no link de convite:', { error, errorCode, errorDescription });
+          
+          if (errorCode === 'otp_expired') {
+            setError('Este link de convite expirou. Solicite um novo convite à diretoria.');
+          } else {
+            setError(errorDescription?.replace(/\+/g, ' ') || 'Link de convite inválido.');
+          }
+          
+          setValidatingToken(false);
+          setInviteValid(false);
+          return;
+        }
+
         // Aguardar um pouco para o Supabase processar o hash
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -28,6 +48,9 @@ export default function AcceptInvite() {
         if (session?.user) {
           setInviteValid(true);
           setValidatingToken(false);
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
           return;
         }
 
@@ -47,7 +70,7 @@ export default function AcceptInvite() {
 
         // Se após 5 segundos não houver sessão, mostrar erro
         timeoutRef.current = setTimeout(() => {
-          setError('Link de convite inválido ou expirado.');
+          setError('Link de convite inválido ou expirado. Solicite um novo convite à diretoria.');
           setValidatingToken(false);
           setInviteValid(false);
         }, 5000);
@@ -134,17 +157,23 @@ export default function AcceptInvite() {
           <div className="bg-brand-gray border border-brand-red/50 rounded-xl p-8">
             <AlertCircle className="w-16 h-16 text-brand-red mx-auto mb-4" />
             <h2 className="text-white font-oswald text-2xl uppercase font-bold mb-2">
-              Convite Inválido
+              Convite Inválido ou Expirado
             </h2>
             <p className="text-gray-300 text-sm mb-6">
-              {error || 'O link de convite está inválido ou expirado. Entre em contato com a diretoria.'}
+              {error || 'O link de convite está inválido ou expirado. Solicite um novo convite à diretoria.'}
             </p>
-            <a
-              href="/contato"
-              className="inline-block bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
-            >
-              Entrar em Contato
-            </a>
+            <div className="space-y-3">
+              <a
+                href="/contato"
+                className="block bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
+              >
+                Entrar em Contato
+              </a>
+              <p className="text-gray-500 text-xs">
+                Os links de convite expiram após 1 hora por questões de segurança.
+                Peça à diretoria para enviar um novo convite.
+              </p>
+            </div>
           </div>
         </div>
       </div>

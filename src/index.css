@@ -1,11 +1,19 @@
-@import url('https://fonts.cdnfonts.com/css/rebel-bones');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  @font-face {
+    font-family: 'Rebel Bones';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: local('Rebel Bones'), local('RebelBones');
+  }
+}
+
 .font-rebel {
-  font-family: 'Rebel Bones', sans-serif;
+  font-family: 'Rebel Bones', 'Oswald', sans-serif;
 }
 
 .font-oswald {
