@@ -23,11 +23,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         console.error('Erro ao obter sessão:', error);
         // Se houver erro ao obter a sessão, limpar tokens inválidos
-        supabase.auth.signOut();
+        supabase.auth.signOut().catch(e => console.error('Erro ao fazer signOut:', e));
       }
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      
+      // Só considerar loading completo se não for uma página de convite
+      const isInvitePage = window.location.hash.includes('type=invite') || 
+                          window.location.pathname.includes('/accept-invite');
+      
+      if (!isInvitePage) {
+        setLoading(false);
+      } else {
+        // Para páginas de convite, liberar imediatamente
+        setLoading(false);
+      }
     }).catch((err) => {
       console.error('Erro crítico ao verificar sessão:', err);
       setSession(null);
@@ -39,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
