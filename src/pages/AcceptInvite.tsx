@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -11,11 +11,17 @@ export default function AcceptInvite() {
   const [validatingToken, setValidatingToken] = useState(true);
   const [inviteValid, setInviteValid] = useState(false);
   const navigate = useNavigate();
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
+    let subscription: any;
+
     // Verificar se há um token de convite na URL
     const checkInviteToken = async () => {
       try {
+        // Aguardar um pouco para o Supabase processar o hash
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Primeiro, obter a sessão atual (pode já estar processada)
         const { data: { session } } = await supabase.auth.getSession();
         
@@ -27,34 +33,42 @@ export default function AcceptInvite() {
 
         // Se não há sessão, aguardar o processamento do hash
         // O Supabase processa automaticamente tokens no hash (#access_token=...)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_IN' && session) {
+        subscription = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('Auth event:', event, session?.user?.email);
+          
+          if (session?.user) {
             setInviteValid(true);
             setValidatingToken(false);
-          } else if (event === 'USER_UPDATED' && session) {
-            setInviteValid(true);
-            setValidatingToken(false);
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+            }
           }
         });
 
-        // Se após 3 segundos não houver sessão, mostrar erro
-        setTimeout(() => {
-          if (validatingToken) {
-            setError('Link de convite inválido ou expirado.');
-            setValidatingToken(false);
-          }
-        }, 3000);
+        // Se após 5 segundos não houver sessão, mostrar erro
+        timeoutRef.current = setTimeout(() => {
+          setError('Link de convite inválido ou expirado.');
+          setValidatingToken(false);
+          setInviteValid(false);
+        }, 5000);
 
-        return () => {
-          subscription.unsubscribe();
-        };
       } catch (err) {
+        console.error('Erro ao validar convite:', err);
         setError('Erro ao validar o convite.');
         setValidatingToken(false);
       }
     };
 
     checkInviteToken();
+
+    return () => {
+      if (subscription?.data?.subscription) {
+        subscription.data.subscription.unsubscribe();
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,17 +89,25 @@ export default function AcceptInvite() {
     setLoading(true);
 
     try {
+      console.log('Atualizando senha do usuário...');
+      
       // Atualizar a senha do usuário
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { data, error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Erro ao atualizar senha:', updateError);
+        throw updateError;
+      }
+
+      console.log('Senha atualizada com sucesso, redirecionando...');
 
       // Redirecionar para completar o perfil
       navigate('/complete-profile');
 
     } catch (err: any) {
+      console.error('Erro no handleSubmit:', err);
       setError(err.message || 'Erro ao configurar sua conta. Tente novamente.');
     } finally {
       setLoading(false);
