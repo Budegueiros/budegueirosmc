@@ -23,6 +23,7 @@ interface Evento {
   max_participantes: number | null;
   foto_capa_url: string | null;
   observacoes: string | null;
+  evento_principal: boolean;
   created_at: string;
 }
 
@@ -41,6 +42,7 @@ interface EditingEvento {
   vagas_limitadas: boolean;
   max_participantes: string;
   observacoes: string;
+  evento_principal: boolean;
 }
 
 export default function ManageEvents() {
@@ -57,6 +59,8 @@ export default function ManageEvents() {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [galeriaFiles, setGaleriaFiles] = useState<File[]>([]);
+  const [galeriaPreviews, setGaleriaPreviews] = useState<string[]>([]);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -104,9 +108,12 @@ export default function ManageEvents() {
       vagas_limitadas: evento.vagas_limitadas,
       max_participantes: evento.max_participantes?.toString() || '',
       observacoes: evento.observacoes || '',
+      evento_principal: evento.evento_principal,
     });
     setSelectedFile(null);
     setPreviewUrl(evento.foto_capa_url);
+    setGaleriaFiles([]);
+    setGaleriaPreviews([]);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,6 +180,82 @@ export default function ManageEvents() {
     }
   };
 
+  const handleGaleriaFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const validFiles: File[] = [];
+    const previews: string[] = [];
+
+    for (const file of files) {
+      if (!isValidImageFile(file)) {
+        alert(`Arquivo ${file.name} não é uma imagem válida`);
+        continue;
+      }
+
+      try {
+        const compressedFile = await compressImage(file, 5);
+        validFiles.push(compressedFile);
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          previews.push(reader.result as string);
+          if (previews.length === validFiles.length) {
+            setGaleriaPreviews(prev => [...prev, ...previews]);
+          }
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error('Erro ao processar imagem:', error);
+      }
+    }
+
+    setGaleriaFiles(prev => [...prev, ...validFiles]);
+  };
+
+  const removeGaleriaFile = (index: number) => {
+    setGaleriaFiles(prev => prev.filter((_, i) => i !== index));
+    setGaleriaPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFotosGaleria = async (eventoId: string) => {
+    if (galeriaFiles.length === 0) return;
+
+    try {
+      for (let i = 0; i < galeriaFiles.length; i++) {
+        const file = galeriaFiles[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${i}.${fileExt}`;
+        const filePath = `eventos/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        // Inserir na tabela evento_fotos
+        const { error: insertError } = await supabase
+          .from('evento_fotos')
+          .insert({
+            evento_id: eventoId,
+            foto_url: urlData.publicUrl,
+            ordem: i + 1,
+            ativo: true
+          });
+
+        if (insertError) throw insertError;
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload das fotos da galeria:', error);
+      alert('Erro ao fazer upload de algumas fotos da galeria');
+    }
+  };
+
   const handleSaveEvento = async (eventoId: string) => {
     if (!editingData) return;
     
@@ -200,6 +283,7 @@ export default function ManageEvents() {
           ? parseInt(editingData.max_participantes) 
           : null,
         observacoes: editingData.observacoes || null,
+        evento_principal: editingData.evento_principal,
       };
 
       if (foto_capa_url) {
@@ -212,6 +296,11 @@ export default function ManageEvents() {
         .eq('id', eventoId);
 
       if (error) throw error;
+
+      // Upload de fotos da galeria (se houver)
+      if (galeriaFiles.length > 0 && editingData.evento_principal) {
+        await uploadFotosGaleria(eventoId);
+      }
 
       // Recarregar eventos
       await carregarEventos();
@@ -232,6 +321,8 @@ export default function ManageEvents() {
     setEditingData(null);
     setSelectedFile(null);
     setPreviewUrl(null);
+    setGaleriaFiles([]);
+    setGaleriaPreviews([]);
   };
 
   const handleDeleteEvento = async (eventoId: string, eventoNome: string) => {
@@ -553,6 +644,71 @@ export default function ManageEvents() {
                         />
                       )}
                     </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-gray-400 text-xs uppercase mb-1 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editingData.evento_principal}
+                          onChange={(e) => setEditingData({ ...editingData, evento_principal: e.target.checked })}
+                          className="w-4 h-4 text-brand-red bg-black border-brand-red/30 rounded focus:ring-brand-red"
+                          disabled={saving}
+                        />
+                        Evento Principal (Exibir na página pública)
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Eventos principais são exibidos na página "Eventos Realizados" do site
+                      </p>
+                    </div>
+
+                    {/* Upload de Fotos da Galeria (apenas para eventos principais) */}
+                    {editingData.evento_principal && (
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-400 text-xs uppercase mb-2">
+                          Galeria de Fotos (Múltiplas)
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleGaleriaFilesChange}
+                          className="hidden"
+                          id={`galeria-upload-${evento.id}`}
+                          disabled={saving}
+                        />
+                        <label
+                          htmlFor={`galeria-upload-${evento.id}`}
+                          className="cursor-pointer bg-brand-red/10 border border-brand-red/30 hover:bg-brand-red/20 text-white px-4 py-2 rounded text-sm flex items-center gap-2 justify-center transition"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Adicionar Fotos à Galeria
+                        </label>
+                        
+                        {galeriaPreviews.length > 0 && (
+                          <div className="mt-3 grid grid-cols-3 gap-2">
+                            {galeriaPreviews.map((preview, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={preview}
+                                  alt={`Foto ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded border border-brand-red/30"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeGaleriaFile(index)}
+                                  className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {galeriaFiles.length} foto(s) selecionada(s)
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (

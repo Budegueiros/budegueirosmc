@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Users, User, Shield, ArrowLeft, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import DashboardLayout from '../components/DashboardLayout';
 
 interface ConjugeData {
   id: string;
@@ -226,59 +227,55 @@ export default function FamilyMembers() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center pt-20">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
-            Carregando dados...
-          </p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
+            <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
+              Carregando dados...
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black pt-20 pb-12">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Voltar ao Dashboard</span>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-white font-oswald text-4xl uppercase font-bold flex items-center gap-3">
-                <Users className="w-8 h-8 text-brand-red" />
-                Núcleo Familiar
-              </h1>
-              <p className="text-gray-400 mt-2">Gerencie os membros da sua família</p>
-            </div>
-            <span className="bg-yellow-900/30 border border-yellow-600/50 text-yellow-500 px-4 py-2 rounded-lg text-sm font-oswald uppercase flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Privado
-            </span>
-          </div>
-        </div>
-
-        {/* Resumo */}
-        <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-6 mb-6">
-          <div className="flex items-center gap-6 text-gray-400">
-            <div className="flex items-center gap-2">
-              <User className="w-5 h-5 text-brand-red" />
-              <span>{conjuge ? '1 Cônjuge' : 'Sem Cônjuge'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-brand-red" />
-              <span>{filhos.length} {filhos.length === 1 ? 'Filho' : 'Filhos'}</span>
+    <DashboardLayout>
+      <div className="min-h-screen bg-black py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-white font-oswald text-4xl uppercase font-bold flex items-center gap-3">
+                  <Users className="w-8 h-8 text-brand-red" />
+                  Núcleo Familiar
+                </h1>
+                <p className="text-gray-400 mt-2">Gerencie os membros da sua família</p>
+              </div>
+              <span className="bg-yellow-900/30 border border-yellow-600/50 text-yellow-500 px-4 py-2 rounded-lg text-sm font-oswald uppercase flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Privado
+              </span>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Resumo */}
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-6 mb-6">
+            <div className="flex items-center gap-6 text-gray-400">
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-brand-red" />
+                <span>{conjuge ? '1 Cônjuge' : 'Sem Cônjuge'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-brand-red" />
+                <span>{filhos.length} {filhos.length === 1 ? 'Filho' : 'Filhos'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Cônjuge */}
           <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden">
             <div className="bg-gradient-to-r from-brand-red/20 to-transparent border-b border-gray-800 px-6 py-4">
@@ -505,7 +502,8 @@ export default function FamilyMembers() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

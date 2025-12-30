@@ -227,6 +227,7 @@ export interface Evento {
   vagas_limitadas: boolean;
   max_participantes: number | null;
   observacoes: string | null;
+  evento_principal: boolean;
   created_at: string;
   updated_at: string;
 }

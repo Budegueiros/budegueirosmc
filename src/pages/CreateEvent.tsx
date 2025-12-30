@@ -15,6 +15,8 @@ export default function CreateEvent() {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [galeriaFiles, setGaleriaFiles] = useState<File[]>([]);
+  const [galeriaPreviews, setGaleriaPreviews] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     nome: '',
@@ -31,6 +33,7 @@ export default function CreateEvent() {
     vagas_limitadas: false,
     max_participantes: '',
     observacoes: '',
+    evento_principal: false,
   });
 
   useEffect(() => {
@@ -64,6 +67,45 @@ export default function CreateEvent() {
     }
   };
 
+  const handleGaleriaFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const validFiles: File[] = [];
+    const previews: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!isValidImageFile(file)) {
+        alert(`Arquivo ${file.name} não é uma imagem válida`);
+        continue;
+      }
+
+      try {
+        const compressedFile = await compressImage(file, 5);
+        validFiles.push(compressedFile);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          previews.push(reader.result as string);
+          if (previews.length === validFiles.length) {
+            setGaleriaPreviews([...galeriaPreviews, ...previews]);
+          }
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error('Erro ao processar imagem:', error);
+      }
+    }
+
+    setGaleriaFiles([...galeriaFiles, ...validFiles]);
+  };
+
+  const removeGaleriaFile = (index: number) => {
+    setGaleriaFiles(galeriaFiles.filter((_, i) => i !== index));
+    setGaleriaPreviews(galeriaPreviews.filter((_, i) => i !== index));
+  };
+
   const uploadFotoCapa = async (): Promise<string | null> => {
     if (!selectedFile || !user) return null;
 
@@ -93,6 +135,43 @@ export default function CreateEvent() {
     }
   };
 
+  const uploadFotosGaleria = async (eventoId: string) => {
+    if (galeriaFiles.length === 0) return;
+
+    try {
+      for (let i = 0; i < galeriaFiles.length; i++) {
+        const file = galeriaFiles[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${eventoId}_${Date.now()}_${i}.${fileExt}`;
+        const filePath = `eventos/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        const { error: dbError } = await supabase
+          .from('evento_fotos')
+          .insert({
+            evento_id: eventoId,
+            foto_url: urlData.publicUrl,
+            ordem: i,
+            ativo: true
+          });
+
+        if (dbError) throw dbError;
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload das fotos da galeria:', error);
+      alert('Erro ao fazer upload de algumas fotos da galeria');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -104,7 +183,7 @@ export default function CreateEvent() {
         foto_capa_url = await uploadFotoCapa();
       }
 
-      const { error } = await supabase
+      const { data: eventoData, error } = await supabase
         .from('eventos')
         .insert({
           nome: formData.nome,
@@ -124,9 +203,17 @@ export default function CreateEvent() {
             : null,
           foto_capa_url,
           observacoes: formData.observacoes || null,
-        });
+          evento_principal: formData.evento_principal,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Upload fotos da galeria se houver
+      if (eventoData && galeriaFiles.length > 0) {
+        await uploadFotosGaleria(eventoData.id);
+      }
 
       alert('Evento criado com sucesso!');
       navigate('/dashboard');
@@ -449,8 +536,77 @@ export default function CreateEvent() {
                   />
                 </div>
               )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="evento_principal"
+                  checked={formData.evento_principal}
+                  onChange={(e) => setFormData({ ...formData, evento_principal: e.target.checked })}
+                  className="w-4 h-4 text-brand-red bg-black border-brand-red/30 rounded focus:ring-brand-red"
+                />
+                <label htmlFor="evento_principal" className="text-gray-300 text-sm">
+                  Evento Principal (Exibir na página pública)
+                </label>
+              </div>
             </div>
           </div>
+
+          {/* Galeria de Fotos - Apenas para Eventos Principais */}
+          {formData.evento_principal && (
+            <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6">
+              <h2 className="text-white font-oswald text-xl uppercase font-bold mb-4 flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                Galeria de Fotos do Evento
+              </h2>
+              
+              <p className="text-gray-400 text-sm mb-4">
+                Adicione múltiplas fotos que aparecerão na galeria do evento na página pública.
+              </p>
+
+              <div className="mb-4">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-brand-red/30 rounded-lg cursor-pointer hover:border-brand-red/50 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-400 font-oswald uppercase">
+                      Clique para adicionar fotos
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Múltiplas seleções permitidas
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    multiple
+                    onChange={handleGaleriaFilesChange}
+                  />
+                </label>
+              </div>
+
+              {galeriaPreviews.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {galeriaPreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`Foto ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGaleriaFile(index)}
+                        className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Observações */}
           <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6">

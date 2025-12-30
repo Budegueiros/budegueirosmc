@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Plus, ArrowLeft, Filter } from 'lucide-react';
+import { Bell, Plus, ArrowLeft, Filter, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import ComunicadoCard from '../components/ComunicadoCard';
 import CreateComunicadoForm from '../components/CreateComunicadoForm';
 import { ComunicadoComAutor } from '../types/database.types';
+import DashboardLayout from '../components/DashboardLayout';
 
 type FiltroTipo = 'todos' | 'nao-lidos' | 'importantes';
 
@@ -139,24 +140,20 @@ export default function Comunicados() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <p className="text-gray-400">Carregando comunicados...</p>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Carregando comunicados...</p>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Botão Voltar */}
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="text-gray-400 hover:text-white flex items-center gap-2 mb-6 transition"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Voltar ao Dashboard
-        </button>
-
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto py-8">
         {!isCreating && (
           <>
             {/* Header */}
@@ -239,6 +236,6 @@ export default function Comunicados() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
