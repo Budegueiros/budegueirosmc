@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { MapPin, Phone, Mail, Users, Facebook, Instagram, Twitter, MessageSquare, Send, ExternalLink } from 'lucide-react';
+import { MapPin, Phone, Mail, Users, MessageSquare, Send, ExternalLink, Instagram, Facebook, Twitter } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
 
 export default function Contato() {
   const [subject, setSubject] = useState('Sugestão');
@@ -50,46 +51,7 @@ export default function Contato() {
 
   return (
     <section className="relative py-20 bg-black min-h-screen flex items-center justify-center pt-24 overflow-hidden">
-      {/* Barra Lateral Vermelha com Redes Sociais */}
-      <div className="fixed left-0 top-0 h-full w-12 md:w-16 bg-brand-red z-40 flex flex-col items-center justify-between py-8">
-        {/* Texto Vertical "BUDEGUEIROS" */}
-        <div className="flex-1 flex items-center justify-center">
-          <span className="transform -rotate-90 origin-center text-white font-oswald font-bold text-sm md:text-base tracking-[0.3em] whitespace-nowrap">
-            BUDEGUEIROS
-          </span>
-        </div>
-
-        {/* Ícones Sociais */}
-        <div className="flex flex-col gap-6 pb-4">
-          <a
-            href="https://facebook.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Facebook"
-          >
-            <Facebook className="w-5 h-5" />
-          </a>
-          <a
-            href="https://www.instagram.com/budegueirosmc/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Instagram"
-          >
-            <Instagram className="w-5 h-5" />
-          </a>
-          <a
-            href="https://twitter.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Twitter"
-          >
-            <Twitter className="w-5 h-5" />
-          </a>
-        </div>
-      </div>
+      <Sidebar />
 
       <div className="container mx-auto px-4 pl-16 md:pl-24 max-w-7xl">
         {/* Header */}

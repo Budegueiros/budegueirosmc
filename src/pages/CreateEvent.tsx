@@ -50,9 +50,7 @@ export default function CreateEvent() {
 
     try {
       // Comprimir imagem automaticamente
-      console.log(`Tamanho original: ${formatFileSize(file.size)}`);
       const compressedFile = await compressImage(file, 5);
-      console.log(`Tamanho após compressão: ${formatFileSize(compressedFile.size)}`);
 
       setSelectedFile(compressedFile);
       const reader = new FileReader();
@@ -60,10 +58,6 @@ export default function CreateEvent() {
         setPreviewUrl(reader.result as string);
       };
       reader.readAsDataURL(compressedFile);
-
-      if (file.size > compressedFile.size) {
-        console.log(`Imagem comprimida de ${formatFileSize(file.size)} para ${formatFileSize(compressedFile.size)}`);
-      }
     } catch (error) {
       console.error('Erro ao processar imagem:', error);
       alert('Erro ao processar imagem. Tente novamente.');

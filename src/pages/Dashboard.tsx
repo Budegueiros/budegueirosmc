@@ -173,7 +173,6 @@ export default function Dashboard() {
         }
 
         // Buscar mensalidades pendentes e atrasadas
-        console.log('🔍 Iniciando busca de mensalidades para membro:', membroData.id);
         const hoje = new Date();
         const { data: mensalidadesData, error: mensalidadesError } = await supabase
           .from('mensalidades')
@@ -181,13 +180,6 @@ export default function Dashboard() {
           .eq('membro_id', membroData.id)
           .neq('status', 'Pago')
           .order('mes_referencia', { ascending: true });
-
-        console.log('📊 Mensalidades query resultado:', { 
-          total: mensalidadesData?.length || 0,
-          mensalidadesData, 
-          mensalidadesError, 
-          membroId: membroData.id 
-        });
 
         if (!mensalidadesError && mensalidadesData) {
           // Separar pendentes e atrasadas baseado na data de vencimento
@@ -200,8 +192,6 @@ export default function Dashboard() {
             const vencimento = new Date(m.data_vencimento);
             return vencimento >= hoje;
           });
-
-          console.log('Mensalidades separadas:', { atrasadas, pendentes });
 
           setMensalidadesAtrasadas(atrasadas);
           setMensalidadesPendentes(pendentes);

@@ -119,9 +119,7 @@ export default function ManageEvents() {
     }
 
     try {
-      console.log(`Tamanho original: ${formatFileSize(file.size)}`);
       const compressedFile = await compressImage(file, 5);
-      console.log(`Tamanho após compressão: ${formatFileSize(compressedFile.size)}`);
 
       setSelectedFile(compressedFile);
       const reader = new FileReader();

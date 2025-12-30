@@ -97,7 +97,6 @@ export default function ManagePayments() {
         throw mensalidadesError;
       }
       
-      console.log('Total de mensalidades carregadas:', mensalidadesData?.length || 0);
       setMensalidades(mensalidadesData || []);
 
       // Carregar lista de membros para o formulário (incluindo inativos para exibição)

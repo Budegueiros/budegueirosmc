@@ -85,9 +85,7 @@ export default function EditProfile() {
     setUploading(true);
     try {
       // Comprimir imagem automaticamente se necessário
-      console.log(`Tamanho original: ${formatFileSize(file.size)}`);
       const compressedFile = await compressImage(file, 5);
-      console.log(`Tamanho após compressão: ${formatFileSize(compressedFile.size)}`);
 
       // Deletar imagem antiga se existir
       if (membro?.foto_url) {

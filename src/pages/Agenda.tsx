@@ -3,6 +3,7 @@ import { Calendar, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AgendaEventCard } from '../components/AgendaEventCard';
 import { useAuth } from '../contexts/AuthContext';
+import Sidebar from '../components/Sidebar';
 
 interface Evento {
   id: string;
@@ -42,15 +43,10 @@ export default function Agenda() {
           .eq('status', 'Ativo')
           .order('data_evento', { ascending: true });
 
-        console.log('Query response:', { eventosData, eventosError });
-
         if (eventosError) {
           console.error('Erro ao buscar eventos:', eventosError);
           throw eventosError;
         }
-        
-        console.log('Eventos recebidos:', eventosData);
-        console.log('Total de eventos:', eventosData?.length || 0);
         
         setEventos(eventosData || []);
 
@@ -88,7 +84,6 @@ export default function Agenda() {
     }
     
     // TODO: Implementar lógica de RSVP no banco de dados
-    console.log(`Membro ${membro.nome_guerra} confirmou ${status} para evento ${eventId}`);
   };
 
   const now = new Date();
@@ -97,8 +92,6 @@ export default function Agenda() {
   const filteredEvents = eventos.filter(e => {
     const eventDate = new Date(e.data_evento + 'T00:00:00');
     const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-    
-    console.log('Evento:', e.nome, 'Data:', e.data_evento, 'Today:', today, 'Event:', eventDateOnly);
     
     if (activeTab === 'upcoming') {
       return eventDateOnly >= today;
@@ -109,9 +102,6 @@ export default function Agenda() {
     const dateB = new Date(b.data_evento).getTime();
     return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA;
   });
-
-  console.log('Active Tab:', activeTab);
-  console.log('Filtered Events:', filteredEvents.length);
 
   if (loading) return <div className='flex justify-center items-center text-center text-white h-dvh'>Carregando...</div>;
 
@@ -132,7 +122,8 @@ export default function Agenda() {
 
   return (
     <section className="relative py-20 bg-zinc-900 min-h-screen pt-24 overflow-hidden">
-      <div className="container mx-auto px-4">
+      <Sidebar />
+      <div className="container mx-auto px-4 pl-16 md:pl-24">
         <div className="animate-fade-in max-w-5xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
