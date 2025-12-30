@@ -16,25 +16,38 @@ export default function AcceptInvite() {
     // Verificar se há um token de convite na URL
     const checkInviteToken = async () => {
       try {
-        // O Supabase automaticamente processa o token do hash
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Primeiro, obter a sessão atual (pode já estar processada)
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (error || !session) {
-          setError('Link de convite inválido ou expirado.');
+        if (session?.user) {
+          setInviteValid(true);
           setValidatingToken(false);
           return;
         }
 
-        // Verificar se é um convite (usuário ainda não definiu senha)
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user && user.email) {
-          setInviteValid(true);
-          setValidatingToken(false);
-        } else {
-          setError('Sessão inválida.');
-          setValidatingToken(false);
-        }
+        // Se não há sessão, aguardar o processamento do hash
+        // O Supabase processa automaticamente tokens no hash (#access_token=...)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            setInviteValid(true);
+            setValidatingToken(false);
+          } else if (event === 'USER_UPDATED' && session) {
+            setInviteValid(true);
+            setValidatingToken(false);
+          }
+        });
+
+        // Se após 3 segundos não houver sessão, mostrar erro
+        setTimeout(() => {
+          if (validatingToken) {
+            setError('Link de convite inválido ou expirado.');
+            setValidatingToken(false);
+          }
+        }, 3000);
+
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (err) {
         setError('Erro ao validar o convite.');
         setValidatingToken(false);
