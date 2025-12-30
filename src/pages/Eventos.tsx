@@ -1,133 +1,154 @@
-import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
+import Sidebar from '../components/Sidebar';
+import { supabase } from '../lib/supabase';
+import { EventoComFotos } from '../types/database.types';
 
 export default function Eventos() {
-  const fundacaoImages = [
-    '/Fundacao.jpg',
-    '/Fundacao2.jpg',
-    '/Fundacao3.jpg',
-    '/Fundacao4.jpg',
-    '/Fundacao5.jpg',
-    '/Fundacao6.jpg',
-    '/Fundacao7.jpg'
-  ];
+  const [eventos, setEventos] = useState<EventoComFotos[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const pointImagens = [
-    '/Point.jpeg',
-    '/Point1.jpeg',
-    '/Point3.jpeg',
-    '/Point4.jpeg'
-  ];
+  useEffect(() => {
+    carregarEventos();
+  }, []);
+
+  const carregarEventos = async () => {
+    try {
+      // Buscar eventos passados com status "Realizado" ou "Ativo" com data passada
+      const hoje = new Date().toISOString().split('T')[0];
+      
+      const { data: eventosData, error: eventosError } = await supabase
+        .from('eventos')
+        .select('*')
+        .or(`status.eq.Realizado,and(status.eq.Ativo,data_evento.lt.${hoje})`)
+        .order('data_evento', { ascending: false });
+
+      if (eventosError) throw eventosError;
+
+      // Para cada evento, buscar suas fotos
+      const eventosComFotos: EventoComFotos[] = await Promise.all(
+        (eventosData || []).map(async (evento) => {
+          const { data: fotosData, error: fotosError } = await supabase
+            .from('evento_fotos')
+            .select('*')
+            .eq('evento_id', evento.id)
+            .eq('ativo', true)
+            .order('ordem', { ascending: true });
+
+          if (fotosError) {
+            console.error('Erro ao buscar fotos do evento:', fotosError);
+          }
+
+          return {
+            ...evento,
+            fotos: fotosData || []
+          };
+        })
+      );
+
+      setEventos(eventosComFotos);
+    } catch (error) {
+      console.error('Erro ao carregar eventos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatarData = (dataString: string) => {
+    const data = new Date(dataString + 'T00:00:00');
+    return data.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
+  if (loading) {
+    return (
+      <section className="relative py-12 md:py-20 min-h-screen pt-24 bg-black overflow-hidden">
+        <Sidebar />
+        <div className="container mx-auto px-4 pl-16 md:pl-24">
+          <div className="text-center text-white">Carregando eventos...</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative py-12 md:py-20 min-h-screen pt-24 bg-black overflow-hidden">
-      {/* Barra Lateral Vermelha com Redes Sociais */}
-      <div className="fixed left-0 top-0 h-full w-12 md:w-16 bg-brand-red z-40 flex flex-col items-center justify-between py-8">
-        {/* Texto Vertical "BUDEGUEIROS" */}
-        <div className="flex-1 flex items-center justify-center">
-          <span className="transform -rotate-90 origin-center text-white font-oswald font-bold text-sm md:text-base tracking-[0.3em] whitespace-nowrap">
-            BUDEGUEIROS
-          </span>
-        </div>
-
-        {/* Ícones Sociais */}
-        <div className="flex flex-col gap-6 pb-4">
-          <a 
-            href="https://facebook.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Facebook"
-          >
-            <Facebook className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://www.instagram.com/budegueirosmc/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Instagram"
-          >
-            <Instagram className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://twitter.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white hover:text-brand-dark transition"
-            aria-label="Twitter"
-          >
-            <Twitter className="w-5 h-5" />
-          </a>
-        </div>
-      </div>
+      <Sidebar />
 
       <div className="container mx-auto px-4 pl-16 md:pl-24">
         <h2 className="text-3xl md:text-4xl font-bold mb-8 md:mb-12 text-center font-oswald">Eventos Realizados</h2>
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col gap-4">
-            <div className="text-center px-4">
-              <h3 className="text-xl md:text-2xl font-bold mb-2">Fundação Budegueiros</h3>
-              <p className="text-gray-300 text-sm md:text-base">
-                Festa de lançamento do clube, realizada no dia 14 de abril de 2024, 
-                com a presença de mais de 500 motociclistas
-              </p>
-            </div>
-            <div className="relative h-64 md:h-80 group overflow-hidden rounded-lg">
-              <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
-                navigation
-                pagination={{ clickable: true }}
-                autoplay={{ delay: 3000, disableOnInteraction: false }}
-                className="h-full w-full"
-              >
-                {fundacaoImages.map((img, index) => (
-                  <SwiperSlide key={index}>
+        
+        {eventos.length === 0 ? (
+          <div className="text-center text-gray-400 py-12">
+            <p>Nenhum evento realizado ainda.</p>
+            <p className="text-sm mt-2">Os eventos passados aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-8">
+            {eventos.map((evento) => (
+              <div key={evento.id} className="flex flex-col gap-4">
+                <div className="text-center px-4">
+                  <h3 className="text-xl md:text-2xl font-bold mb-2">{evento.nome}</h3>
+                  <p className="text-gray-300 text-sm md:text-base mb-1">
+                    {evento.descricao || `${evento.tipo_evento} - ${evento.local_saida}`}
+                  </p>
+                  <p className="text-brand-red text-sm">
+                    Realizado em {formatarData(evento.data_evento)}
+                  </p>
+                </div>
+                
+                {/* Galeria de fotos do evento */}
+                {evento.fotos.length > 0 ? (
+                  <div className="relative h-64 md:h-80 group overflow-hidden rounded-lg">
+                    <Swiper
+                      modules={[Navigation, Pagination, Autoplay]}
+                      navigation
+                      pagination={{ clickable: true }}
+                      autoplay={{ delay: 3000, disableOnInteraction: false }}
+                      className="h-full w-full"
+                    >
+                      {evento.fotos.map((foto) => (
+                        <SwiperSlide key={foto.id}>
+                          <img
+                            src={foto.foto_url}
+                            alt={foto.legenda || evento.nome}
+                            className="w-full h-full object-cover"
+                          />
+                          {foto.legenda && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-3 text-sm">
+                              {foto.legenda}
+                            </div>
+                          )}
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                  </div>
+                ) : evento.foto_capa_url ? (
+                  // Fallback: mostrar foto de capa se não houver fotos na galeria
+                  <div className="relative h-64 md:h-80 overflow-hidden rounded-lg">
                     <img
-                      src={img}
-                      alt={`Fundação Slide ${index + 1}`}
+                      src={evento.foto_capa_url}
+                      alt={evento.nome}
                       className="w-full h-full object-cover"
                     />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            </div>
+                  </div>
+                ) : (
+                  <div className="relative h-64 md:h-80 bg-gray-800 rounded-lg flex items-center justify-center">
+                    <p className="text-gray-500">Sem fotos disponíveis</p>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-
-          <div className="flex flex-col gap-4">
-            <div className="text-center px-4">
-              <h3 className="text-xl md:text-2xl font-bold mb-2">1° Point Budegueiros</h3>
-              <p className="text-brand-red text-sm md:text-base">
-                No dia 01 de setembro de 2024, foi realizado o primeiro point do clube, 
-                com a presença de mais de 100 motociclistas
-              </p>
-            </div>
-            <div className="relative h-64 md:h-80 group overflow-hidden rounded-lg">
-              <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
-                navigation
-                pagination={{ clickable: true }}
-                autoplay={{ delay: 3000, disableOnInteraction: false }}
-                className="h-full w-full"
-              >
-                {pointImagens.map((img, index) => (
-                  <SwiperSlide key={index}>
-                    <img
-                      src={img}
-                      alt={`Point Slide ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </section>
-  )
+  );
 }

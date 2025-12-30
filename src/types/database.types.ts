@@ -192,3 +192,49 @@ export interface ComunicadoComAutor extends Comunicado {
   };
   ja_lido: boolean;
 }
+
+/**
+ * Interface para fotos de eventos
+ */
+export interface EventoFoto {
+  id: string;
+  evento_id: string;
+  foto_url: string;
+  legenda: string | null;
+  ordem: number;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Interface para eventos
+ */
+export interface Evento {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipo_evento: string;
+  data_evento: string;
+  hora_saida: string | null;
+  local_saida: string;
+  local_destino: string | null;
+  distancia_km: number | null;
+  foto_capa_url: string | null;
+  cidade: string;
+  estado: string;
+  status: string;
+  vagas_limitadas: boolean;
+  max_participantes: number | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Interface estendida: Evento com suas fotos incluídas
+ */
+export interface EventoComFotos extends Evento {
+  fotos: EventoFoto[];
+}
+
