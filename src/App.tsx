@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import Home from './pages/Home';
@@ -19,16 +19,47 @@ import ManageEvents from './pages/ManageEvents';
 import ManagePayments from './pages/ManagePayments';
 import MyPayments from './pages/MyPayments';
 import Dashboard from './pages/Dashboard';
+import Admin from './pages/Admin';
+import EditMoto from './pages/EditMoto';
+import AddMoto from './pages/AddMoto';
+import FamilyMembers from './pages/FamilyMembers';
+import Polls from './pages/Polls';
+import CreatePoll from './pages/CreatePoll';
+import Comunicados from './pages/Comunicados';
+import ManageComunicados from './pages/ManageComunicados';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  
+  // Rotas que não devem mostrar o header padrão (área de membros)
+  const hideHeaderRoutes = [
+    '/dashboard',
+    '/complete-profile',
+    '/edit-profile',
+    '/invite-member',
+    '/manage-members',
+    '/manage-events',
+    '/manage-payments',
+    '/my-payments',
+    '/create-event',
+    '/admin',
+    '/edit-moto',
+    '/add-moto',
+    '/family-members',
+    '/polls',
+    '/create-poll',
+    '/comunicados',
+    '/manage-comunicados'
+  ];
+  
+  const shouldHideHeader = hideHeaderRoutes.some(route => location.pathname.startsWith(route));
+
   return (
-    <Router>
-      <AuthProvider>
-        <div className="min-h-screen bg-black text-white">
-          <Header />
-          <main>
+    <div className="min-h-screen bg-black text-white">
+      {!shouldHideHeader && <Header />}
+      <main>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/sobre" element={<Sobre />} />
@@ -104,6 +135,70 @@ function App() {
                 } 
               />
               <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute>
+                    <Admin />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/edit-moto/:id" 
+                element={
+                  <ProtectedRoute>
+                    <EditMoto />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/add-moto" 
+                element={
+                  <ProtectedRoute>
+                    <AddMoto />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/family-members" 
+                element={
+                  <ProtectedRoute>
+                    <FamilyMembers />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/polls" 
+                element={
+                  <ProtectedRoute>
+                    <Polls />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/create-poll" 
+                element={
+                  <ProtectedRoute>
+                    <CreatePoll />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/comunicados" 
+                element={
+                  <ProtectedRoute>
+                    <Comunicados />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/manage-comunicados" 
+                element={
+                  <ProtectedRoute>
+                    <ManageComunicados />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
@@ -115,6 +210,14 @@ function App() {
           </main>
           <Footer />
         </div>
+      );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
       </AuthProvider>
     </Router>
   );

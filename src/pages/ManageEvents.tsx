@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Search, Edit2, Trash2, ArrowLeft, Check, X, Loader2, Save, UserCheck } from 'lucide-react';
+import { Calendar, Search, Edit2, Trash2, ArrowLeft, Check, X, Loader2, Save, UserCheck, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
 
 interface Evento {
   id: string;
@@ -53,6 +54,9 @@ export default function ManageEvents() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<EditingEvento | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -101,6 +105,74 @@ export default function ManageEvents() {
       max_participantes: evento.max_participantes?.toString() || '',
       observacoes: evento.observacoes || '',
     });
+    setSelectedFile(null);
+    setPreviewUrl(evento.foto_capa_url);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!isValidImageFile(file)) {
+      alert('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
+      return;
+    }
+
+    try {
+      console.log(`Tamanho original: ${formatFileSize(file.size)}`);
+      const compressedFile = await compressImage(file, 5);
+      console.log(`Tamanho após compressão: ${formatFileSize(compressedFile.size)}`);
+
+      setSelectedFile(compressedFile);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error('Erro ao processar imagem:', error);
+      alert('Erro ao processar imagem. Tente novamente.');
+    }
+  };
+
+  const uploadFotoCapa = async (eventoId: string): Promise<string | null> => {
+    if (!selectedFile || !user) return null;
+
+    setUploading(true);
+    try {
+      // Buscar evento para deletar foto antiga se existir
+      const evento = eventos.find(e => e.id === eventoId);
+      if (evento?.foto_capa_url) {
+        const oldPath = evento.foto_capa_url.split('/').pop();
+        if (oldPath) {
+          await supabase.storage
+            .from('avatars')
+            .remove([`eventos/${oldPath}`]);
+        }
+      }
+
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `eventos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      alert('Erro ao fazer upload da foto de capa');
+      return null;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSaveEvento = async (eventoId: string) => {
@@ -108,58 +180,50 @@ export default function ManageEvents() {
     
     setSaving(true);
     try {
+      let foto_capa_url = null;
+      if (selectedFile) {
+        foto_capa_url = await uploadFotoCapa(eventoId);
+      }
+
+      const updateData: any = {
+        nome: editingData.nome,
+        descricao: editingData.descricao || null,
+        data_evento: editingData.data_evento,
+        hora_saida: editingData.hora_saida || null,
+        local_saida: editingData.local_saida,
+        local_destino: editingData.local_destino || null,
+        cidade: editingData.cidade,
+        estado: editingData.estado,
+        distancia_km: editingData.distancia_km ? parseInt(editingData.distancia_km) : null,
+        tipo_evento: editingData.tipo_evento,
+        status: editingData.status,
+        vagas_limitadas: editingData.vagas_limitadas,
+        max_participantes: editingData.vagas_limitadas && editingData.max_participantes 
+          ? parseInt(editingData.max_participantes) 
+          : null,
+        observacoes: editingData.observacoes || null,
+      };
+
+      if (foto_capa_url) {
+        updateData.foto_capa_url = foto_capa_url;
+      }
+
       const { error } = await supabase
         .from('eventos')
-        .update({
-          nome: editingData.nome,
-          descricao: editingData.descricao || null,
-          data_evento: editingData.data_evento,
-          hora_saida: editingData.hora_saida || null,
-          local_saida: editingData.local_saida,
-          local_destino: editingData.local_destino || null,
-          cidade: editingData.cidade,
-          estado: editingData.estado,
-          distancia_km: editingData.distancia_km ? parseInt(editingData.distancia_km) : null,
-          tipo_evento: editingData.tipo_evento,
-          status: editingData.status,
-          vagas_limitadas: editingData.vagas_limitadas,
-          max_participantes: editingData.vagas_limitadas && editingData.max_participantes 
-            ? parseInt(editingData.max_participantes) 
-            : null,
-          observacoes: editingData.observacoes || null,
-        })
+        .update(updateData)
         .eq('id', eventoId);
 
       if (error) throw error;
 
-      // Atualizar lista local
-      setEventos(eventos.map(e => 
-        e.id === eventoId ? { 
-          ...e, 
-          nome: editingData.nome,
-          descricao: editingData.descricao || null,
-          data_evento: editingData.data_evento,
-          hora_saida: editingData.hora_saida || null,
-          local_saida: editingData.local_saida,
-          local_destino: editingData.local_destino || null,
-          cidade: editingData.cidade,
-          estado: editingData.estado,
-          distancia_km: editingData.distancia_km ? parseInt(editingData.distancia_km) : null,
-          tipo_evento: editingData.tipo_evento,
-          status: editingData.status,
-          vagas_limitadas: editingData.vagas_limitadas,
-          max_participantes: editingData.vagas_limitadas && editingData.max_participantes 
-            ? parseInt(editingData.max_participantes) 
-            : null,
-          observacoes: editingData.observacoes || null,
-        } : e
-      ));
-
+      // Recarregar eventos
+      await carregarEventos();
       setEditingId(null);
       setEditingData(null);
+      setSelectedFile(null);
+      setPreviewUrl(null);
     } catch (error) {
-      console.error('Erro ao atualizar evento:', error);
-      alert('Erro ao atualizar evento');
+      console.error('Erro ao salvar evento:', error);
+      alert('Erro ao salvar evento. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -168,6 +232,8 @@ export default function ManageEvents() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditingData(null);
+    setSelectedFile(null);
+    setPreviewUrl(null);
   };
 
   const handleDeleteEvento = async (eventoId: string, eventoNome: string) => {
@@ -309,6 +375,34 @@ export default function ManageEvents() {
                         className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
                         disabled={saving}
                       />
+                    </div>
+
+                    {/* Upload de Foto de Capa */}
+                    <div className="md:col-span-2">
+                      <label className="block text-gray-400 text-xs uppercase mb-2">Foto de Capa</label>
+                      <div className="flex items-center gap-4">
+                        {previewUrl && (
+                          <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-gray-700">
+                            <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <label className="flex-1 cursor-pointer">
+                          <div className="border-2 border-dashed border-gray-700 rounded-lg p-4 hover:border-brand-red transition text-center">
+                            <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                            <p className="text-gray-400 text-sm">
+                              {uploading ? 'Enviando...' : 'Clique para escolher uma foto'}
+                            </p>
+                            <p className="text-gray-600 text-xs mt-1">Máx 5MB • JPG, PNG ou WEBP</p>
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            disabled={uploading || saving}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
 
                     <div className="md:col-span-2">

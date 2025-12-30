@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield, User, DollarSign } from 'lucide-react';
+import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield, User, DollarSign, Menu, X, BarChart3, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
@@ -16,6 +16,9 @@ interface MembroData {
   numero_carteira: string;
   endereco_cidade?: string;
   endereco_estado?: string;
+  conjuge?: {
+    nome_completo: string;
+  } | null;
   cargos?: Array<{
     id: string;
     nome: string;
@@ -24,6 +27,7 @@ interface MembroData {
 }
 
 interface MotoData {
+  id: string;
   modelo: string;
   marca: string;
   placa: string;
@@ -56,17 +60,29 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [membro, setMembro] = useState<MembroData | null>(null);
-  const [moto, setMoto] = useState<MotoData | null>(null);
+  const [motos, setMotos] = useState<MotoData[]>([]);
   const [proximoEvento, setProximoEvento] = useState<EventoData | null>(null);
   const [mensalidadesPendentes, setMensalidadesPendentes] = useState<MensalidadeData[]>([]);
   const [mensalidadesAtrasadas, setMensalidadesAtrasadas] = useState<MensalidadeData[]>([]);
   const [confirmados, setConfirmados] = useState(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
   const [confirmandoPresenca, setConfirmandoPresenca] = useState(false);
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const [comunicadosNaoLidos, setComunicadosNaoLidos] = useState(0);
 
   useEffect(() => {
     carregarDados();
   }, [user]);
+
+  // Recarregar dados sempre que a página for montada/exibida
+  useEffect(() => {
+    const handleFocus = () => {
+      carregarDados();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   const carregarDados = async () => {
     if (!user) return;
@@ -85,6 +101,9 @@ export default function Dashboard() {
               nome,
               tipo_cargo
             )
+          ),
+          conjuges (
+            nome_completo
           )
         `)
         .eq('user_id', user.id)
@@ -102,21 +121,22 @@ export default function Dashboard() {
         ...membroData,
         cargos: membroData.membro_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
-          .map((mc: any) => mc.cargos) || []
+          .map((mc: any) => mc.cargos) || [],
+        conjuge: membroData.conjuges && membroData.conjuges.length > 0 ? membroData.conjuges[0] : null
       };
       
       setMembro(membroComCargos);
 
-      // Buscar moto ativa do membro
+      // Buscar motos ativas do membro
       if (membroData) {
-        const { data: motoData } = await supabase
+        const { data: motosData } = await supabase
           .from('motos')
           .select('*')
           .eq('membro_id', membroData.id)
           .eq('ativa', true)
-          .single();
+          .order('created_at', { ascending: false });
 
-        setMoto(motoData);
+        setMotos(motosData || []);
 
         // Buscar próximo evento
         const { data: eventoData } = await supabase
@@ -187,6 +207,22 @@ export default function Dashboard() {
           setMensalidadesPendentes(pendentes);
         } else if (mensalidadesError) {
           console.error('Erro ao buscar mensalidades:', mensalidadesError);
+        }
+
+        // Buscar comunicados não lidos
+        const { data: comunicadosData } = await supabase
+          .from('comunicados')
+          .select('id');
+
+        if (comunicadosData && comunicadosData.length > 0) {
+          const { data: leiturasData } = await supabase
+            .from('comunicados_leitura')
+            .select('comunicado_id')
+            .eq('membro_id', membroData.id);
+
+          const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
+          const naoLidos = comunicadosData.filter((c) => !idsLidos.has(c.id));
+          setComunicadosNaoLidos(naoLidos.length);
         }
       }
     } catch (error) {
@@ -274,18 +310,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex pt-20">
+    <div className="min-h-screen bg-black flex">
       {/* SIDEBAR LATERAL - Desktop */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-black border-r border-gray-800 fixed left-0 top-0 h-screen">
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-black border-r border-gray-800 fixed left-0 top-0 h-screen overflow-y-auto z-40">
         {/* Logo */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-brand-red rounded-lg flex items-center justify-center">
-              <span className="text-white font-oswald font-bold text-xl">BM</span>
+            <div className="w-12 h-12 bg-brand-red rounded-lg flex items-center justify-center overflow-hidden">
+              <img src="/brasao.jpg" alt="Budegueiros MC" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h2 className="text-white font-oswald text-lg uppercase font-bold leading-tight">BUDEGUEIROS</h2>
-              <p className="text-brand-red text-xs font-oswald uppercase tracking-wide">MC EST. 2015</p>
+              <h2 className="text-white font-rebel text-lg uppercase font-bold leading-tight">BUDEGUEIROS</h2>
+              <p className="text-brand-red text-xs font-oswald uppercase tracking-wide">MC EST. 2024</p>
             </div>
           </div>
         </div>
@@ -296,20 +332,36 @@ export default function Dashboard() {
             <Users className="w-5 h-5" />
             Dashboard
           </Link>
-          <Link to="/sobre" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+          <Link to="/family-members" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
             <Users className="w-5 h-5" />
-            Membros
+            Minha Família
           </Link>
           <Link to="/agenda" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
             <Calendar className="w-5 h-5" />
             Agenda
+          </Link>
+          <Link to="/polls" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+            <BarChart3 className="w-5 h-5" />
+            Enquetes
+          </Link>
+          <Link to="/comunicados" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm relative">
+            <Bell className="w-5 h-5" />
+            Comunicados
+            {comunicadosNaoLidos > 0 && (
+              <span className="absolute left-9 top-2 flex h-5 w-5 items-center justify-center">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
+                  {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
+                </span>
+              </span>
+            )}
           </Link>
           <Link to="/my-payments" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
             <DollarSign className="w-5 h-5" />
             Tesouraria
           </Link>
           {isAdmin && (
-            <Link to="/manage-members" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+            <Link to="/admin" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
               <Shield className="w-5 h-5" />
               Admin
             </Link>
@@ -329,33 +381,115 @@ export default function Dashboard() {
         </div>
       </aside>
 
+      {/* MENU MOBILE - Overlay */}
+      {menuMobileAberto && (
+        <div className="fixed inset-0 bg-black/80 z-50 lg:hidden" onClick={() => setMenuMobileAberto(false)}>
+          <aside className="w-64 bg-black border-r border-gray-800 h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Logo */}
+            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-brand-red rounded-lg flex items-center justify-center overflow-hidden">
+                  <img src="/brasao.jpg" alt="Budegueiros MC" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <h2 className="text-white font-rebel text-lg uppercase font-bold leading-tight">BUDEGUEIROS</h2>
+                  <p className="text-brand-red text-xs font-oswald uppercase tracking-wide">MC EST. 2024</p>
+                </div>
+              </div>
+              <button onClick={() => setMenuMobileAberto(false)} className="text-gray-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Menu de Navegação */}
+            <nav className="flex-1 py-6">
+              <Link to="/dashboard" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 bg-brand-red text-white font-oswald uppercase text-sm font-bold">
+                <Users className="w-5 h-5" />
+                Dashboard
+              </Link>
+              <Link to="/family-members" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+                <Users className="w-5 h-5" />
+                Minha Família
+              </Link>
+              <Link to="/agenda" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+                <Calendar className="w-5 h-5" />
+                Agenda
+              </Link>
+              <Link to="/polls" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+                <BarChart3 className="w-5 h-5" />
+                Enquetes
+              </Link>
+              <Link to="/comunicados" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm relative">
+                <Bell className="w-5 h-5" />
+                Comunicados
+                {comunicadosNaoLidos > 0 && (
+                  <span className="absolute left-9 top-2 flex h-5 w-5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
+                      {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
+                    </span>
+                  </span>
+                )}
+              </Link>
+              <Link to="/my-payments" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+                <DollarSign className="w-5 h-5" />
+                Tesouraria
+              </Link>
+              {isAdmin && (
+                <Link to="/admin" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
+                  <Shield className="w-5 h-5" />
+                  Admin
+                </Link>
+              )}
+            </nav>
+
+            {/* Footer Sidebar */}
+            <div className="p-4 border-t border-gray-800 space-y-2">
+              <Link to="/edit-profile" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded transition text-sm">
+                <User className="w-4 h-4" />
+                Configurações
+              </Link>
+              <button onClick={() => { handleLogout(); setMenuMobileAberto(false); }} className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-brand-red transition text-sm w-full">
+                <LogOut className="w-4 h-4" />
+                Sair do Sistema
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 lg:ml-64">
+      <main className="flex-1 lg:ml-64 w-full">
         {/* Header Superior */}
-        <header className="bg-black border-b border-gray-800 px-6 lg:px-8 py-4">
+        <header className="bg-black border-b border-gray-800 px-4 lg:px-8 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-sm">Bem vindo de volta,</p>
-              <h1 className="text-white font-oswald text-2xl uppercase font-bold">
-                COMPANHEIRO {membro.nome_guerra}
+            {/* Menu Hamburguer - Mobile */}
+            <button 
+              onClick={() => setMenuMobileAberto(true)}
+              className="lg:hidden text-gray-400 hover:text-white p-2"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+
+            <div className="flex-1 lg:flex-none">
+              <p className="text-gray-400 text-xs lg:text-sm">Bem vindo de volta,</p>
+              <h1 className="text-white font-oswald text-lg lg:text-2xl uppercase font-bold">
+                IRMÃO {membro.nome_guerra}
               </h1>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="relative hidden lg:block">
-                <input
-                  type="text"
-                  placeholder="Buscar membro ou evento..."
-                  className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 pl-10 text-white text-sm w-80 focus:outline-none focus:border-brand-red"
-                />
-                <Users className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              </div>
-              <button className="relative p-2 text-gray-400 hover:text-white">
-                <AlertCircle className="w-6 h-6" />
-                {mensalidadesAtrasadas.length > 0 && (
-                  <span className="absolute top-0 right-0 w-3 h-3 bg-brand-red rounded-full"></span>
+            <div className="flex items-center gap-2 lg:gap-4">
+              <Link to="/comunicados" className="relative p-2 text-gray-400 hover:text-white transition">
+                <Bell className="w-5 h-5 lg:w-6 lg:h-6" />
+                {comunicadosNaoLidos > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
+                      {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
+                    </span>
+                  </span>
                 )}
-              </button>
-              <span className="bg-brand-red text-white px-4 py-2 rounded font-oswald text-sm uppercase font-bold">
+              </Link>
+              <span className="bg-brand-red text-white px-2 lg:px-4 py-1 lg:py-2 rounded font-oswald text-xs lg:text-sm uppercase font-bold">
                 Status: Ativo
               </span>
             </div>
@@ -392,7 +526,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Grid Principal: Card de Perfil + Painel Admin */}
+          {/* Grid Principal: Card de Perfil + Mensalidades */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Card de Perfil - 2 colunas */}
             <div className="lg:col-span-2">
@@ -458,10 +592,19 @@ export default function Dashboard() {
                         </div>
                         <p className="text-white font-semibold text-sm lg:text-base">{formatarData(membro.data_inicio)}</p>
                       </div>
-                      <div className="lg:col-span-2">
+                      {membro.conjuge && (
+                        <div>
+                          <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
+                            <Users className="w-4 h-4" />
+                            <span className="uppercase">Cônjuge</span>
+                          </div>
+                          <p className="text-white font-semibold text-sm lg:text-base">{membro.conjuge.nome_completo}</p>
+                        </div>
+                      )}
+                      <div className={membro.conjuge ? '' : 'lg:col-span-2'}>
                         <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                           <Shield className="w-4 h-4" />
-                          <span className="uppercase">Nº Carteira</span>
+                          <span className="uppercase">Nº Membro</span>
                         </div>
                         <p className="text-brand-red font-mono font-bold text-base lg:text-lg">{membro.numero_carteira}</p>
                       </div>
@@ -471,50 +614,10 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Painel Admin - 1 coluna */}
-            {isAdmin && (
-              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <Shield className="w-5 h-5 text-brand-red" />
-                  <h3 className="text-white font-oswald text-lg uppercase font-bold">Painel do Administrador</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Link to="/invite-member" className="bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-brand-red/50 p-4 rounded-lg transition text-center">
-                    <UserPlus className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <span className="text-white text-xs font-oswald uppercase block">Convidar Membro</span>
-                  </Link>
-                  <Link to="/create-event" className="bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-brand-red/50 p-4 rounded-lg transition text-center">
-                    <Calendar className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <span className="text-white text-xs font-oswald uppercase block">Criar Evento</span>
-                  </Link>
-                  <Link to="/manage-members" className="bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-brand-red/50 p-4 rounded-lg transition text-center">
-                    <Users className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <span className="text-white text-xs font-oswald uppercase block">Gerenciar Membros</span>
-                  </Link>
-                  <Link to="/manage-payments" className="bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-brand-red/50 p-4 rounded-lg transition text-center">
-                    <DollarSign className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <span className="text-white text-xs font-oswald uppercase block">Mensalidades</span>
-                  </Link>
-                  <Link to="/manage-events" className="bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-brand-red/50 p-4 rounded-lg transition text-center">
-                    <Bike className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <span className="text-white text-xs font-oswald uppercase block">Relatórios</span>
-                  </Link>
-                  <Link to="/edit-profile" className="bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-brand-red/50 p-4 rounded-lg transition text-center">
-                    <User className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <span className="text-white text-xs font-oswald uppercase block">Configurações</span>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Grid Inferior: Mensalidades + Próximo Role + Minha Máquina */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-          
-            {/* Mensalidades - Coluna 1 */}
+            {/* Mensalidades - 1 coluna */}
             <div>
               {/* Card de Mensalidades */}
-              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden">
+              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden h-full">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-brand-red/20 to-transparent border-b border-gray-800 px-5 py-4">
                   <h3 className="text-white font-oswald text-base uppercase font-bold flex items-center gap-2">
@@ -525,20 +628,6 @@ export default function Dashboard() {
                 
                 {/* Conteúdo */}
                 <div className="p-5">
-                  {mensalidadesAtrasadas.length > 0 && (
-                    <div className="bg-red-950/30 border border-brand-red/50 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertCircle className="w-5 h-5 text-brand-red" />
-                        <p className="text-brand-red font-oswald text-sm uppercase font-bold">
-                          Atenção: Pagamento Pendente
-                        </p>
-                      </div>
-                      <p className="text-gray-400 text-xs">
-                        Regularize sua situação para manter os benefícios do clube.
-                      </p>
-                    </div>
-                  )}
-
                   {/* Tabela de Mensalidades */}
                   <div className="space-y-2">
                     {/* Header da Tabela */}
@@ -595,11 +684,14 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Próximo Role - Coluna 2 */}
-            <div>
+          {/* Grid Inferior: Próximo Role + Minha Máquina */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Próximo Role */}
+            <div className="h-full">
               {proximoEvento ? (
-                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden">
+                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden h-full flex flex-col">
                   {/* Header */}
                   <div className="bg-gradient-to-r from-brand-red/20 to-transparent border-b border-gray-800 px-5 py-4">
                     <h3 className="text-white font-oswald text-base uppercase font-bold flex items-center gap-2">
@@ -608,7 +700,7 @@ export default function Dashboard() {
                     </h3>
                   </div>
 
-                  <div className="p-5">
+                  <div className="p-5 flex-1 flex flex-col">
                     {/* Título e Data Lado a Lado */}
                     <div className="flex items-start justify-between gap-4 mb-5">
                       {/* Nome do Evento */}
@@ -652,6 +744,9 @@ export default function Dashboard() {
                       <span>{confirmados} irmãos confirmados</span>
                     </div>
 
+                    {/* Spacer para empurrar o botão para baixo */}
+                    <div className="flex-grow"></div>
+
                     {/* Botão de Confirmação */}
                     <button
                       onClick={handleConfirmarPresenca}
@@ -676,77 +771,72 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-8 text-center">
+                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-8 text-center h-full flex flex-col items-center justify-center">
                   <Calendar className="w-16 h-16 text-gray-700 mx-auto mb-4" />
                   <p className="text-gray-500 text-sm">Nenhum evento programado</p>
                 </div>
               )}
             </div>
 
-            {/* Minha Máquina - Coluna 3 */}
-            <div>
-              {moto ? (
-                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden">
+            {/* Minhas Máquinas */}
+            <div className="h-full">
+              {motos.length > 0 ? (
+                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden h-full flex flex-col">
                   {/* Header */}
                   <div className="bg-gradient-to-r from-brand-red/20 to-transparent border-b border-gray-800 px-5 py-4">
                     <h3 className="text-white font-oswald text-base uppercase font-bold flex items-center gap-2">
                       <Bike className="w-5 h-5 text-brand-red" />
-                      MINHA MÁQUINA
+                      {motos.length > 1 ? 'MINHAS MÁQUINAS' : 'MINHA MÁQUINA'}
                     </h3>
                   </div>
 
-                  <div className="p-5">
-                    {/* Nome da Moto */}
-                    <h4 className="text-white font-oswald text-2xl uppercase font-bold mb-4">
-                      {moto.marca} {moto.modelo}
-                    </h4>
-
-                    {/* Especificações em Grid */}
-                    <div className="grid grid-cols-2 gap-4 mb-5">
-                      <div>
-                        <p className="text-gray-500 text-xs uppercase mb-1">Placa</p>
-                        <p className="text-white font-mono font-bold">{moto.placa}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 text-xs uppercase mb-1">Ano</p>
-                        <p className="text-white font-semibold">{moto.ano}</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1 mb-1">
-                          <Bike className="w-3 h-3 text-gray-500" />
-                          <p className="text-gray-500 text-xs uppercase">Potência</p>
+                  <div className="p-5 flex-1 flex flex-col">
+                    {/* Lista de Motos */}
+                    <div className="space-y-2 mb-5 flex-1 overflow-y-auto">
+                      {motos.map((moto, index) => (
+                        <div key={moto.id} className="flex items-center justify-between py-3 border-b border-gray-800 hover:bg-gray-800/30 transition px-2 rounded">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 text-sm">{index + 1}.</span>
+                              <div>
+                                <h4 className="text-white font-oswald text-sm uppercase font-bold">
+                                  {moto.marca} {moto.modelo}
+                                </h4>
+                                <p className="text-gray-400 text-xs">
+                                  <span className="font-mono">{moto.placa}</span> • {moto.ano}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <Link
+                            to={`/edit-moto/${moto.id}`}
+                            className="text-gray-400 hover:text-brand-red transition text-xs uppercase font-oswald font-bold"
+                          >
+                            Editar
+                          </Link>
                         </div>
-                        <p className="text-white font-semibold">77 HP</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1 mb-1">
-                          <Bike className="w-3 h-3 text-gray-500" />
-                          <p className="text-gray-500 text-xs uppercase">Cilindrada</p>
-                        </div>
-                        <p className="text-white font-semibold">853 cc</p>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Bike className="w-3 h-3 text-gray-500" />
-                          <p className="text-gray-500 text-xs uppercase">Torque</p>
-                        </div>
-                        <p className="text-white font-semibold">83 Nm</p>
-                      </div>
+                      ))}
                     </div>
 
-                    {/* Botão Atualizar */}
-                    <button className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-brand-red/50 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition">
-                      Atualizar Dados da Moto
-                    </button>
+                    {/* Botão Adicionar Nova Moto */}
+                    <Link
+                      to="/add-moto"
+                      className="block w-full bg-brand-red/20 hover:bg-brand-red/30 border border-brand-red text-brand-red hover:text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition text-center"
+                    >
+                      + Cadastrar Nova Moto
+                    </Link>
                   </div>
                 </div>
               ) : (
-                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-8 text-center">
+                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-8 text-center h-full flex flex-col items-center justify-center">
                   <Bike className="w-16 h-16 text-gray-700 mx-auto mb-4" />
                   <p className="text-gray-500 text-sm mb-4">Nenhuma moto cadastrada</p>
-                  <button className="bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition">
+                  <Link
+                    to="/add-moto"
+                    className="bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
+                  >
                     Cadastrar Moto
-                  </button>
+                  </Link>
                 </div>
               )}
             </div>

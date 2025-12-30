@@ -37,6 +37,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Sistema de detecção de inatividade (5 minutos)
+  useEffect(() => {
+    if (!user) return;
+
+    const INACTIVITY_TIME = 5 * 60 * 1000; // 5 minutos em milissegundos
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        // Fazer logout após 5 minutos de inatividade
+        signOut();
+      }, INACTIVITY_TIME);
+    };
+
+    // Eventos que indicam atividade do usuário
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+
+    // Adicionar listeners para todos os eventos
+    events.forEach(event => {
+      document.addEventListener(event, resetTimer, true);
+    });
+
+    // Iniciar o timer
+    resetTimer();
+
+    // Cleanup
+    return () => {
+      clearTimeout(inactivityTimer);
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimer, true);
+      });
+    };
+  }, [user]);
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,

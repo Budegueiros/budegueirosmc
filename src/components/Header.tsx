@@ -11,16 +11,9 @@ function Header() {
   };
 
   return (
-    <header className="fixed w-full bg-brand-dark/95 backdrop-blur-sm z-50 border-b border-brand-red/20">
+    <header className="fixed w-full bg-brand-dark/95 backdrop-blur-sm z-30 border-b border-brand-red/20 pl-16 md:pl-20">
       <nav className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/BT.png" alt="Budegueiros MC" className="w-10 h-10" />
-            <span className="text-2xl font-rebel uppercase tracking-wider text-brand-red">
-              Budegueiros MC
-            </span>
-          </Link>
-
           {/* Menu Hamburguer */}
           <button
             className="md:hidden text-brand-red hover:text-red-500 transition"

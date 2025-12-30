@@ -79,12 +79,12 @@ export default function ManagePayments() {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      // Carregar mensalidades com dados dos membros
+      // Carregar mensalidades com dados dos membros (incluindo membros inativos)
       const { data: mensalidadesData, error: mensalidadesError } = await supabase
         .from('mensalidades')
         .select(`
           *,
-          membros (
+          membros!inner (
             nome_completo,
             nome_guerra,
             numero_carteira
@@ -92,20 +92,25 @@ export default function ManagePayments() {
         `)
         .order('mes_referencia', { ascending: false });
 
-      if (mensalidadesError) throw mensalidadesError;
+      if (mensalidadesError) {
+        console.error('Erro ao carregar mensalidades:', mensalidadesError);
+        throw mensalidadesError;
+      }
+      
+      console.log('Total de mensalidades carregadas:', mensalidadesData?.length || 0);
       setMensalidades(mensalidadesData || []);
 
-      // Carregar lista de membros para o formulário
+      // Carregar lista de membros para o formulário (incluindo inativos para exibição)
       const { data: membrosData, error: membrosError } = await supabase
         .from('membros')
-        .select('id, nome_completo, nome_guerra, numero_carteira')
-        .eq('ativo', true)
+        .select('id, nome_completo, nome_guerra, numero_carteira, ativo')
         .order('nome_guerra');
 
       if (membrosError) throw membrosError;
       setMembros(membrosData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      alert('Erro ao carregar dados. Verifique o console para mais detalhes.');
     } finally {
       setLoading(false);
     }
