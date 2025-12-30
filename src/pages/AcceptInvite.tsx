@@ -51,14 +51,39 @@ export default function AcceptInvite() {
         if (type === 'invite' && accessToken) {
           console.log('Forçando processamento do token de convite...');
           
-          // O Supabase pode demorar um pouco para processar, aguardar
+          const refreshToken = hashParams.get('refresh_token');
+          
+          if (refreshToken) {
+            // Tentar setar a sessão manualmente usando os tokens do hash
+            try {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              });
+              
+              console.log('Resultado setSession:', { hasSession: !!data.session, error });
+              
+              if (data.session && mounted) {
+                setInviteValid(true);
+                setValidatingToken(false);
+                if (timeoutRef.current) {
+                  clearTimeout(timeoutRef.current);
+                }
+                return;
+              }
+            } catch (err) {
+              console.error('Erro ao setar sessão:', err);
+            }
+          }
+          
+          // Aguardar um pouco para o processamento automático
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         // Verificar sessão atual
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        console.log('Sessão obtida:', { hasSession: !!session, error: sessionError });
+        console.log('Sessão obtida:', { hasSession: !!session, user: session?.user?.email, error: sessionError });
         
         if (session?.user && mounted) {
           setInviteValid(true);
