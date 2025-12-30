@@ -13,8 +13,8 @@ function Header() {
   return (
     <header className="fixed w-full bg-brand-dark/95 backdrop-blur-sm z-30 border-b border-brand-red/20 pl-16 md:pl-20">
       <nav className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          {/* Menu Hamburguer */}
+        <div className="flex items-center justify-end">
+          {/* Menu Hamburguer - Mobile (à direita) */}
           <button
             className="md:hidden text-brand-red hover:text-red-500 transition"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -23,7 +23,7 @@ function Header() {
             {isMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
           </button>
 
-          {/* Menu Desktop */}
+          {/* Menu Desktop (à direita) */}
           <div className="hidden md:flex gap-8">
             <Link to="/" className={`${isActive('/') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Home</Link>
             <Link to="/sobre" className={`${isActive('/sobre') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Sobre</Link>

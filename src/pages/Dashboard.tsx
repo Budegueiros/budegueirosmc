@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, Users, LogOut, Loader2, UserPlus, Shield, User, DollarSign, Menu, X, BarChart3, Bell } from 'lucide-react';
+import { Calendar, CheckCircle, AlertCircle, Bike, MapPin, User, Loader2, Users, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
-import { StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
+import { StatusMembroEnum } from '../types/database.types';
+import DashboardLayout from '../components/DashboardLayout';
 
 interface MembroData {
   id: string;
@@ -55,8 +55,7 @@ interface MensalidadeData {
 }
 
 export default function Dashboard() {
-  const { user, signOut } = useAuth();
-  const { isAdmin } = useAdmin();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [membro, setMembro] = useState<MembroData | null>(null);
@@ -67,12 +66,10 @@ export default function Dashboard() {
   const [confirmados, setConfirmados] = useState(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
   const [confirmandoPresenca, setConfirmandoPresenca] = useState(false);
-  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
-  const [comunicadosNaoLidos, setComunicadosNaoLidos] = useState(0);
 
   useEffect(() => {
     carregarDados();
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recarregar dados sempre que a página for montada/exibida
   useEffect(() => {
@@ -82,7 +79,7 @@ export default function Dashboard() {
     
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const carregarDados = async () => {
     if (!user) return;
@@ -198,22 +195,6 @@ export default function Dashboard() {
         } else if (mensalidadesError) {
           console.error('Erro ao buscar mensalidades:', mensalidadesError);
         }
-
-        // Buscar comunicados não lidos
-        const { data: comunicadosData } = await supabase
-          .from('comunicados')
-          .select('id');
-
-        if (comunicadosData && comunicadosData.length > 0) {
-          const { data: leiturasData } = await supabase
-            .from('comunicados_leitura')
-            .select('comunicado_id')
-            .eq('membro_id', membroData.id);
-
-          const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
-          const naoLidos = comunicadosData.filter((c) => !idsLidos.has(c.id));
-          setComunicadosNaoLidos(naoLidos.length);
-        }
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -284,14 +265,16 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center pt-20">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
-            Carregando seus dados...
-          </p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
+            <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
+              Carregando seus dados...
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -300,224 +283,37 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex">
-      {/* SIDEBAR LATERAL - Desktop */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-black border-r border-gray-800 fixed left-0 top-0 h-screen overflow-y-auto z-40">
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-brand-red rounded-lg flex items-center justify-center overflow-hidden">
-              <img src="/brasao.jpg" alt="Budegueiros MC" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h2 className="text-white font-rebel text-lg uppercase font-bold leading-tight">BUDEGUEIROS</h2>
-              <p className="text-brand-red text-xs font-oswald uppercase tracking-wide">MC EST. 2024</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Menu de Navegação */}
-        <nav className="flex-1 py-6">
-          <Link to="/dashboard" className="flex items-center gap-3 px-6 py-3 bg-brand-red text-white font-oswald uppercase text-sm font-bold">
-            <Users className="w-5 h-5" />
-            Dashboard
-          </Link>
-          <Link to="/family-members" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-            <Users className="w-5 h-5" />
-            Minha Família
-          </Link>
-          <Link to="/agenda" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-            <Calendar className="w-5 h-5" />
-            Agenda
-          </Link>
-          <Link to="/polls" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-            <BarChart3 className="w-5 h-5" />
-            Enquetes
-          </Link>
-          <Link to="/comunicados" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm relative">
-            <Bell className="w-5 h-5" />
-            Comunicados
-            {comunicadosNaoLidos > 0 && (
-              <span className="absolute left-9 top-2 flex h-5 w-5 items-center justify-center">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
-                  {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
-                </span>
-              </span>
-            )}
-          </Link>
-          <Link to="/my-payments" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-            <DollarSign className="w-5 h-5" />
-            Tesouraria
-          </Link>
-          {isAdmin && (
-            <Link to="/admin" className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-              <Shield className="w-5 h-5" />
-              Admin
-            </Link>
-          )}
-        </nav>
-
-        {/* Footer Sidebar */}
-        <div className="p-4 border-t border-gray-800 space-y-2">
-          <Link to="/edit-profile" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded transition text-sm">
-            <User className="w-4 h-4" />
-            Configurações
-          </Link>
-          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-brand-red transition text-sm w-full">
-            <LogOut className="w-4 h-4" />
-            Sair do Sistema
-          </button>
-        </div>
-      </aside>
-
-      {/* MENU MOBILE - Overlay */}
-      {menuMobileAberto && (
-        <div className="fixed inset-0 bg-black/80 z-50 lg:hidden" onClick={() => setMenuMobileAberto(false)}>
-          <aside className="w-64 bg-black border-r border-gray-800 h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            {/* Logo */}
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-brand-red rounded-lg flex items-center justify-center overflow-hidden">
-                  <img src="/brasao.jpg" alt="Budegueiros MC" className="w-full h-full object-cover" />
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Banner de Alerta - Full Width */}
+        {mensalidadesAtrasadas.length > 0 && (
+          <div className="bg-red-950/50 border-2 border-brand-red rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-brand-red/20 p-3 rounded-lg">
+                  <AlertCircle className="w-8 h-8 text-brand-red" />
                 </div>
                 <div>
-                  <h2 className="text-white font-rebel text-lg uppercase font-bold leading-tight">BUDEGUEIROS</h2>
-                  <p className="text-brand-red text-xs font-oswald uppercase tracking-wide">MC EST. 2024</p>
+                  <h3 className="text-white font-oswald text-2xl uppercase font-bold">
+                    MENSALIDADE EM ATRASO
+                  </h3>
+                  <p className="text-gray-300 text-sm mt-1">
+                    Você possui {mensalidadesAtrasadas.length} mensalidade pendente. Regularize agora para evitar bloqueio.
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setMenuMobileAberto(false)} className="text-gray-400 hover:text-white">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Menu de Navegação */}
-            <nav className="flex-1 py-6">
-              <Link to="/dashboard" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 bg-brand-red text-white font-oswald uppercase text-sm font-bold">
-                <Users className="w-5 h-5" />
-                Dashboard
+              <Link
+                to="/my-payments"
+                className="bg-brand-red hover:bg-red-700 text-white px-6 py-3 rounded-lg font-oswald uppercase font-bold text-sm transition hover:scale-105 transform"
+              >
+                Ver Mensalidades
               </Link>
-              <Link to="/family-members" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-                <Users className="w-5 h-5" />
-                Minha Família
-              </Link>
-              <Link to="/agenda" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-                <Calendar className="w-5 h-5" />
-                Agenda
-              </Link>
-              <Link to="/polls" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-                <BarChart3 className="w-5 h-5" />
-                Enquetes
-              </Link>
-              <Link to="/comunicados" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm relative">
-                <Bell className="w-5 h-5" />
-                Comunicados
-                {comunicadosNaoLidos > 0 && (
-                  <span className="absolute left-9 top-2 flex h-5 w-5 items-center justify-center">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
-                      {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
-                    </span>
-                  </span>
-                )}
-              </Link>
-              <Link to="/my-payments" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-                <DollarSign className="w-5 h-5" />
-                Tesouraria
-              </Link>
-              {isAdmin && (
-                <Link to="/admin" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-6 py-3 text-gray-400 hover:text-white hover:bg-gray-900 transition font-oswald uppercase text-sm">
-                  <Shield className="w-5 h-5" />
-                  Admin
-                </Link>
-              )}
-            </nav>
-
-            {/* Footer Sidebar */}
-            <div className="p-4 border-t border-gray-800 space-y-2">
-              <Link to="/edit-profile" onClick={() => setMenuMobileAberto(false)} className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded transition text-sm">
-                <User className="w-4 h-4" />
-                Configurações
-              </Link>
-              <button onClick={() => { handleLogout(); setMenuMobileAberto(false); }} className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-brand-red transition text-sm w-full">
-                <LogOut className="w-4 h-4" />
-                Sair do Sistema
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-
-      {/* CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 lg:ml-64 w-full">
-        {/* Header Superior */}
-        <header className="bg-black border-b border-gray-800 px-4 lg:px-8 py-4 sticky top-0 z-30">
-          <div className="flex items-center justify-between">
-            {/* Menu Hamburguer - Mobile */}
-            <button 
-              onClick={() => setMenuMobileAberto(true)}
-              className="lg:hidden text-gray-400 hover:text-white p-2"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-
-            <div className="flex-1 lg:flex-none">
-              <p className="text-gray-400 text-xs lg:text-sm">Bem vindo de volta,</p>
-              <h1 className="text-white font-oswald text-lg lg:text-2xl uppercase font-bold">
-                IRMÃO {membro.nome_guerra}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 lg:gap-4">
-              <Link to="/comunicados" className="relative p-2 text-gray-400 hover:text-white transition">
-                <Bell className="w-5 h-5 lg:w-6 lg:h-6" />
-                {comunicadosNaoLidos > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
-                      {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
-                    </span>
-                  </span>
-                )}
-              </Link>
-              <span className="bg-brand-red text-white px-2 lg:px-4 py-1 lg:py-2 rounded font-oswald text-xs lg:text-sm uppercase font-bold">
-                Status: Ativo
-              </span>
             </div>
           </div>
-        </header>
+        )}
 
-        {/* Container do Conteúdo */}
-        <div className="p-6 lg:p-8 space-y-6">
-        
-          {/* Banner de Alerta - Full Width */}
-          {mensalidadesAtrasadas.length > 0 && (
-            <div className="bg-red-950/50 border-2 border-brand-red rounded-xl p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="bg-brand-red/20 p-3 rounded-lg">
-                    <AlertCircle className="w-8 h-8 text-brand-red" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-oswald text-2xl uppercase font-bold">
-                      MENSALIDADE EM ATRASO
-                    </h3>
-                    <p className="text-gray-300 text-sm mt-1">
-                      Você possui {mensalidadesAtrasadas.length} mensalidade pendente. Regularize agora para evitar bloqueio.
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  to="/my-payments"
-                  className="bg-brand-red hover:bg-red-700 text-white px-6 py-3 rounded-lg font-oswald uppercase font-bold text-sm transition hover:scale-105 transform"
-                >
-                  Ver Mensalidades
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Grid Principal: Card de Perfil + Mensalidades */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Grid Principal: Card de Perfil + Mensalidades */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Card de Perfil - 2 colunas */}
             <div className="lg:col-span-2">
               <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-4 lg:p-8">
@@ -832,7 +628,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
-  );
+      </DashboardLayout>
+    );
 }

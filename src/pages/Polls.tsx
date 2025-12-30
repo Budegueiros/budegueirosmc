@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart3, Plus, CheckCircle, ArrowLeft } from 'lucide-react';
+import { BarChart3, Plus, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import DashboardLayout from '../components/DashboardLayout';
 
 interface Enquete {
   id: string;
@@ -197,24 +198,20 @@ export default function Polls() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <p className="text-gray-400">Carregando enquetes...</p>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Carregando enquetes...</p>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Voltar ao Dashboard */}
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="text-gray-400 hover:text-white flex items-center gap-2 mb-6 transition"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Voltar ao Dashboard
-        </button>
-
+    <DashboardLayout>
+      <div className="max-w-5xl mx-auto py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -399,11 +396,6 @@ export default function Polls() {
           )}
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="text-center text-gray-600 text-sm mt-12">
-        © 2025 Budegueiros MC. Todos os direitos reservados.
-      </footer>
-    </div>
+    </DashboardLayout>
   );
 }

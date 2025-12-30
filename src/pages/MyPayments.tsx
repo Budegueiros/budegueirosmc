@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import DashboardLayout from '../components/DashboardLayout';
 
 interface Mensalidade {
   id: string;
@@ -113,31 +114,25 @@ export default function MyPayments() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center pt-20">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
-            Carregando...
-          </p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
+            <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
+              Carregando...
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black pt-20 pb-24">
-      <div className="max-w-4xl mx-auto px-4">
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto px-4 py-8">
         
         {/* Header */}
         <div className="mb-8">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar ao Dashboard
-          </Link>
-          
           <div className="flex items-center gap-3 mb-2">
             <DollarSign className="w-8 h-8 text-brand-red" />
             <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
@@ -246,6 +241,6 @@ export default function MyPayments() {
           )}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
