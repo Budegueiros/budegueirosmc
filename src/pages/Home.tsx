@@ -1,7 +1,24 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 
 export default function Home() {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        // Detectar se é um link de convite e redirecionar para /accept-invite
+        const hash = window.location.hash;
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const type = hashParams.get('type');
+        const accessToken = hashParams.get('access_token');
+
+        if (type === 'invite' && accessToken) {
+            console.log('Convite detectado na home, redirecionando para /accept-invite');
+            // Manter o hash e redirecionar
+            navigate(`/accept-invite${hash}`);
+        }
+    }, [navigate]);
+
     return (
         <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-0">
             <Sidebar />
