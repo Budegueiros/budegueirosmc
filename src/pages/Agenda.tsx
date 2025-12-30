@@ -118,6 +118,7 @@ export default function Agenda() {
                   time={evento.hora_saida || '00:00'}
                   km={evento.distancia_km?.toString()}
                   descricao={evento.descricao ?? ''}
+                  fotoCapa={evento.foto_capa_url}
                   mapUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.local_saida)}`}
                 />
               );

@@ -3,13 +3,13 @@ import { Facebook, Instagram, Twitter } from 'lucide-react';
 
 export default function Home() {
     return (
-        <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark">
-            {/* Barra Lateral Vermelha com Redes Sociais */}
-            <div className="fixed left-0 top-0 h-full w-12 md:w-16 bg-brand-red z-40 flex flex-col items-center justify-between py-8">
-                {/* Texto Vertical "BUDEGUEIROS" */}
+        <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-0">
+            {/* Barra Lateral Vermelha com Texto e Redes Sociais */}
+            <div className="fixed left-0 top-0 h-screen w-16 md:w-20 bg-brand-red z-50 flex flex-col items-center justify-between py-8">
+                {/* Texto Vertical "BUDEGUEIROS MC" */}
                 <div className="flex-1 flex items-center justify-center">
-                    <span className="transform -rotate-90 origin-center text-white font-oswald font-bold text-sm md:text-base tracking-[0.3em] whitespace-nowrap">
-                        BUDEGUEIROS
+                    <span className="transform -rotate-90 origin-center text-white font-rebel font-bold text-xl md:text-2xl tracking-[0.3em] whitespace-nowrap">
+                        BUDEGUEIROS MC
                     </span>
                 </div>
 
@@ -50,17 +50,17 @@ export default function Home() {
                 className="absolute inset-0 bg-cover bg-center opacity-10"
                 style={{
                     backgroundImage: `url(/brasao.jpg)`,
-                    backgroundSize: 'contain',
+                    backgroundSize: '45%',
                     backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
+                    backgroundPosition: 'right center',
                     maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 75%)',
                     WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 75%)',
                 }}
             />
 
             {/* Conteúdo Principal */}
-            <div className="relative z-10 h-full flex items-center justify-center md:justify-start pl-12 md:pl-32 lg:pl-48">
-                <div className="max-w-3xl px-4 md:px-8">
+            <div className="relative z-10 h-full flex items-center justify-start pl-20 md:pl-32 lg:pl-48">
+                <div className="max-w-2xl px-4 md:px-8">
                     {/* Título Principal */}
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-oswald font-bold leading-tight mb-6">
                         <span className="text-white">MUITO MAIS QUE ESTRADA:</span>

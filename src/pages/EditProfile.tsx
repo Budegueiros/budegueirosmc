@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { User, ArrowLeft, Upload, Loader2, Save, Camera } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
 
 interface Membro {
   id: string;
@@ -76,19 +77,18 @@ export default function EditProfile() {
     if (!file || !user) return;
 
     // Validar tipo de arquivo
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione uma imagem');
-      return;
-    }
-
-    // Validar tamanho (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB');
+    if (!isValidImageFile(file)) {
+      alert('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
       return;
     }
 
     setUploading(true);
     try {
+      // Comprimir imagem automaticamente se necessário
+      console.log(`Tamanho original: ${formatFileSize(file.size)}`);
+      const compressedFile = await compressImage(file, 5);
+      console.log(`Tamanho após compressão: ${formatFileSize(compressedFile.size)}`);
+
       // Deletar imagem antiga se existir
       if (membro?.foto_url) {
         const oldPath = membro.foto_url.split('/').pop();
@@ -100,13 +100,13 @@ export default function EditProfile() {
       }
 
       // Upload da nova imagem
-      const fileExt = file.name.split('.').pop();
+      const fileExt = compressedFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
@@ -127,10 +127,15 @@ export default function EditProfile() {
 
       setPreviewUrl(publicUrl);
       setMembro(prev => prev ? { ...prev, foto_url: publicUrl } : null);
+
+      // Mostrar mensagem de sucesso se a imagem foi comprimida
+      if (file.size > compressedFile.size) {
+        alert(`Foto enviada com sucesso!\nTamanho reduzido de ${formatFileSize(file.size)} para ${formatFileSize(compressedFile.size)}`);
+      }
       
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      alert('Erro ao fazer upload da foto');
+      alert('Erro ao fazer upload da foto. Tente novamente.');
     } finally {
       setUploading(false);
     }

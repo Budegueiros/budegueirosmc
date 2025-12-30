@@ -4,6 +4,7 @@ import { Calendar, ArrowLeft, Save, Loader2, MapPin, Clock, Users, Camera, Uploa
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
 
 export default function CreateEvent() {
   const { user } = useAuth();
@@ -38,26 +39,35 @@ export default function CreateEvent() {
     }
   }, [isAdmin, adminLoading, navigate]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione uma imagem');
+    if (!isValidImageFile(file)) {
+      alert('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB');
-      return;
-    }
+    try {
+      // Comprimir imagem automaticamente
+      console.log(`Tamanho original: ${formatFileSize(file.size)}`);
+      const compressedFile = await compressImage(file, 5);
+      console.log(`Tamanho após compressão: ${formatFileSize(compressedFile.size)}`);
 
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+      setSelectedFile(compressedFile);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+
+      if (file.size > compressedFile.size) {
+        console.log(`Imagem comprimida de ${formatFileSize(file.size)} para ${formatFileSize(compressedFile.size)}`);
+      }
+    } catch (error) {
+      console.error('Erro ao processar imagem:', error);
+      alert('Erro ao processar imagem. Tente novamente.');
+    }
   };
 
   const uploadFotoCapa = async (): Promise<string | null> => {

@@ -75,7 +75,7 @@ export default function ResetPassword() {
 
   if (validatingToken) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+      <div className="min-h-screen bg-black flex items-center justify-center px-4 pt-20">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
           <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
@@ -88,7 +88,7 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+      <div className="min-h-screen bg-black flex items-center justify-center px-4 pt-20">
         <div className="max-w-md w-full text-center">
           <div className="bg-brand-gray border border-green-600/50 rounded-xl p-8">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />

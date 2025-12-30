@@ -147,3 +147,48 @@ export const TIPO_CARGO_STYLES: Record<TipoCargoEnum, { bg: string; text: string
     text: 'text-amber-800'
   }
 };
+
+/**
+ * Prioridade de um comunicado
+ */
+export type ComunicadoPrioridade = 'normal' | 'alta' | 'critica';
+
+/**
+ * Tipo de destinatário do comunicado
+ */
+export type ComunicadoTipoDestinatario = 'geral' | 'cargo' | 'membro';
+
+/**
+ * Interface para comunicados
+ */
+export interface Comunicado {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  prioridade: ComunicadoPrioridade;
+  tipo_destinatario: ComunicadoTipoDestinatario;
+  valor_destinatario: string | null;
+  membro_id_autor: string;
+  created_at: string;
+}
+
+/**
+ * Interface para leitura de comunicados
+ */
+export interface ComunicadoLeitura {
+  id: string;
+  comunicado_id: string;
+  membro_id: string;
+  lido_em: string;
+}
+
+/**
+ * Interface estendida com informações do autor
+ */
+export interface ComunicadoComAutor extends Comunicado {
+  autor: {
+    nome_guerra: string;
+    foto_url: string | null;
+  };
+  ja_lido: boolean;
+}
