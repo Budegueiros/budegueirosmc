@@ -170,6 +170,24 @@ export default function Admin() {
             </div>
           </Link>
 
+          {/* Gerenciar Cargos */}
+          <Link 
+            to="/manage-cargos"
+            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
+                <Shield className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
+              </div>
+              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+                Gerenciar Cargos
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Crie e gerencie os cargos do clube
+              </p>
+            </div>
+          </Link>
+
           {/* Configurações */}
           <Link 
             to="/edit-profile"

@@ -169,14 +169,15 @@ export default function ManageMembers() {
         setUploading(true);
         // Buscar arquivo do input
         const file = fileInputRef.current?.files?.[0];
-        if (file) {
+        if (file && user) {
           // Comprimir imagem
           const compressed = await compressImage(file, 2);
           const ext = file.name.split('.').pop();
-          const filePath = `membros/${membroId}_${Date.now()}.${ext}`;
-          const { data, error: uploadError } = await supabase.storage.from('fotos').upload(filePath, compressed, { upsert: true });
+          // Usar estrutura de pastas permitida pelas políticas RLS
+          const filePath = `${user.id}/membros/${membroId}_${Date.now()}.${ext}`;
+          const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, compressed, { upsert: true });
           if (uploadError) throw uploadError;
-          const { data: publicUrlData } = supabase.storage.from('fotos').getPublicUrl(filePath);
+          const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
           fotoUrl = publicUrlData?.publicUrl || null;
         }
         setUploading(false);

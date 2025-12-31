@@ -63,11 +63,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       if (!membroData) return;
 
-      const { count } = await supabase
-        .from('comunicado_leituras')
-        .select('*', { count: 'exact', head: true })
-        .eq('membro_id', membroData.id)
-        .eq('lido', false);
+      // Buscar comunicados não lidos
+      // Primeiro, buscar todos os comunicados
+      const { data: comunicadosData } = await supabase
+        .from('comunicados')
+        .select('id')
+        .order('created_at', { ascending: false });
+
+      if (!comunicadosData || comunicadosData.length === 0) {
+        setComunicadosNaoLidos(0);
+        return;
+      }
+
+      // Buscar leituras do membro
+      const { data: leiturasData } = await supabase
+        .from('comunicados_leitura')
+        .select('comunicado_id')
+        .eq('membro_id', membroData.id);
+
+      const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
+      const naoLidos = comunicadosData.filter((c) => !idsLidos.has(c.id));
+      
+      setComunicadosNaoLidos(naoLidos.length);
 
       setComunicadosNaoLidos(count || 0);
     } catch (error) {
