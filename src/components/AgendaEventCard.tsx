@@ -1,4 +1,4 @@
-import { MapPin, Clock, Navigation, ThumbsUp, HelpCircle } from 'lucide-react';
+import { MapPin, Clock, Navigation, ThumbsUp, Loader2, Users } from 'lucide-react';
 
 interface Evento {
   id: string;
@@ -24,9 +24,12 @@ interface AgendaEventCardProps {
   event: Evento;
   currentMember?: MembroData | null;
   onRSVP?: (eventId: string, status: 'confirmed' | 'maybe') => void;
+  isConfirmed?: boolean;
+  isConfirming?: boolean;
+  confirmadosCount?: number;
 }
 
-export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, currentMember, onRSVP }) => {
+export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, currentMember, onRSVP, isConfirmed = false, isConfirming = false, confirmadosCount = 0 }) => {
   const eventDate = new Date(`${event.data_evento}T00:00:00`);
   const day = eventDate.getDate();
   const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
@@ -124,32 +127,44 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, current
           </div>
         </div>
 
-        {currentMember && onRSVP && (
-          <div className="pt-4 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-            {/* Attendees - Placeholder for future implementation */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 font-medium">
-                Confirme sua presença
-              </span>
+        <div className="pt-4 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+          {/* Confirmados - só exibe se houver membro logado e contagem > 0 */}
+          {currentMember && confirmadosCount > 0 && (
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <Users className="w-5 h-5" />
+              <span>{confirmadosCount} irmãos confirmados</span>
             </div>
+          )}
 
-            {/* Actions */}
+          {/* Actions */}
+          {currentMember && onRSVP && (
             <div className="flex gap-2 w-full sm:w-auto">
               <button 
-                onClick={() => onRSVP(event.id, 'confirmed')}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-bold transition-all bg-[#0f1014] border border-gray-700 text-gray-300 hover:border-green-600 hover:text-green-500"
+                onClick={() => onRSVP && onRSVP(event.id, 'confirmed')}
+                disabled={isConfirming}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-bold transition-all ${
+                  isConfirmed
+                    ? 'bg-green-600/20 border border-green-600 text-green-500 hover:bg-green-600/30'
+                    : 'bg-[#0f1014] border border-gray-700 text-gray-300 hover:border-green-600 hover:text-green-500'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <ThumbsUp size={14} /> Eu Vou
-              </button>
-              <button 
-                onClick={() => onRSVP(event.id, 'maybe')}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-bold transition-all bg-[#0f1014] border border-gray-700 text-gray-300 hover:border-yellow-600 hover:text-yellow-500"
-              >
-                <HelpCircle size={14} /> Talvez
+                {isConfirming ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Processando...
+                  </>
+                ) : isConfirmed ? (
+                  <>
+                    <ThumbsUp size={14} /> Presença Confirmada
+                  </>
+                ) : (
+                  <>
+                    <ThumbsUp size={14} /> Eu Vou
+                  </>
+                )}
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

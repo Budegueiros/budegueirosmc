@@ -35,6 +35,9 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [confirmacoes, setConfirmacoes] = useState<Record<string, string | null>>({});
+  const [confirmandoPresenca, setConfirmandoPresenca] = useState<Record<string, boolean>>({});
+  const [confirmadosCount, setConfirmadosCount] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -53,8 +56,29 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
         
         setEventos(eventosData || []);
 
-        // Buscar dados do membro (só se estiver autenticado)
-        if (user) {
+        // Buscar contagem de confirmados para todos os eventos (só se for página logada)
+        if (isLoggedIn && eventosData && eventosData.length > 0) {
+          const eventIds = eventosData.map(e => e.id);
+          const confirmadosMap: Record<string, number> = {};
+          
+          // Buscar contagem para cada evento
+          await Promise.all(
+            eventIds.map(async (eventId) => {
+              const { count } = await supabase
+                .from('confirmacoes_presenca')
+                .select('*', { count: 'exact', head: true })
+                .eq('evento_id', eventId)
+                .eq('status', 'Confirmado');
+              
+              confirmadosMap[eventId] = count || 0;
+            })
+          );
+          
+          setConfirmadosCount(confirmadosMap);
+        }
+
+        // Buscar dados do membro (só se estiver autenticado E for página logada)
+        if (user && isLoggedIn) {
           const { data: membroData, error: membroError } = await supabase
             .from('membros')
             .select('id, nome_guerra')
@@ -65,6 +89,24 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
             console.error('Erro ao buscar membro:', membroError);
           } else {
             setMembro(membroData);
+
+            // Buscar confirmações de presença do membro para todos os eventos
+            if (membroData && eventosData) {
+              const eventIds = eventosData.map(e => e.id);
+              const { data: confirmacoesData } = await supabase
+                .from('confirmacoes_presenca')
+                .select('id, evento_id')
+                .eq('membro_id', membroData.id)
+                .eq('status', 'Confirmado')
+                .in('evento_id', eventIds);
+
+              const confirmacoesMap: Record<string, string | null> = {};
+              eventosData.forEach(event => {
+                const confirmacao = confirmacoesData?.find(c => c.evento_id === event.id);
+                confirmacoesMap[event.id] = confirmacao?.id || null;
+              });
+              setConfirmacoes(confirmacoesMap);
+            }
           }
         }
         
@@ -78,12 +120,50 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
     };
 
     carregarDados();
-  }, [user]);
+  }, [user, isLoggedIn]);
 
   const handleRSVP = async (eventId: string, status: 'confirmed' | 'maybe') => {
-    if (!membro) {
-      alert('Você precisa estar logado para confirmar presença');
-      return;
+    if (!membro || confirmandoPresenca[eventId]) return;
+
+    setConfirmandoPresenca(prev => ({ ...prev, [eventId]: true }));
+
+    try {
+      const confirmacaoId = confirmacoes[eventId];
+
+      if (confirmacaoId) {
+        // Usuário já confirmou - cancelar confirmação
+        const { error } = await supabase
+          .from('confirmacoes_presenca')
+          .delete()
+          .eq('id', confirmacaoId);
+
+        if (error) throw error;
+
+        setConfirmacoes(prev => ({ ...prev, [eventId]: null }));
+        setConfirmadosCount(prev => ({ ...prev, [eventId]: Math.max(0, (prev[eventId] || 0) - 1) }));
+      } else {
+        // Criar nova confirmação
+        const { data, error } = await supabase
+          .from('confirmacoes_presenca')
+          .insert({
+            evento_id: eventId,
+            membro_id: membro.id,
+            status: 'Confirmado',
+            data_confirmacao: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+
+        setConfirmacoes(prev => ({ ...prev, [eventId]: data.id }));
+        setConfirmadosCount(prev => ({ ...prev, [eventId]: (prev[eventId] || 0) + 1 }));
+      }
+    } catch (error) {
+      console.error('Erro ao confirmar presença:', error);
+      alert('Erro ao processar confirmação. Tente novamente.');
+    } finally {
+      setConfirmandoPresenca(prev => ({ ...prev, [eventId]: false }));
     }
   };
 
@@ -169,8 +249,11 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
                 <AgendaEventCard 
                   key={event.id}
                   event={event}
-                  currentMember={membro}
-                  onRSVP={handleRSVP}
+                  currentMember={isLoggedIn ? membro : null}
+                  onRSVP={isLoggedIn ? handleRSVP : undefined}
+                  isConfirmed={isLoggedIn ? !!confirmacoes[event.id] : false}
+                  isConfirming={isLoggedIn ? (confirmandoPresenca[event.id] || false) : false}
+                  confirmadosCount={isLoggedIn ? (confirmadosCount[event.id] || 0) : 0}
                 />
               ))
             ) : (
