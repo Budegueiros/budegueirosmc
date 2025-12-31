@@ -21,10 +21,10 @@ export default function Home() {
         <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-0">
             {/* Background com Caveira (placeholder) */}
             <div 
-                className="absolute inset-0 bg-cover bg-center opacity-10"
+                className="absolute inset-0 bg-cover bg-center"
                 style={{
                     backgroundImage: `url(/brasao.jpg)`,
-                    backgroundSize: '45%',
+                    backgroundSize: '37%',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'right center',
                     maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 75%)',
@@ -33,8 +33,8 @@ export default function Home() {
             />
 
             {/* Conteúdo Principal */}
-            <div className="relative z-10 h-full flex items-center justify-start pl-20 md:pl-32 lg:pl-48">
-                <div className="max-w-2xl px-4 md:px-8">
+            <div className="relative z-10 h-full flex items-center justify-center md:justify-start px-4 md:pl-32 lg:pl-48">
+                <div className="max-w-2xl px-4 md:px-8 text-center md:text-left">
                     {/* Título Principal */}
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-oswald font-bold leading-tight mb-6">
                         <span className="text-white">MUITO MAIS QUE ESTRADA:</span>

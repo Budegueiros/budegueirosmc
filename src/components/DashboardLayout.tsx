@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Shield, User, DollarSign, Menu, X, BarChart3, Bell } from 'lucide-react';
+import { Calendar, Users, LogOut, Shield, User, DollarSign, Menu, X, BarChart3, Bell, Home } from 'lucide-react';
 import { ImProfile } from "react-icons/im";
 import { TiMessages } from "react-icons/ti";
 import { useAuth } from '../contexts/AuthContext';
@@ -139,6 +139,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Menu de Navegação */}
         <nav className="flex-1 py-6">
           <Link 
+            to="/" 
+            className={`flex items-center gap-3 px-6 py-3 ${isActive('/') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
+          >
+            <Home className="w-5 h-5" />
+            Home
+          </Link>
+          <Link 
             to="/dashboard" 
             className={`flex items-center gap-3 px-6 py-3 ${isActive('/dashboard') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm font-bold transition`}
           >
@@ -234,6 +241,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Menu de Navegação Mobile */}
             <nav className="flex-1 py-6">
+              <Link 
+                to="/" 
+                onClick={() => setMenuMobileAberto(false)} 
+                className={`flex items-center gap-3 px-6 py-3 ${isActive('/') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
+              >
+                <Home className="w-5 h-5" />
+                Home
+              </Link>
               <Link 
                 to="/dashboard" 
                 onClick={() => setMenuMobileAberto(false)} 
