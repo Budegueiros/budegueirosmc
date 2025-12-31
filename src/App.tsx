@@ -28,6 +28,7 @@ import Polls from './pages/Polls';
 import CreatePoll from './pages/CreatePoll';
 import Comunicados from './pages/Comunicados';
 import ManageComunicados from './pages/ManageComunicados';
+import ManageCargos from './pages/ManageCargos';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 
@@ -53,7 +54,8 @@ function AppContent() {
     '/polls',
     '/create-poll',
     '/comunicados',
-    '/manage-comunicados'
+    '/manage-comunicados',
+    '/manage-cargos'
   ];
   
   const shouldHideHeader = hideHeaderRoutes.some(route => location.pathname.startsWith(route));
@@ -197,6 +199,14 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <ManageComunicados />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/manage-cargos" 
+                element={
+                  <ProtectedRoute>
+                    <ManageCargos />
                   </ProtectedRoute>
                 } 
               />
