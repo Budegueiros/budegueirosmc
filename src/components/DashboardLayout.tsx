@@ -85,8 +85,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       const naoLidos = comunicadosData.filter((c) => !idsLidos.has(c.id));
       
       setComunicadosNaoLidos(naoLidos.length);
-
-      setComunicadosNaoLidos(count || 0);
     } catch (error) {
       console.error('Erro ao carregar comunicados não lidos:', error);
     }
@@ -359,7 +357,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <h2 className="text-white font-rebel text-sm uppercase font-bold">BUDEGUEIROS MC</h2>
         </div>
-        <div className="w-6"></div>
+        {/* Notificações Mobile */}
+        <Link to="/comunicados" className="relative">
+          <button className="p-2 text-gray-400 hover:text-white transition">
+            <Bell className="w-6 h-6" />
+            {comunicadosNaoLidos > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 items-center justify-center text-[10px] font-bold text-white">
+                  {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
+                </span>
+              </span>
+            )}
+          </button>
+        </Link>
       </header>
 
       {/* CONTEÚDO PRINCIPAL */}
