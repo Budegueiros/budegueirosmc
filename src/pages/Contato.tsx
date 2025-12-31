@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { MapPin, Phone, Mail, Users, MessageSquare, Send, ExternalLink, Instagram, Facebook, Twitter } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
-
 export default function Contato() {
   const [subject, setSubject] = useState('Sugestão');
   const [message, setMessage] = useState('');
@@ -51,7 +49,6 @@ export default function Contato() {
 
   return (
     <section className="relative py-20 bg-black min-h-screen flex items-center justify-center pt-24 overflow-hidden">
-      <Sidebar />
 
       <div className="container mx-auto px-4 pl-16 md:pl-24 max-w-7xl">
         {/* Header */}

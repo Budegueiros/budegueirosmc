@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Search, Edit2, Trash2, ArrowLeft, Check, X, Loader2, Save, UserCheck, Upload } from 'lucide-react';
+import { Calendar, Search, Edit2, Trash2, ArrowLeft, X, Loader2, Save, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
-import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
+import { compressImage, isValidImageFile } from '../utils/imageCompression';
 
 interface Evento {
   id: string;
@@ -623,7 +623,7 @@ export default function ManageEvents() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-gray-400 text-xs uppercase mb-1 flex items-center gap-2">
+                      <label className="text-gray-400 text-xs uppercase mb-1 flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={editingData.vagas_limitadas}
@@ -646,7 +646,7 @@ export default function ManageEvents() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-gray-400 text-xs uppercase mb-1 flex items-center gap-2">
+                      <label className="text-gray-400 text-xs uppercase mb-1 flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={editingData.evento_principal}

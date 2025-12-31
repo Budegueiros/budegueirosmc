@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, X, Loader2, Save } from 'lucide-react';
+import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, X, Loader2, Save, Upload, Camera } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { compressImage, isValidImageFile } from '../utils/imageCompression';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { Membro, StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
@@ -15,6 +16,7 @@ interface EditingMembro {
   telefone: string;
   endereco_cidade: string;
   endereco_estado: string;
+  foto_url: string | null;
 }
 
 interface MembroWithCargos extends Membro {
@@ -38,6 +40,10 @@ export default function ManageMembers() {
   const [saving, setSaving] = useState(false);
   
   // Estados para gerenciamento de cargos
+    // Upload de foto
+    const [uploading, setUploading] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [todosOsCargos, setTodosOsCargos] = useState<Array<{ id: string; nome: string; tipo_cargo: string; nivel: number }>>([]);
   const [cargosSelecionados, setCargosSelecionados] = useState<string[]>([]);
   const [cargosOriginais, setCargosOriginais] = useState<string[]>([]);
@@ -114,8 +120,9 @@ export default function ManageMembers() {
       telefone: membro.telefone || '',
       endereco_cidade: membro.endereco_cidade || '',
       endereco_estado: membro.endereco_estado || '',
+      foto_url: membro.foto_url || null,
     });
-    
+    setPreviewUrl(membro.foto_url || null);
     // Carregar cargos atuais do membro
     const cargosAtuaisIds = membro.cargos_ativos?.map(c => c.id) || [];
     setCargosSelecionados(cargosAtuaisIds);
@@ -154,9 +161,26 @@ export default function ManageMembers() {
 
   const handleSaveMembro = async (membroId: string) => {
     if (!editingData) return;
-    
     setSaving(true);
     try {
+      let fotoUrl = editingData.foto_url;
+      // Se previewUrl mudou e não é igual ao original, fazer upload
+      if (previewUrl && previewUrl !== editingData.foto_url && previewUrl.startsWith('blob:')) {
+        setUploading(true);
+        // Buscar arquivo do input
+        const file = fileInputRef.current?.files?.[0];
+        if (file) {
+          // Comprimir imagem
+          const compressed = await compressImage(file, 2);
+          const ext = file.name.split('.').pop();
+          const filePath = `membros/${membroId}_${Date.now()}.${ext}`;
+          const { data, error: uploadError } = await supabase.storage.from('fotos').upload(filePath, compressed, { upsert: true });
+          if (uploadError) throw uploadError;
+          const { data: publicUrlData } = supabase.storage.from('fotos').getPublicUrl(filePath);
+          fotoUrl = publicUrlData?.publicUrl || null;
+        }
+        setUploading(false);
+      }
       const { error } = await supabase
         .from('membros')
         .update({
@@ -168,26 +192,23 @@ export default function ManageMembers() {
           telefone: editingData.telefone || null,
           endereco_cidade: editingData.endereco_cidade || null,
           endereco_estado: editingData.endereco_estado || null,
+          foto_url: fotoUrl,
         })
         .eq('id', membroId);
-
       if (error) throw error;
-      
-      // Salvar alterações de cargos
       await handleSaveCargos(membroId);
-      
-      // Recarregar dados para refletir mudanças
       await carregarDados();
-
       setEditingId(null);
       setEditingData(null);
       setCargosSelecionados([]);
       setCargosOriginais([]);
+      setPreviewUrl(null);
     } catch (error) {
       console.error('Erro ao atualizar membro:', error);
       alert('Erro ao atualizar dados do membro');
     } finally {
       setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -196,6 +217,22 @@ export default function ManageMembers() {
     setEditingData(null);
     setCargosSelecionados([]);
     setCargosOriginais([]);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+  // Manipulador de upload de foto
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!isValidImageFile(file)) {
+      alert('Selecione uma imagem válida (jpg, jpeg, png, webp)');
+      return;
+    }
+    setUploading(true);
+    // Compressão e preview
+    const compressed = await compressImage(file, 2);
+    setPreviewUrl(URL.createObjectURL(compressed));
+    setUploading(false);
   };
 
   const handleToggleAtivo = async (membro: Membro) => {
@@ -352,6 +389,47 @@ export default function ManageMembers() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Upload de Foto */}
+                    <div className="md:col-span-2">
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Foto do Membro (opcional)</label>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          {previewUrl ? (
+                            <img src={previewUrl} alt="Preview" className="w-16 h-16 rounded-full object-cover border-2 border-brand-red/30" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center border-2 border-gray-700 text-gray-500">
+                              <Camera className="w-7 h-7" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            disabled={saving || uploading}
+                            className="hidden"
+                            id="foto-upload"
+                          />
+                          <label htmlFor="foto-upload" className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-3 py-2 rounded cursor-pointer text-xs font-bold transition disabled:opacity-50">
+                            <Upload className="w-4 h-4" />
+                            {uploading ? 'Enviando...' : 'Selecionar Foto'}
+                          </label>
+                          {previewUrl && (
+                            <button
+                              type="button"
+                              className="ml-2 text-xs text-gray-400 hover:text-red-500 underline"
+                              onClick={() => { setPreviewUrl(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                              disabled={saving || uploading}
+                            >
+                              Remover
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-gray-500 text-xs mt-2">Formatos aceitos: jpg, jpeg, png, webp. Tamanho máximo: 2MB.</p>
+                    </div>
                     <div>
                       <label className="block text-gray-400 text-xs uppercase mb-1">Nome Completo</label>
                       <input

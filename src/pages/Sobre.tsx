@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { User, Shield, Award, Users as UsersIcon } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 import { MembroComCargos } from '../types/database.types';
 
@@ -132,7 +131,6 @@ export default function Sobre() {
     if (loading) {
         return (
             <section className="relative py-20 min-h-screen bg-zinc-900 pt-24 overflow-hidden">
-                <Sidebar />
                 <div className="container mx-auto px-4 pl-16 md:pl-24">
                     <div className="text-center text-white">Carregando...</div>
                 </div>
@@ -142,8 +140,6 @@ export default function Sobre() {
 
     return (
         <section className="relative py-20 min-h-screen bg-zinc-900 pt-24 overflow-hidden">
-            <Sidebar />
-
             <div className="container mx-auto px-4 pl-16 md:pl-24">
                 <div className="animate-fade-in max-w-7xl mx-auto space-y-16 pb-12">
                     

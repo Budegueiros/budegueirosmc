@@ -33,7 +33,7 @@ export default function Login() {
         {/* Logo e Título */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <img src="/BT.png" alt="Budegueiros MC" className="w-20 h-20" />
+            <img src="/BT.png" alt="Budegueiros MC" className="w-20 h-auto" />
           </div>
           <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
             Área do Membro
