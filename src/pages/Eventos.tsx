@@ -5,7 +5,6 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
 import { X, Calendar } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 import { EventoComFotos } from '../types/database.types';
 
@@ -85,7 +84,6 @@ export default function Eventos() {
   if (loading) {
     return (
       <section className="relative py-12 md:py-20 min-h-screen pt-24 bg-black overflow-hidden">
-        <Sidebar />
         <div className="container mx-auto px-4 pl-16 md:pl-24">
           <div className="text-center text-white">Carregando eventos...</div>
         </div>
@@ -95,8 +93,6 @@ export default function Eventos() {
 
   return (
     <section className="relative py-12 md:py-20 min-h-screen pt-24 bg-black overflow-hidden">
-      <Sidebar />
-
       <div className="container mx-auto px-4 pl-16 md:pl-24 max-w-5xl">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-3 font-oswald uppercase">Eventos Realizados</h2>

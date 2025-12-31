@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -13,7 +12,6 @@ export default function Home() {
         const accessToken = hashParams.get('access_token');
 
         if (type === 'invite' && accessToken) {
-            console.log('Convite detectado na home, redirecionando para /accept-invite');
             // Manter o hash e redirecionar
             navigate(`/accept-invite${hash}`);
         }
@@ -21,8 +19,6 @@ export default function Home() {
 
     return (
         <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-0">
-            <Sidebar />
-
             {/* Background com Caveira (placeholder) */}
             <div 
                 className="absolute inset-0 bg-cover bg-center opacity-10"

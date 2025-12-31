@@ -21,7 +21,6 @@ export default function AcceptInvite() {
     const checkInviteToken = async () => {
       try {
         const hash = window.location.hash;
-        console.log('Hash da URL:', hash);
         
         // Verificar se há erro no hash da URL (token expirado, inválido, etc)
         const hashParams = new URLSearchParams(hash.substring(1));
@@ -30,8 +29,6 @@ export default function AcceptInvite() {
         const errorDescription = hashParams.get('error_description');
         const type = hashParams.get('type');
         const accessToken = hashParams.get('access_token');
-
-        console.log('Params:', { error, errorCode, type, hasToken: !!accessToken });
 
         if (error) {
           console.error('Erro no link de convite:', { error, errorCode, errorDescription });
@@ -49,7 +46,6 @@ export default function AcceptInvite() {
 
         // Se temos type=invite mas nenhuma sessão ainda, forçar o Supabase a processar o hash
         if (type === 'invite' && accessToken) {
-          console.log('Forçando processamento do token de convite...');
           
           const refreshToken = hashParams.get('refresh_token');
           
@@ -60,8 +56,6 @@ export default function AcceptInvite() {
                 access_token: accessToken,
                 refresh_token: refreshToken
               });
-              
-              console.log('Resultado setSession:', { hasSession: !!data.session, error });
               
               if (data.session && mounted) {
                 setInviteValid(true);
@@ -83,8 +77,6 @@ export default function AcceptInvite() {
         // Verificar sessão atual
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        console.log('Sessão obtida:', { hasSession: !!session, user: session?.user?.email, error: sessionError });
-        
         if (session?.user && mounted) {
           setInviteValid(true);
           setValidatingToken(false);
@@ -96,8 +88,6 @@ export default function AcceptInvite() {
 
         // Escutar mudanças de autenticação
         subscription = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log('Auth event:', event, session?.user?.email);
-          
           if (session?.user && mounted) {
             setInviteValid(true);
             setValidatingToken(false);
@@ -156,25 +146,19 @@ export default function AcceptInvite() {
     setLoading(true);
 
     try {
-      console.log('Atualizando senha do usuário...');
-      
       // Atualizar a senha do usuário
       const { data, error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
       if (updateError) {
-        console.error('Erro ao atualizar senha:', updateError);
         throw updateError;
       }
-
-      console.log('Senha atualizada com sucesso, redirecionando...');
 
       // Redirecionar para completar o perfil
       navigate('/complete-profile');
 
     } catch (err: any) {
-      console.error('Erro no handleSubmit:', err);
       setError(err.message || 'Erro ao configurar sua conta. Tente novamente.');
     } finally {
       setLoading(false);

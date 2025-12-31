@@ -1,6 +1,8 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Calendar, Users, LogOut, Shield, User, DollarSign, Menu, X, BarChart3, Bell } from 'lucide-react';
+import { ImProfile } from "react-icons/im";
+import { TiMessages } from "react-icons/ti";
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
@@ -16,7 +18,7 @@ interface MembroData {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,8 +95,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <img src="/brasao.jpg" alt="Budegueiros MC" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h2 className="text-white font-rebel text-lg uppercase font-bold leading-tight">BUDEGUEIROS</h2>
-              <p className="text-brand-red text-xs font-oswald uppercase tracking-wide">MC EST. 2024</p>
+              <h2 className="text-white font-rebel text-2xl uppercase font-bold leading-tight">BUDEGUEIROS</h2>
             </div>
           </div>
 
@@ -124,7 +125,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Badge de Status */}
             {membro && (
-              <div className={`px-4 py-2 rounded-lg text-xs font-oswald uppercase font-bold ${STATUS_STYLES[membro.status_membro]?.bg || 'bg-gray-800'} ${STATUS_STYLES[membro.status_membro]?.text || 'text-gray-400'} border ${STATUS_STYLES[membro.status_membro]?.border || 'border-gray-700'}`}>
+              <div className={`px-4 py-2 rounded-lg text-xs font-oswald uppercase font-bold ${STATUS_STYLES[membro.status_membro]?.bg || 'bg-gray-800'} ${STATUS_STYLES[membro.status_membro]?.text || 'text-gray-400'} border border-gray-700`}>
                 Status: {membro.status_membro}
               </div>
             )}
@@ -141,7 +142,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             to="/dashboard" 
             className={`flex items-center gap-3 px-6 py-3 ${isActive('/dashboard') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm font-bold transition`}
           >
-            <Users className="w-5 h-5" />
+            <ImProfile className="w-5 h-5" />
             Dashboard
           </Link>
           <Link 
@@ -169,7 +170,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             to="/comunicados" 
             className={`flex items-center gap-3 px-6 py-3 ${isActive('/comunicados') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition relative`}
           >
-            <Bell className="w-5 h-5" />
+            <TiMessages className="w-5 h-5" />
             Comunicados
             {comunicadosNaoLidos > 0 && (
               <span className="absolute left-9 top-2 flex h-5 w-5 items-center justify-center">

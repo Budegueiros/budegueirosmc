@@ -85,8 +85,6 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
       alert('Você precisa estar logado para confirmar presença');
       return;
     }
-    
-    // TODO: Implementar lógica de RSVP no banco de dados
   };
 
   const now = new Date();
