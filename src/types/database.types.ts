@@ -30,6 +30,7 @@ export interface Membro {
   user_id: string;
   nome_completo: string;
   nome_guerra: string;
+  padrinho_id: string | null;
   status_membro: StatusMembroEnum;
   numero_carteira: string;
   data_inicio: string | null;
@@ -42,6 +43,16 @@ export interface Membro {
   is_admin: boolean;
   created_at: string;
   updated_at: string;
+  padrinho?: PadrinhoInfo | null;
+}
+
+/**
+ * Informações resumidas do padrinho (membro responsável)
+ */
+export interface PadrinhoInfo {
+  id: string;
+  nome_guerra: string;
+  foto_url: string | null;
 }
 
 /**

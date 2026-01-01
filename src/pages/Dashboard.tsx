@@ -18,8 +18,12 @@ interface MembroData {
   numero_carteira: string;
   endereco_cidade?: string;
   endereco_estado?: string;
+  padrinho_id?: string | null;
   conjuge?: {
     nome_completo: string;
+  } | null;
+  padrinho?: {
+    nome_guerra: string;
   } | null;
   cargos?: Array<{
     id: string;
@@ -103,6 +107,9 @@ export default function Dashboard() {
           ),
           conjuges (
             nome_completo
+          ),
+          padrinho:membros!padrinho_id (
+            nome_guerra
           )
         `)
         .eq('user_id', user.id)
@@ -121,7 +128,8 @@ export default function Dashboard() {
         cargos: membroData.membro_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
           .map((mc: any) => mc.cargos) || [],
-        conjuge: membroData.conjuges && membroData.conjuges.length > 0 ? membroData.conjuges[0] : null
+        conjuge: membroData.conjuges && membroData.conjuges.length > 0 ? membroData.conjuges[0] : null,
+        padrinho: membroData.padrinho || null
       };
 
       setMembro(membroComCargos);
@@ -385,7 +393,16 @@ export default function Dashboard() {
                         <p className="text-white font-semibold text-sm lg:text-base">{membro.conjuge.nome_completo}</p>
                       </div>
                     )}
-                    <div className={membro.conjuge ? '' : 'lg:col-span-2'}>
+                    {membro.padrinho && (
+                      <div>
+                        <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
+                          <Shield className="w-4 h-4" />
+                          <span className="uppercase">Padrinho</span>
+                        </div>
+                        <p className="text-white font-semibold text-sm lg:text-base">{membro.padrinho.nome_guerra}</p>
+                      </div>
+                    )}
+                    <div className={membro.conjuge || membro.padrinho ? '' : 'lg:col-span-2'}>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Shield className="w-4 h-4" />
                         <span className="uppercase">Nº Membro</span>
