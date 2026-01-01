@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Membro, Cargo } from '../types/database.types';
+import { Membro, Cargo, PadrinhoInfo } from '../types/database.types';
 
 /**
  * Interface estendida de Membro com cargos incluídos
@@ -15,6 +15,23 @@ import { Membro, Cargo } from '../types/database.types';
 export interface MembroComCargos extends Membro {
   cargos: Cargo[];
 }
+
+const fetchPadrinhoInfo = async (padrinhoId: string | null): Promise<PadrinhoInfo | null> => {
+  if (!padrinhoId) return null;
+
+  const { data, error } = await supabase
+    .from('membros')
+    .select('id, nome_guerra, foto_url')
+    .eq('id', padrinhoId)
+    .single();
+
+  if (error) {
+    console.warn('Erro ao buscar padrinho:', error.message);
+    return null;
+  }
+
+  return data as PadrinhoInfo;
+};
 
 /**
  * Hook para buscar dados de um membro específico incluindo seus cargos ativos
@@ -76,13 +93,16 @@ export function useMembro(membroId: string | null) {
         throw new Error('Membro não encontrado');
       }
 
+      const padrinhoInfo = await fetchPadrinhoInfo(data.padrinho_id || null);
+
       // Transformar dados para o formato esperado
       const membroComCargos: MembroComCargos = {
         ...data,
         cargos: data.membro_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
           .map((mc: any) => mc.cargos)
-          .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || []
+          .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
+        padrinho: padrinhoInfo
       };
 
       setMembro(membroComCargos);
@@ -158,13 +178,16 @@ export function useMembroAtual(userId: string | undefined) {
         throw new Error('Membro não encontrado');
       }
 
+      const padrinhoInfo = await fetchPadrinhoInfo(data.padrinho_id || null);
+
       // Transformar dados para o formato esperado
       const membroComCargos: MembroComCargos = {
         ...data,
         cargos: data.membro_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
           .map((mc: any) => mc.cargos)
-          .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || []
+          .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
+        padrinho: padrinhoInfo
       };
 
       setMembro(membroComCargos);
@@ -237,13 +260,17 @@ export function useMembros(apenasAtivos: boolean = true) {
 
       if (fetchError) throw fetchError;
 
-      // Transformar dados para o formato esperado
-      const membrosComCargos: MembroComCargos[] = (data || []).map((m: any) => ({
-        ...m,
-        cargos: m.membro_cargos
-          ?.filter((mc: any) => mc.cargos && mc.ativo)
-          .map((mc: any) => mc.cargos)
-          .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || []
+      // Transformar dados para o formato esperado (incluindo padrinho)
+      const membrosComCargos: MembroComCargos[] = await Promise.all((data || []).map(async (m: any) => {
+        const padrinhoInfo = await fetchPadrinhoInfo(m.padrinho_id || null);
+        return {
+          ...m,
+          cargos: m.membro_cargos
+            ?.filter((mc: any) => mc.cargos && mc.ativo)
+            .map((mc: any) => mc.cargos)
+            .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
+          padrinho: padrinhoInfo
+        };
       }));
 
       setMembros(membrosComCargos);

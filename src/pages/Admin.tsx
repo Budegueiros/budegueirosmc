@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, UserPlus, Users, DollarSign, Bike, User, Shield, ArrowLeft, Bell } from 'lucide-react';
+import { Calendar, UserPlus, Users, DollarSign, Bike, Shield, ArrowLeft, Bell, BarChart3 } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
 import DashboardLayout from '../components/DashboardLayout';
@@ -188,20 +188,20 @@ export default function Admin() {
             </div>
           </Link>
 
-          {/* Configurações */}
+          {/* Gerenciar Enquetes */}
           <Link 
-            to="/edit-profile"
+            to="/manage-polls"
             className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
           >
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <User className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
+                <BarChart3 className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
               </div>
               <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
-                Configurações
+                Gerenciar Enquetes
               </h3>
               <p className="text-gray-400 text-sm">
-                Ajuste suas preferências e perfil
+                Visualize resultados e gerencie enquetes
               </p>
             </div>
           </Link>

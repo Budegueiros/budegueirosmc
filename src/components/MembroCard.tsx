@@ -136,6 +136,14 @@ export default function MembroCard({
                 <span>{membro.numero_carteira}</span>
               </div>
 
+              {/* Padrinho */}
+              {membro.padrinho && (
+                <div className="flex items-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  <span>Padrinho: {membro.padrinho.nome_guerra}</span>
+                </div>
+              )}
+
               {/* Data de Início */}
               {membro.data_inicio && (
                 <div className="flex items-center gap-1">

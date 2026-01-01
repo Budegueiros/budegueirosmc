@@ -87,9 +87,9 @@ export default function ComunicadoCard({ comunicado, onMarcarComoLido }: Comunic
             ) : (
               <button
                 onClick={() => onMarcarComoLido(comunicado.id)}
-                className="flex items-center gap-1 text-gray-400 hover:text-white text-xs mt-2 md:mt-0 border border-gray-700 hover:border-gray-500 px-2 py-1 rounded transition-colors"
+                className="flex items-center gap-2 text-white hover:text-white text-sm font-semibold mt-2 md:mt-0 bg-brand-red/20 hover:bg-brand-red/30 border-2 border-brand-red/50 hover:border-brand-red px-4 py-2 rounded-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 focus:ring-offset-zinc-800 shadow-lg hover:shadow-brand-red/20"
               >
-                <Eye size={14} /> Marcar como lido
+                <Eye size={16} /> Marcar como lido
               </button>
             )}
           </div>
