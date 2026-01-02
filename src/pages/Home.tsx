@@ -19,9 +19,9 @@ export default function Home() {
 
     return (
         <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-0">
-            {/* Background com Caveira (placeholder) */}
+            {/* Background com Caveira (apenas desktop) */}
             <div 
-                className="absolute inset-0 bg-cover bg-center"
+                className="hidden md:block absolute inset-0 bg-cover bg-center"
                 style={{
                     backgroundImage: `url(/brasao.jpg)`,
                     backgroundSize: '37%',
@@ -33,7 +33,16 @@ export default function Home() {
             />
 
             {/* Conteúdo Principal */}
-            <div className="relative z-10 h-full flex items-center justify-center md:justify-start px-4 md:pl-32 lg:pl-48">
+            <div className="relative z-10 h-full flex flex-col md:flex-row items-center justify-center md:justify-start px-4 md:pl-32 lg:pl-48 py-8 md:py-0">
+                {/* Brasão no Mobile - acima do texto */}
+                <div className="md:hidden mb-8 flex-shrink-0">
+                    <img 
+                        src="/brasao.jpg" 
+                        alt="Brasão Budegueiros MC" 
+                        className="w-48 h-48 object-contain opacity-80"
+                    />
+                </div>
+
                 <div className="max-w-2xl px-4 md:px-8 text-center md:text-left">
                     {/* Título Principal */}
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-oswald font-bold leading-tight mb-6">
