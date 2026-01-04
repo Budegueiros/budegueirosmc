@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Phone, Mail, Users, MessageSquare, Send, ExternalLink, Instagram, Facebook, Twitter } from 'lucide-react';
+import { MapPin, Phone, Mail, Users, MessageSquare, Send, ExternalLink, Instagram, Twitter } from 'lucide-react';
 export default function Contato() {
   const [subject, setSubject] = useState('Sugestão');
   const [message, setMessage] = useState('');
@@ -106,14 +106,6 @@ export default function Contato() {
                   className="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-600 transition-all border border-gray-800 hover:border-transparent"
                 >
                   <Instagram size={20} />
-                </a>
-                <a
-                  href="https://facebook.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-blue-600 transition-all border border-gray-800 hover:border-transparent"
-                >
-                  <Facebook size={20} />
                 </a>
                 <a
                   href="https://x.com/BudegueirosMC"

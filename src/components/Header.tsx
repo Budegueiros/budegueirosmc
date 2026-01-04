@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, Menu, X } from 'lucide-react';
+import { Instagram, Twitter, Menu, X } from 'lucide-react';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,9 +30,6 @@ function Header() {
           </Link>
           {/* Sociais */}
           <div className="flex items-center gap-4 ml-4">
-            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-white hover:text-brand-red transition">
-              <Facebook className="w-5 h-5" />
-            </a>
             <a href="https://www.instagram.com/budegueirosmc/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-white hover:text-brand-red transition">
               <Instagram className="w-5 h-5" />
             </a>
@@ -63,13 +60,10 @@ function Header() {
             <Link to="/contato" className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Contato</Link>
             <Link to="/dashboard" className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Área do Membro</Link>
             <div className="flex items-center gap-4 mt-4">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-white hover:text-brand-red transition">
-                <Facebook className="w-5 h-5" />
-              </a>
               <a href="https://www.instagram.com/budegueirosmc/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-white hover:text-brand-red transition">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-white hover:text-brand-red transition">
+              <a href="https://x.com/BudegueirosMC" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-white hover:text-brand-red transition">
                 <Twitter className="w-5 h-5" />
               </a>
             </div>
