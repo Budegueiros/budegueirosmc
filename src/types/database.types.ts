@@ -250,3 +250,46 @@ export interface EventoComFotos extends Evento {
   fotos: EventoFoto[];
 }
 
+/**
+ * Tipo de destinatário do documento (igual ao de comunicados)
+ */
+export type DocumentoTipoDestinatario = 'geral' | 'cargo' | 'membro';
+
+/**
+ * Interface para documentos
+ */
+export interface Documento {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  arquivo_url: string;
+  nome_arquivo: string;
+  tipo_arquivo: string | null;
+  tamanho_bytes: number | null;
+  tipo_destinatario: DocumentoTipoDestinatario;
+  valor_destinatario: string | null;
+  membro_id_autor: string;
+  created_at: string;
+}
+
+/**
+ * Interface para acesso de documentos
+ */
+export interface DocumentoAcesso {
+  id: string;
+  documento_id: string;
+  membro_id: string;
+  acessado_em: string;
+}
+
+/**
+ * Interface estendida com informações do autor
+ */
+export interface DocumentoComAutor extends Documento {
+  autor: {
+    nome_guerra: string;
+    foto_url: string | null;
+  };
+  ja_acessado: boolean;
+}
+
