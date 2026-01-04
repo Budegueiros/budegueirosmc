@@ -3,6 +3,7 @@ import { Calendar, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AgendaEventCard } from './AgendaEventCard';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface Evento {
   id: string;
@@ -30,6 +31,7 @@ interface AgendaContentProps {
 
 export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps) {
   const { user } = useAuth();
+  const { error: toastError } = useToast();
   const [membro, setMembro] = useState<MembroData | null>(null);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,7 +163,7 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
       }
     } catch (error) {
       console.error('Erro ao confirmar presença:', error);
-      alert('Erro ao processar confirmação. Tente novamente.');
+      toastError('Erro ao processar confirmação. Tente novamente.');
     } finally {
       setConfirmandoPresenca(prev => ({ ...prev, [eventId]: false }));
     }

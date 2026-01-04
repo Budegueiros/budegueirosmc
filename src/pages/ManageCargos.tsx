@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Shield, Plus, Edit2, ShieldOff, ArrowLeft, Users, X, Save, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 import DashboardLayout from '../components/DashboardLayout';
 import { Cargo, TipoCargoEnum, TIPO_CARGO_STYLES } from '../types/database.types';
 
@@ -20,6 +21,7 @@ interface EditingCargo {
 
 export default function ManageCargos() {
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
   const [cargos, setCargos] = useState<CargoComEstatisticas[]>([]);
@@ -71,7 +73,7 @@ export default function ManageCargos() {
       setCargos(cargosComStats);
     } catch (error) {
       console.error('Erro ao carregar cargos:', error);
-      alert('Erro ao carregar cargos.');
+      toastError('Erro ao carregar cargos.');
     } finally {
       setLoading(false);
     }
@@ -112,12 +114,12 @@ export default function ManageCargos() {
 
     // Validações
     if (!editingData.nome.trim()) {
-      alert('O nome do cargo é obrigatório.');
+      toastWarning('O nome do cargo é obrigatório.');
       return;
     }
 
     if (editingData.nivel < 1) {
-      alert('O nível deve ser maior que zero.');
+      toastWarning('O nível deve ser maior que zero.');
       return;
     }
 
@@ -136,7 +138,7 @@ export default function ManageCargos() {
           });
 
         if (error) throw error;
-        alert('Cargo criado com sucesso!');
+        toastSuccess('Cargo criado com sucesso!');
       } else if (editingId) {
         // Atualizar cargo existente
         const { error } = await supabase
@@ -151,14 +153,14 @@ export default function ManageCargos() {
           .eq('id', editingId);
 
         if (error) throw error;
-        alert('Cargo atualizado com sucesso!');
+        toastSuccess('Cargo atualizado com sucesso!');
       }
 
       await carregarDados();
       handleCancel();
     } catch (error: any) {
       console.error('Erro ao salvar cargo:', error);
-      alert(error.message || 'Erro ao salvar cargo. Tente novamente.');
+      toastError(error.message || 'Erro ao salvar cargo. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -183,7 +185,7 @@ export default function ManageCargos() {
       await carregarDados();
     } catch (error) {
       console.error('Erro ao alterar status do cargo:', error);
-      alert('Erro ao alterar status do cargo.');
+      toastError('Erro ao alterar status do cargo.');
     }
   };
 

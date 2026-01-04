@@ -4,6 +4,7 @@ import { Bell, Plus, ArrowLeft, Filter, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 import ComunicadoCard from '../components/ComunicadoCard';
 import CreateComunicadoForm from '../components/CreateComunicadoForm';
 import { ComunicadoComAutor } from '../types/database.types';
@@ -14,6 +15,7 @@ type FiltroTipo = 'todos' | 'nao-lidos' | 'importantes';
 export default function Comunicados() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
+  const { error: toastError } = useToast();
   const navigate = useNavigate();
   const [comunicados, setComunicados] = useState<ComunicadoComAutor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,7 +100,7 @@ export default function Comunicados() {
       setComunicados(comunicadosComLeitura);
     } catch (error) {
       console.error('Erro ao carregar comunicados:', error);
-      alert('Erro ao carregar comunicados.');
+      toastError('Erro ao carregar comunicados.');
     } finally {
       setLoading(false);
     }

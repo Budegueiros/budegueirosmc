@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bike, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 
 export default function AddMoto() {
   const { user } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [membroId, setMembroId] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export default function AddMoto() {
     e.preventDefault();
     
     if (!membroId) {
-      alert('Erro ao identificar o membro. Tente novamente.');
+      toastError('Erro ao identificar o membro. Tente novamente.');
       return;
     }
 
@@ -66,11 +68,11 @@ export default function AddMoto() {
 
       if (error) throw error;
 
-      alert('Moto cadastrada com sucesso!');
+      toastSuccess('Moto cadastrada com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao cadastrar moto:', error);
-      alert('Erro ao cadastrar moto. Verifique os dados e tente novamente.');
+      toastError('Erro ao cadastrar moto. Verifique os dados e tente novamente.');
     } finally {
       setLoading(false);
     }

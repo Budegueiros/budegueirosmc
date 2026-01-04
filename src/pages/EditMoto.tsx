@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Bike, Loader2, ArrowLeft, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 
 interface MotoData {
@@ -16,6 +17,7 @@ interface MotoData {
 
 export default function EditMoto() {
   const { user } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
@@ -101,11 +103,11 @@ export default function EditMoto() {
 
       if (error) throw error;
 
-      alert('Moto atualizada com sucesso!');
+      toastSuccess('Moto atualizada com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao atualizar moto:', error);
-      alert('Erro ao atualizar moto. Tente novamente.');
+      toastError('Erro ao atualizar moto. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -124,11 +126,11 @@ export default function EditMoto() {
 
       if (error) throw error;
 
-      alert('Moto excluída com sucesso!');
+      toastSuccess('Moto excluída com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao excluir moto:', error);
-      alert('Erro ao excluir moto. Tente novamente.');
+      toastError('Erro ao excluir moto. Tente novamente.');
     } finally {
       setDeleting(false);
     }
