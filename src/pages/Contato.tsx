@@ -116,7 +116,7 @@ export default function Contato() {
                   <Facebook size={20} />
                 </a>
                 <a
-                  href="https://twitter.com"
+                  href="https://x.com/BudegueirosMC"
                   target="_blank"
                   rel="noreferrer"
                   className="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-sky-500 transition-all border border-gray-800 hover:border-transparent"

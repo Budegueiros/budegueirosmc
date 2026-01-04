@@ -36,7 +36,7 @@ function Header() {
             <a href="https://www.instagram.com/budegueirosmc/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-white hover:text-brand-red transition">
               <Instagram className="w-5 h-5" />
             </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-white hover:text-brand-red transition">
+            <a href="https://x.com/BudegueirosMC" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-white hover:text-brand-red transition">
               <Twitter className="w-5 h-5" />
             </a>
           </div>
