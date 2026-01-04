@@ -4,6 +4,7 @@ import { BarChart3, Search, Edit2, ArrowLeft, X, Loader2, Save, Users, CheckCirc
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface Enquete {
@@ -57,6 +58,7 @@ interface EditingEnquete {
 export default function ManagePolls() {
   const { user } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
   const [enquetes, setEnquetes] = useState<EnqueteComEstatisticas[]>([]);
@@ -67,6 +69,8 @@ export default function ManagePolls() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'aberta' | 'encerrada'>('aberta');
   const [enquetesExpandidas, setEnquetesExpandidas] = useState<Record<string, boolean>>({});
+  const [showConfirmToggle, setShowConfirmToggle] = useState<string | null>(null);
+  const [toggleStatus, setToggleStatus] = useState<'aberta' | 'encerrada' | null>(null);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -217,7 +221,7 @@ export default function ManagePolls() {
 
   const handleRemoveOpcao = (id: string) => {
     if (!editingData || editingData.opcoes.length <= 2) {
-      alert('É necessário ter pelo menos 2 opções');
+      toastWarning('É necessário ter pelo menos 2 opções');
       return;
     }
     setEditingData({
@@ -239,19 +243,19 @@ export default function ManagePolls() {
 
     // Validações
     if (!editingData.titulo.trim()) {
-      alert('O título é obrigatório.');
+      toastWarning('O título é obrigatório.');
       return;
     }
 
     if (!editingData.data_encerramento) {
-      alert('A data de encerramento é obrigatória.');
+      toastWarning('A data de encerramento é obrigatória.');
       return;
     }
 
     if (editingData.tipo === 'multipla_escolha') {
       const opcoesValidas = editingData.opcoes.filter(op => op.texto.trim());
       if (opcoesValidas.length < 2) {
-        alert('É necessário ter pelo menos 2 opções válidas.');
+        toastWarning('É necessário ter pelo menos 2 opções válidas.');
         return;
       }
     }
@@ -306,37 +310,43 @@ export default function ManagePolls() {
         }
       }
 
-      alert('Enquete atualizada com sucesso!');
+      toastSuccess('Enquete atualizada com sucesso!');
       await carregarEnquetes();
       handleCancel();
     } catch (error: any) {
       console.error('Erro ao salvar enquete:', error);
-      alert(error.message || 'Erro ao salvar enquete. Tente novamente.');
+      toastError(error.message || 'Erro ao salvar enquete. Tente novamente.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggleStatus = async (enquete: EnqueteComEstatisticas) => {
+  const handleToggleStatus = (enquete: EnqueteComEstatisticas) => {
     const novoStatus = enquete.status === 'aberta' ? 'encerrada' : 'aberta';
-    const confirmar = window.confirm(
-      `Deseja realmente ${novoStatus === 'encerrada' ? 'encerrar' : 'reabrir'} esta enquete?`
-    );
+    setShowConfirmToggle(enquete.id);
+    setToggleStatus(novoStatus);
+  };
 
-    if (!confirmar) return;
+  const executeToggleStatus = async () => {
+    if (!showConfirmToggle || !toggleStatus) return;
 
     try {
       const { error } = await supabase
         .from('enquetes')
-        .update({ status: novoStatus })
-        .eq('id', enquete.id);
+        .update({ status: toggleStatus })
+        .eq('id', showConfirmToggle);
 
       if (error) throw error;
 
+      setShowConfirmToggle(null);
+      setToggleStatus(null);
       await carregarEnquetes();
+      toastSuccess(`Enquete ${toggleStatus === 'encerrada' ? 'encerrada' : 'reaberta'} com sucesso!`);
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      alert('Erro ao alterar status da enquete.');
+      toastError('Erro ao alterar status da enquete.');
+      setShowConfirmToggle(null);
+      setToggleStatus(null);
     }
   };
 
@@ -761,6 +771,51 @@ export default function ManagePolls() {
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmação - Alterar Status */}
+      {showConfirmToggle && toggleStatus && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+              Confirmar Alteração
+            </h3>
+            <p className="text-gray-300 mb-6">
+              Deseja realmente {toggleStatus === 'encerrada' ? 'encerrar' : 'reabrir'} esta enquete?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowConfirmToggle(null);
+                  setToggleStatus(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeToggleStatus}
+                className={`px-4 py-2 rounded transition flex items-center gap-2 ${
+                  toggleStatus === 'encerrada'
+                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                {toggleStatus === 'encerrada' ? (
+                  <>
+                    <Clock className="w-4 h-4" />
+                    Encerrar
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Reabrir
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

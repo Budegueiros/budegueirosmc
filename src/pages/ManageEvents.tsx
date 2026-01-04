@@ -4,6 +4,7 @@ import { Calendar, Search, Edit2, Trash2, ArrowLeft, X, Loader2, Save, Upload } 
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 import { compressImage, isValidImageFile } from '../utils/imageCompression';
 
 interface Evento {
@@ -48,6 +49,7 @@ interface EditingEvento {
 export default function ManageEvents() {
   const { user } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -61,6 +63,8 @@ export default function ManageEvents() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [galeriaFiles, setGaleriaFiles] = useState<File[]>([]);
   const [galeriaPreviews, setGaleriaPreviews] = useState<string[]>([]);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteNome, setDeleteNome] = useState<string>('');
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -121,7 +125,7 @@ export default function ManageEvents() {
     if (!file) return;
 
     if (!isValidImageFile(file)) {
-      alert('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
+      toastWarning('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
       return;
     }
 
@@ -136,7 +140,7 @@ export default function ManageEvents() {
       reader.readAsDataURL(compressedFile);
     } catch (error) {
       console.error('Erro ao processar imagem:', error);
-      alert('Erro ao processar imagem. Tente novamente.');
+      toastError('Erro ao processar imagem. Tente novamente.');
     }
   };
 
@@ -173,7 +177,7 @@ export default function ManageEvents() {
       return urlData.publicUrl;
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      alert('Erro ao fazer upload da foto de capa');
+      toastError('Erro ao fazer upload da foto de capa');
       return null;
     } finally {
       setUploading(false);
@@ -189,7 +193,7 @@ export default function ManageEvents() {
 
     for (const file of files) {
       if (!isValidImageFile(file)) {
-        alert(`Arquivo ${file.name} não é uma imagem válida`);
+        toastWarning(`Arquivo ${file.name} não é uma imagem válida`);
         continue;
       }
 
@@ -252,7 +256,7 @@ export default function ManageEvents() {
       }
     } catch (error) {
       console.error('Erro ao fazer upload das fotos da galeria:', error);
-      alert('Erro ao fazer upload de algumas fotos da galeria');
+      toastError('Erro ao fazer upload de algumas fotos da galeria');
     }
   };
 
@@ -308,9 +312,10 @@ export default function ManageEvents() {
       setEditingData(null);
       setSelectedFile(null);
       setPreviewUrl(null);
+      toastSuccess('Evento atualizado com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar evento:', error);
-      alert('Erro ao salvar evento. Tente novamente.');
+      toastError('Erro ao salvar evento. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -325,24 +330,31 @@ export default function ManageEvents() {
     setGaleriaPreviews([]);
   };
 
-  const handleDeleteEvento = async (eventoId: string, eventoNome: string) => {
-    if (!confirm(`Tem certeza que deseja deletar o evento "${eventoNome}"?`)) {
-      return;
-    }
+  const handleDeleteEvento = (eventoId: string, eventoNome: string) => {
+    setDeleteId(eventoId);
+    setDeleteNome(eventoNome);
+  };
+
+  const executeDeleteEvento = async () => {
+    if (!deleteId) return;
 
     try {
       const { error } = await supabase
         .from('eventos')
         .delete()
-        .eq('id', eventoId);
+        .eq('id', deleteId);
 
       if (error) throw error;
 
-      setEventos(eventos.filter(e => e.id !== eventoId));
-      alert('Evento deletado com sucesso!');
+      setEventos(eventos.filter(e => e.id !== deleteId));
+      setDeleteId(null);
+      setDeleteNome('');
+      toastSuccess('Evento deletado com sucesso!');
     } catch (error) {
       console.error('Erro ao deletar evento:', error);
-      alert('Erro ao deletar evento');
+      toastError('Erro ao deletar evento');
+      setDeleteId(null);
+      setDeleteNome('');
     }
   };
 
@@ -781,6 +793,38 @@ export default function ManageEvents() {
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmação - Excluir Evento */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+              Confirmar Exclusão
+            </h3>
+            <p className="text-gray-300 mb-6">
+              Tem certeza que deseja deletar o evento <strong>"{deleteNome}"</strong>?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setDeleteId(null);
+                  setDeleteNome('');
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeDeleteEvento}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
