@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, ArrowLeft, Save, Loader2, MapPin, Clock, Users, Camera, Upload } from 'lucide-react';
+import { Calendar, ArrowLeft, Save, Loader2, MapPin, Users, Camera, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
-import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
+import { useToast } from '../contexts/ToastContext';
+import { compressImage, isValidImageFile } from '../utils/imageCompression';
 
 export default function CreateEvent() {
   const { user } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
   const [saving, setSaving] = useState(false);
@@ -47,7 +49,7 @@ export default function CreateEvent() {
     if (!file) return;
 
     if (!isValidImageFile(file)) {
-      alert('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
+      toastWarning('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
       return;
     }
 
@@ -63,7 +65,7 @@ export default function CreateEvent() {
       reader.readAsDataURL(compressedFile);
     } catch (error) {
       console.error('Erro ao processar imagem:', error);
-      alert('Erro ao processar imagem. Tente novamente.');
+      toastError('Erro ao processar imagem. Tente novamente.');
     }
   };
 
@@ -77,7 +79,7 @@ export default function CreateEvent() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!isValidImageFile(file)) {
-        alert(`Arquivo ${file.name} não é uma imagem válida`);
+        toastWarning(`Arquivo ${file.name} não é uma imagem válida`);
         continue;
       }
 
@@ -128,7 +130,7 @@ export default function CreateEvent() {
       return urlData.publicUrl;
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      alert('Erro ao fazer upload da foto de capa');
+      toastError('Erro ao fazer upload da foto de capa');
       return null;
     } finally {
       setUploading(false);
@@ -168,7 +170,7 @@ export default function CreateEvent() {
       }
     } catch (error) {
       console.error('Erro ao fazer upload das fotos da galeria:', error);
-      alert('Erro ao fazer upload de algumas fotos da galeria');
+      toastError('Erro ao fazer upload de algumas fotos da galeria');
     }
   };
 
@@ -215,11 +217,11 @@ export default function CreateEvent() {
         await uploadFotosGaleria(eventoData.id);
       }
 
-      alert('Evento criado com sucesso!');
+      toastSuccess('Evento criado com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao criar evento:', error);
-      alert('Erro ao criar evento');
+      toastError('Erro ao criar evento');
     } finally {
       setSaving(false);
     }

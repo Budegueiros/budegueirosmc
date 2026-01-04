@@ -46,6 +46,8 @@ export default function ManagePayments() {
   const [showBatchForm, setShowBatchForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showConfirmBatch, setShowConfirmBatch] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   
   const [newMensalidade, setNewMensalidade] = useState<NewMensalidade>({
     membro_id: '',
@@ -156,11 +158,12 @@ export default function ManagePayments() {
     }
   };
 
-  const handleGenerateBatch = async () => {
-    if (!confirm(`Deseja gerar mensalidades para todos os membros ativos?\n\nMês: ${batchData.mes_referencia}\nValor: R$ ${batchData.valor}`)) {
-      return;
-    }
+  const handleGenerateBatch = () => {
+    setShowConfirmBatch(true);
+  };
 
+  const executeGenerateBatch = async () => {
+    setShowConfirmBatch(false);
     setSaving(true);
     try {
       // Buscar todos os membros ativos
@@ -282,20 +285,27 @@ export default function ManagePayments() {
     }
   };
 
-  const handleDeleteMensalidade = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta mensalidade?')) return;
+  const handleDeleteMensalidade = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const executeDeleteMensalidade = async () => {
+    if (!deleteId) return;
 
     try {
       const { error } = await supabase
         .from('mensalidades')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteId);
 
       if (error) throw error;
+      setDeleteId(null);
       carregarDados();
+      toastSuccess('Mensalidade excluída com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir mensalidade:', error);
       toastError('Erro ao excluir mensalidade.');
+      setDeleteId(null);
     }
   };
 
@@ -950,6 +960,82 @@ export default function ManagePayments() {
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmação - Gerar em Lote */}
+      {showConfirmBatch && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+              Confirmar Geração em Lote
+            </h3>
+            <p className="text-gray-300 mb-4">
+              Deseja gerar mensalidades para todos os membros ativos?
+            </p>
+            <div className="bg-black/50 border border-brand-red/20 rounded-lg p-4 mb-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Mês:</span>
+                <span className="text-white font-semibold capitalize">{formatarMes(batchData.mes_referencia)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Valor:</span>
+                <span className="text-white font-semibold">R$ {parseFloat(batchData.valor).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirmBatch(false)}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeGenerateBatch}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  'Confirmar'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação - Excluir Mensalidade */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+              Confirmar Exclusão
+            </h3>
+            <p className="text-gray-300 mb-6">
+              Tem certeza que deseja excluir esta mensalidade?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeDeleteMensalidade}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
