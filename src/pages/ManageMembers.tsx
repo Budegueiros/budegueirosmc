@@ -17,6 +17,7 @@ interface EditingMembro {
   endereco_cidade: string;
   endereco_estado: string;
   foto_url: string | null;
+  padrinho_id: string | null;
 }
 
 interface MembroWithCargos extends Membro {
@@ -47,6 +48,7 @@ export default function ManageMembers() {
   const [todosOsCargos, setTodosOsCargos] = useState<Array<{ id: string; nome: string; tipo_cargo: string; nivel: number }>>([]);
   const [cargosSelecionados, setCargosSelecionados] = useState<string[]>([]);
   const [cargosOriginais, setCargosOriginais] = useState<string[]>([]);
+  const [padrinhosDisponiveis, setPadrinhosDisponiveis] = useState<Array<{ id: string; nome_guerra: string; nome_completo: string }>>([]);
 
   useEffect(() => {
     // Redirecionar se não for admin
@@ -102,6 +104,16 @@ export default function ManageMembers() {
       
       if (cargosError) throw cargosError;
       setTodosOsCargos(cargosData || []);
+      
+      // Carregar membros disponíveis para serem padrinhos
+      const { data: padrinhosData, error: padrinhosError } = await supabase
+        .from('membros')
+        .select('id, nome_guerra, nome_completo')
+        .eq('ativo', true)
+        .order('nome_guerra', { ascending: true });
+      
+      if (padrinhosError) throw padrinhosError;
+      setPadrinhosDisponiveis(padrinhosData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -121,6 +133,7 @@ export default function ManageMembers() {
       endereco_cidade: membro.endereco_cidade || '',
       endereco_estado: membro.endereco_estado || '',
       foto_url: membro.foto_url || null,
+      padrinho_id: membro.padrinho_id || null,
     });
     setPreviewUrl(membro.foto_url || null);
     // Carregar cargos atuais do membro
@@ -194,6 +207,7 @@ export default function ManageMembers() {
           endereco_cidade: editingData.endereco_cidade || null,
           endereco_estado: editingData.endereco_estado || null,
           foto_url: fotoUrl,
+          padrinho_id: editingData.padrinho_id || null,
         })
         .eq('id', membroId);
       if (error) throw error;
@@ -530,6 +544,25 @@ export default function ManageMembers() {
                         <option value="PR">Paraná</option>
                         <option value="SC">Santa Catarina</option>
                         <option value="RS">Rio Grande do Sul</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Padrinho</label>
+                      <select
+                        value={editingData.padrinho_id || ''}
+                        onChange={(e) => setEditingData({ ...editingData, padrinho_id: e.target.value || null })}
+                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                        disabled={saving}
+                      >
+                        <option value="">Nenhum</option>
+                        {padrinhosDisponiveis
+                          .filter(p => p.id !== editingId) // Excluir o próprio membro da lista
+                          .map((padrinho) => (
+                            <option key={padrinho.id} value={padrinho.id}>
+                              {padrinho.nome_guerra} - {padrinho.nome_completo}
+                            </option>
+                          ))}
                       </select>
                     </div>
                   </div>
