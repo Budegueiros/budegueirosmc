@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Users, User, Shield, ArrowLeft, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, User, Shield, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import DashboardLayout from '../components/DashboardLayout';
 interface ConjugeData {
   id: string;
   nome_completo: string;
+  nome_guerra?: string | null;
   data_nascimento: string;
   created_at: string;
 }
@@ -16,6 +17,7 @@ interface ConjugeData {
 interface FilhoData {
   id: string;
   nome_completo: string;
+  nome_guerra?: string | null;
   data_nascimento: string;
   created_at: string;
 }
@@ -35,11 +37,13 @@ export default function FamilyMembers() {
 
   const [conjugeForm, setConjugeForm] = useState({
     nome_completo: '',
+    nome_guerra: '',
     data_nascimento: ''
   });
 
   const [filhoForm, setFilhoForm] = useState({
     nome_completo: '',
+    nome_guerra: '',
     data_nascimento: ''
   });
 
@@ -102,6 +106,7 @@ export default function FamilyMembers() {
           .from('conjuges')
           .update({
             nome_completo: conjugeForm.nome_completo,
+            nome_guerra: conjugeForm.nome_guerra || null,
             data_nascimento: conjugeForm.data_nascimento
           })
           .eq('id', conjuge.id);
@@ -114,6 +119,7 @@ export default function FamilyMembers() {
           .insert({
             membro_id: membroId,
             nome_completo: conjugeForm.nome_completo,
+            nome_guerra: conjugeForm.nome_guerra || null,
             data_nascimento: conjugeForm.data_nascimento
           });
 
@@ -121,7 +127,7 @@ export default function FamilyMembers() {
       }
 
       setShowConjugeForm(false);
-      setConjugeForm({ nome_completo: '', data_nascimento: '' });
+      setConjugeForm({ nome_completo: '', nome_guerra: '', data_nascimento: '' });
       await carregarDados();
     } catch (error) {
       console.error('Erro ao salvar cônjuge:', error);
@@ -143,6 +149,7 @@ export default function FamilyMembers() {
           .from('filhos')
           .update({
             nome_completo: filhoForm.nome_completo,
+            nome_guerra: filhoForm.nome_guerra || null,
             data_nascimento: filhoForm.data_nascimento
           })
           .eq('id', editingFilho.id);
@@ -155,6 +162,7 @@ export default function FamilyMembers() {
           .insert({
             membro_id: membroId,
             nome_completo: filhoForm.nome_completo,
+            nome_guerra: filhoForm.nome_guerra || null,
             data_nascimento: filhoForm.data_nascimento
           });
 
@@ -163,7 +171,7 @@ export default function FamilyMembers() {
       
       setShowFilhoForm(false);
       setEditingFilho(null);
-      setFilhoForm({ nome_completo: '', data_nascimento: '' });
+      setFilhoForm({ nome_completo: '', nome_guerra: '', data_nascimento: '' });
       await carregarDados();
     } catch (error) {
       console.error('Erro ao salvar filho:', error);
@@ -307,6 +315,12 @@ export default function FamilyMembers() {
                     <label className="text-gray-500 text-xs uppercase mb-1 block">Nome Completo</label>
                     <p className="text-white font-semibold">{conjuge.nome_completo}</p>
                   </div>
+                  {conjuge.nome_guerra && (
+                    <div>
+                      <label className="text-gray-500 text-xs uppercase mb-1 block">Nome de Guerra</label>
+                      <p className="text-white font-semibold">{conjuge.nome_guerra}</p>
+                    </div>
+                  )}
                   <div>
                     <label className="text-gray-500 text-xs uppercase mb-1 block">Data de Nascimento</label>
                     <p className="text-white font-semibold">
@@ -318,6 +332,7 @@ export default function FamilyMembers() {
                       onClick={() => {
                         setConjugeForm({
                           nome_completo: conjuge.nome_completo,
+                          nome_guerra: conjuge.nome_guerra || '',
                           data_nascimento: conjuge.data_nascimento
                         });
                         setShowConjugeForm(true);
@@ -354,6 +369,17 @@ export default function FamilyMembers() {
                   </div>
                   <div>
                     <label className="block text-gray-400 text-sm font-oswald uppercase mb-2">
+                      Nome de Guerra
+                    </label>
+                    <input
+                      type="text"
+                      value={conjugeForm.nome_guerra}
+                      onChange={(e) => setConjugeForm({ ...conjugeForm, nome_guerra: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm font-oswald uppercase mb-2">
                       Data de Nascimento *
                     </label>
                     <input
@@ -376,7 +402,7 @@ export default function FamilyMembers() {
                       type="button"
                       onClick={() => {
                         setShowConjugeForm(false);
-                        setConjugeForm({ nome_completo: '', data_nascimento: '' });
+                        setConjugeForm({ nome_completo: '', nome_guerra: '', data_nascimento: '' });
                       }}
                       className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
                     >
@@ -422,6 +448,11 @@ export default function FamilyMembers() {
                           <h3 className="text-white font-oswald text-sm uppercase font-bold mb-1">
                             {filho.nome_completo}
                           </h3>
+                          {filho.nome_guerra && (
+                            <p className="text-gray-300 text-xs font-semibold mb-1">
+                              Nome de Guerra: {filho.nome_guerra}
+                            </p>
+                          )}
                           <p className="text-gray-400 text-xs">
                             {new Date(filho.data_nascimento).toLocaleDateString('pt-BR')} • {calcularIdade(filho.data_nascimento)} anos
                           </p>
@@ -432,6 +463,7 @@ export default function FamilyMembers() {
                               setEditingFilho(filho);
                               setFilhoForm({
                                 nome_completo: filho.nome_completo,
+                                nome_guerra: filho.nome_guerra || '',
                                 data_nascimento: filho.data_nascimento
                               });
                               setShowFilhoForm(true);
@@ -469,6 +501,17 @@ export default function FamilyMembers() {
                   </div>
                   <div>
                     <label className="block text-gray-400 text-sm font-oswald uppercase mb-2">
+                      Nome de Guerra
+                    </label>
+                    <input
+                      type="text"
+                      value={filhoForm.nome_guerra}
+                      onChange={(e) => setFilhoForm({ ...filhoForm, nome_guerra: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm font-oswald uppercase mb-2">
                       Data de Nascimento *
                     </label>
                     <input
@@ -492,7 +535,7 @@ export default function FamilyMembers() {
                       onClick={() => {
                         setShowFilhoForm(false);
                         setEditingFilho(null);
-                        setFilhoForm({ nome_completo: '', data_nascimento: '' });
+                        setFilhoForm({ nome_completo: '', nome_guerra: '', data_nascimento: '' });
                       }}
                       className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
                     >
