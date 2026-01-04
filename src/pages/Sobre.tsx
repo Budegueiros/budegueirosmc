@@ -82,9 +82,20 @@ export default function Sobre() {
         return cargoMaiorPrioridade?.nome || 'MEMBRO';
     };
 
-    // Ordenar membros por hierarquia
+    // Ordenar membros por hierarquia e, em caso de empate, por número do membro
     const sortedMembers = [...membros].sort((a, b) => {
-        return getRolePriority(a.cargos) - getRolePriority(b.cargos);
+        const priorityA = getRolePriority(a.cargos);
+        const priorityB = getRolePriority(b.cargos);
+        
+        // Primeiro ordena por hierarquia
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+        
+        // Se a hierarquia for igual, ordena por número do membro
+        const numeroA = parseInt(a.numero_carteira) || 999;
+        const numeroB = parseInt(b.numero_carteira) || 999;
+        return numeroA - numeroB;
     });
 
     const presidents = sortedMembers.filter(m => getRolePriority(m.cargos) === 1);
