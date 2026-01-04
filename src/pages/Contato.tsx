@@ -31,7 +31,7 @@ export default function Contato() {
     },
     {
       icon: <MapPin size={24} className="text-brand-red" />,
-      title: 'Sede Principal',
+      title: 'Ponto de Encontro Principal',
       value: 'Av. Joaquim José Diniz, 790',
       subValue: 'Fernão Dias, Belo Horizonte - MG, 31910-520',
       link: 'https://maps.google.com/?q=Av.+Joaquim+José+Diniz,+790+-+Fernão+Dias,+Belo+Horizonte+-+MG',
