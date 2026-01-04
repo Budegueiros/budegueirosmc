@@ -518,12 +518,21 @@ export default function Dashboard() {
 
                     {/* Data Grande à Direita */}
                     <div className="text-center min-w-[80px]">
-                      <div className="text-brand-red font-oswald text-4xl font-bold leading-none">
-                        {new Date(proximoEvento.data_evento).getDate()}
-                      </div>
-                      <div className="text-gray-400 font-oswald text-xs uppercase">
-                        {new Date(proximoEvento.data_evento).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()}
-                      </div>
+                      {(() => {
+                        // Parsear a data manualmente para evitar problemas de fuso horário
+                        const [ano, mes, dia] = proximoEvento.data_evento.split('T')[0].split('-');
+                        const dataEvento = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+                        return (
+                          <>
+                            <div className="text-brand-red font-oswald text-4xl font-bold leading-none">
+                              {dataEvento.getDate()}
+                            </div>
+                            <div className="text-gray-400 font-oswald text-xs uppercase">
+                              {dataEvento.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
