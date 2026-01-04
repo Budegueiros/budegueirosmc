@@ -1,0 +1,12 @@
+# Regras de IA para Cursor
+
+## Idioma
+- Sempre use português brasileiro para todas as respostas, comentários e mensagens de commit
+- Todas as mensagens de commit geradas automaticamente devem estar em português brasileiro
+
+## Mensagens de Commit
+- Ao gerar mensagens de commit automaticamente, use sempre português brasileiro
+- Siga o padrão: "tipo: descrição em português"
+- Exemplos de tipos: feat, fix, docs, style, refactor, test, chore
+- Use verbos no infinitivo: "adiciona", "corrige", "atualiza", "remove"
+
