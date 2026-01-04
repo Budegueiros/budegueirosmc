@@ -4,6 +4,7 @@ import { BarChart3, Plus, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface Enquete {
@@ -33,6 +34,7 @@ interface Voto {
 export default function Polls() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
+  const { error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'aberta' | 'encerrada'>('aberta');
   const [enquetes, setEnquetes] = useState<Enquete[]>([]);
@@ -140,12 +142,12 @@ export default function Polls() {
     const textoLivre = textoLivrePorEnquete[enqueteId];
 
     if (tipo === 'multipla_escolha' && !opcaoSelecionada) {
-      alert('Por favor, selecione uma opção');
+      toastWarning('Por favor, selecione uma opção');
       return;
     }
 
     if (tipo === 'texto_livre' && !textoLivre?.trim()) {
-      alert('Por favor, escreva sua resposta');
+      toastWarning('Por favor, escreva sua resposta');
       return;
     }
 
@@ -182,7 +184,7 @@ export default function Polls() {
       await carregarDados();
     } catch (error) {
       console.error('Erro ao votar:', error);
-      alert('Erro ao registrar voto. Tente novamente.');
+      toastError('Erro ao registrar voto. Tente novamente.');
     } finally {
       setVotando(null);
     }

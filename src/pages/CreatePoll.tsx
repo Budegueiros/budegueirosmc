@@ -11,6 +11,7 @@ interface Opcao {
 
 export default function CreatePoll() {
   const { user } = useAuth();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
@@ -32,7 +33,7 @@ export default function CreatePoll() {
 
   const handleRemoveOpcao = (id: string) => {
     if (opcoes.length <= 2) {
-      alert('É necessário ter pelo menos 2 opções');
+      toastWarning('É necessário ter pelo menos 2 opções');
       return;
     }
     setOpcoes(opcoes.filter(op => op.id !== id));
@@ -48,19 +49,19 @@ export default function CreatePoll() {
 
     // Validações
     if (!formData.titulo.trim()) {
-      alert('Por favor, informe o título da enquete');
+      toastWarning('Por favor, informe o título da enquete');
       return;
     }
 
     if (!formData.data_encerramento) {
-      alert('Por favor, informe a data de encerramento');
+      toastWarning('Por favor, informe a data de encerramento');
       return;
     }
 
     if (formData.tipo === 'multipla_escolha') {
       const opcoesValidas = opcoes.filter(op => op.texto.trim());
       if (opcoesValidas.length < 2) {
-        alert('É necessário ter pelo menos 2 opções válidas');
+        toastWarning('É necessário ter pelo menos 2 opções válidas');
         return;
       }
     }
@@ -106,12 +107,12 @@ export default function CreatePoll() {
         }
       }
 
-      alert('Enquete criada com sucesso!');
+      toastSuccess('Enquete criada com sucesso!');
       navigate('/polls');
     } catch (error: any) {
       console.error('Erro detalhado ao criar enquete:', error);
       const errorMessage = error?.message || 'Erro desconhecido';
-      alert(`Erro ao criar enquete: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
+      toastError(`Erro ao criar enquete: ${errorMessage}`);
     } finally {
       setSaving(false);
     }

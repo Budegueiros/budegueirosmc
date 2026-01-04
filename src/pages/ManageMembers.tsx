@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { compressImage, isValidImageFile } from '../utils/imageCompression';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 import { Membro, StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
 
 interface EditingMembro {
@@ -31,6 +32,7 @@ interface MembroWithCargos extends Membro {
 export default function ManageMembers() {
   const { user } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
   const [membros, setMembros] = useState<MembroWithCargos[]>([]);
@@ -220,7 +222,7 @@ export default function ManageMembers() {
       setPreviewUrl(null);
     } catch (error) {
       console.error('Erro ao atualizar membro:', error);
-      alert('Erro ao atualizar dados do membro');
+      toastError('Erro ao atualizar dados do membro');
     } finally {
       setSaving(false);
       setUploading(false);
@@ -240,7 +242,7 @@ export default function ManageMembers() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!isValidImageFile(file)) {
-      alert('Selecione uma imagem válida (jpg, jpeg, png, webp)');
+      toastWarning('Selecione uma imagem válida (jpg, jpeg, png, webp)');
       return;
     }
     setUploading(true);
@@ -265,14 +267,14 @@ export default function ManageMembers() {
       ));
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      alert('Erro ao alterar status do membro');
+      toastError('Erro ao alterar status do membro');
     }
   };
 
   const handleToggleAdmin = async (membro: Membro) => {
     // Não permitir remover admin de si mesmo
     if (membro.user_id === user?.id && membro.is_admin) {
-      alert('Você não pode remover seus próprios privilégios de administrador');
+      toastWarning('Você não pode remover seus próprios privilégios de administrador');
       return;
     }
 
@@ -290,7 +292,7 @@ export default function ManageMembers() {
       ));
     } catch (error) {
       console.error('Erro ao alterar admin:', error);
-      alert('Erro ao alterar privilégios de administrador');
+      toastError('Erro ao alterar privilégios de administrador');
     }
   };
 

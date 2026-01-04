@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { User, ArrowLeft, Upload, Loader2, Save, Camera } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
 
 interface Membro {
@@ -18,6 +19,7 @@ interface Membro {
 
 export default function EditProfile() {
   const { user } = useAuth();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,7 @@ export default function EditProfile() {
       setPreviewUrl(data.foto_url);
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
-      alert('Erro ao carregar perfil');
+      toastError('Erro ao carregar perfil');
     } finally {
       setLoading(false);
     }
@@ -78,7 +80,7 @@ export default function EditProfile() {
 
     // Validar tipo de arquivo
     if (!isValidImageFile(file)) {
-      alert('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
+      toastWarning('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP)');
       return;
     }
 
@@ -128,12 +130,12 @@ export default function EditProfile() {
 
       // Mostrar mensagem de sucesso se a imagem foi comprimida
       if (file.size > compressedFile.size) {
-        alert(`Foto enviada com sucesso!\nTamanho reduzido de ${formatFileSize(file.size)} para ${formatFileSize(compressedFile.size)}`);
+        toastSuccess(`Foto enviada com sucesso! Tamanho reduzido de ${formatFileSize(file.size)} para ${formatFileSize(compressedFile.size)}`);
       }
       
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      alert('Erro ao fazer upload da foto. Tente novamente.');
+      toastError('Erro ao fazer upload da foto. Tente novamente.');
     } finally {
       setUploading(false);
     }
@@ -158,11 +160,11 @@ export default function EditProfile() {
 
       if (error) throw error;
 
-      alert('Perfil atualizado com sucesso!');
+      toastSuccess('Perfil atualizado com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
-      alert('Erro ao atualizar perfil');
+      toastError('Erro ao atualizar perfil');
     } finally {
       setSaving(false);
     }

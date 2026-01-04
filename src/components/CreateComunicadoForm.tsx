@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../contexts/ToastContext';
 import { ComunicadoPrioridade, ComunicadoTipoDestinatario } from '../types/database.types';
 
 interface CreateComunicadoFormProps {
@@ -10,6 +11,7 @@ interface CreateComunicadoFormProps {
 }
 
 export default function CreateComunicadoForm({ membroId, onSuccess, onCancel }: CreateComunicadoFormProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [titulo, setTitulo] = useState('');
   const [conteudo, setConteudo] = useState('');
   const [prioridade, setPrioridade] = useState<ComunicadoPrioridade>('normal');
@@ -33,11 +35,11 @@ export default function CreateComunicadoForm({ membroId, onSuccess, onCancel }: 
 
       if (error) throw error;
 
-      alert('Comunicado publicado com sucesso!');
+      toastSuccess('Comunicado publicado com sucesso!');
       onSuccess();
     } catch (error) {
       console.error('Erro ao criar comunicado:', error);
-      alert('Erro ao publicar comunicado. Tente novamente.');
+      toastError('Erro ao publicar comunicado. Tente novamente.');
     } finally {
       setLoading(false);
     }

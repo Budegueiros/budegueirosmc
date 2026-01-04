@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '../contexts/ToastContext';
 import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +20,7 @@ interface Mensalidade {
 
 export default function MyPayments() {
   const { user } = useAuth();
+  const { info: toastInfo } = useToast();
   const navigate = useNavigate();
   
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
@@ -220,7 +222,7 @@ export default function MyPayments() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(mensalidade.link_cobranca!);
-                        alert('Código PIX copiado para a área de transferência!');
+                        toastInfo('Código PIX copiado para a área de transferência!');
                       }}
                       className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
                     >

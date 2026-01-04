@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DollarSign, Search, Edit2, Trash2, ArrowLeft, Plus, Loader2, Save, X, Check, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdmin } from '../hooks/useAdmin';
+import { useToast } from '../contexts/ToastContext';
 
 interface Mensalidade {
   id: string;
@@ -33,6 +34,7 @@ interface NewMensalidade {
 
 export default function ManagePayments() {
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast();
   const navigate = useNavigate();
   
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
@@ -109,7 +111,7 @@ export default function ManagePayments() {
       setMembros(membrosData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      alert('Erro ao carregar dados. Verifique o console para mais detalhes.');
+      toastError('Erro ao carregar dados. Verifique o console para mais detalhes.');
     } finally {
       setLoading(false);
     }
@@ -117,7 +119,7 @@ export default function ManagePayments() {
 
   const handleCreateMensalidade = async () => {
     if (!newMensalidade.membro_id) {
-      alert('Selecione um membro');
+      toastWarning('Selecione um membro');
       return;
     }
 
@@ -134,7 +136,7 @@ export default function ManagePayments() {
 
       if (error) throw error;
 
-      alert('Mensalidade criada com sucesso!');
+      toastSuccess('Mensalidade criada com sucesso!');
       setShowNewForm(false);
       setNewMensalidade({
         membro_id: '',
@@ -147,7 +149,7 @@ export default function ManagePayments() {
       carregarDados();
     } catch (error) {
       console.error('Erro ao criar mensalidade:', error);
-      alert('Erro ao criar mensalidade. Tente novamente.');
+      toastError('Erro ao criar mensalidade. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -169,7 +171,7 @@ export default function ManagePayments() {
       if (membrosError) throw membrosError;
 
       if (!membrosAtivos || membrosAtivos.length === 0) {
-        alert('Nenhum membro ativo encontrado.');
+        toastWarning('Nenhum membro ativo encontrado.');
         return;
       }
 
@@ -187,7 +189,7 @@ export default function ManagePayments() {
       const membrosParaCriar = membrosAtivos.filter(m => !idsComMensalidade.has(m.id));
 
       if (membrosParaCriar.length === 0) {
-        alert('Todos os membros ativos já possuem mensalidade para este mês.');
+        toastInfo('Todos os membros ativos já possuem mensalidade para este mês.');
         return;
       }
 
@@ -207,7 +209,10 @@ export default function ManagePayments() {
 
       if (insertError) throw insertError;
 
-      alert(`${membrosParaCriar.length} mensalidades criadas com sucesso!\n\n${idsComMensalidade.size > 0 ? `(${idsComMensalidade.size} membros já tinham mensalidade neste mês)` : ''}`);
+      const mensagem = idsComMensalidade.size > 0 
+        ? `${membrosParaCriar.length} mensalidades criadas com sucesso! (${idsComMensalidade.size} membros já tinham mensalidade neste mês)`
+        : `${membrosParaCriar.length} mensalidades criadas com sucesso!`;
+      toastSuccess(mensagem);
       setShowBatchForm(false);
       setBatchData({
         mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
@@ -219,7 +224,7 @@ export default function ManagePayments() {
       carregarDados();
     } catch (error) {
       console.error('Erro ao gerar mensalidades em lote:', error);
-      alert('Erro ao gerar mensalidades em lote. Tente novamente.');
+      toastError('Erro ao gerar mensalidades em lote. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -270,7 +275,7 @@ export default function ManagePayments() {
       carregarDados();
     } catch (error) {
       console.error('Erro ao atualizar mensalidade:', error);
-      alert('Erro ao atualizar mensalidade. Tente novamente.');
+      toastError('Erro ao atualizar mensalidade. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -289,7 +294,7 @@ export default function ManagePayments() {
       carregarDados();
     } catch (error) {
       console.error('Erro ao excluir mensalidade:', error);
-      alert('Erro ao excluir mensalidade.');
+      toastError('Erro ao excluir mensalidade.');
     }
   };
 

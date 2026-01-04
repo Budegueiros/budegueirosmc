@@ -5,6 +5,7 @@ import { GiFullMotorcycleHelmet } from 'react-icons/gi';
 import { FaMoneyBillAlt } from "react-icons/fa";
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../contexts/ToastContext';
 import { StatusMembroEnum } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -69,6 +70,8 @@ export default function Dashboard() {
   const [proximoEvento, setProximoEvento] = useState<EventoData | null>(null);
   const [mensalidadesPendentes, setMensalidadesPendentes] = useState<MensalidadeData[]>([]);
   const [mensalidadesAtrasadas, setMensalidadesAtrasadas] = useState<MensalidadeData[]>([]);
+  const [mensalidadesPagas, setMensalidadesPagas] = useState<MensalidadeData[]>([]);
+  const [todasMensalidades, setTodasMensalidades] = useState<MensalidadeData[]>([]);
   const [confirmados, setConfirmados] = useState(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
   const [confirmandoPresenca, setConfirmandoPresenca] = useState(false);
@@ -179,29 +182,32 @@ export default function Dashboard() {
           setConfirmacaoId(minhaConfirmacao?.id || null);
         }
 
-        // Buscar mensalidades pendentes e atrasadas
+        // Buscar todas as mensalidades
         const hoje = new Date();
         const { data: mensalidadesData, error: mensalidadesError } = await supabase
           .from('mensalidades')
           .select('*')
           .eq('membro_id', membroData.id)
-          .neq('status', 'Pago')
-          .order('mes_referencia', { ascending: true });
+          .order('mes_referencia', { ascending: false });
 
         if (!mensalidadesError && mensalidadesData) {
-          // Separar pendentes e atrasadas baseado na data de vencimento
+          // Separar em pagas, atrasadas e pendentes
+          const pagas = mensalidadesData.filter(m => m.status === 'Pago');
           const atrasadas = mensalidadesData.filter(m => {
+            if (m.status === 'Pago') return false;
             const vencimento = new Date(m.data_vencimento);
             return vencimento < hoje;
           });
-
           const pendentes = mensalidadesData.filter(m => {
+            if (m.status === 'Pago') return false;
             const vencimento = new Date(m.data_vencimento);
             return vencimento >= hoje;
           });
 
+          setMensalidadesPagas(pagas);
           setMensalidadesAtrasadas(atrasadas);
           setMensalidadesPendentes(pendentes);
+          setTodasMensalidades(mensalidadesData);
         } else if (mensalidadesError) {
           console.error('Erro ao buscar mensalidades:', mensalidadesError);
         }
@@ -251,7 +257,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Erro ao confirmar presença:', error);
-      alert('Erro ao processar confirmação. Tente novamente.');
+      toastError('Erro ao processar confirmação. Tente novamente.');
     } finally {
       setConfirmandoPresenca(false);
     }
@@ -393,7 +399,7 @@ export default function Dashboard() {
                         <p className="text-white font-semibold text-sm lg:text-base">{membro.conjuge.nome_completo}</p>
                       </div>
                     )}
-                    {membro.padrinho && (
+                    {membro.padrinho && membro.padrinho.nome_guerra && (
                       <div>
                         <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                           <Shield className="w-4 h-4" />
@@ -402,7 +408,7 @@ export default function Dashboard() {
                         <p className="text-white font-semibold text-sm lg:text-base">{membro.padrinho.nome_guerra}</p>
                       </div>
                     )}
-                    <div className={membro.conjuge || membro.padrinho ? '' : 'lg:col-span-2'}>
+                    <div className={membro.conjuge || (membro.padrinho && membro.padrinho.nome_guerra) ? '' : 'lg:col-span-2'}>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Shield className="w-4 h-4" />
                         <span className="uppercase">Nº Membro</span>
@@ -439,43 +445,49 @@ export default function Dashboard() {
                     <div className="col-span-2 text-right">Status</div>
                   </div>
 
-                  {/* Mensalidades Atrasadas */}
-                  {mensalidadesAtrasadas.slice(0, 1).map((mensalidade) => {
-                    const mesAno = new Date(mensalidade.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    const vencimento = new Date(mensalidade.data_vencimento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                  {/* Mostrar últimas mensalidades ordenadas por data de referência (mais recentes primeiro) */}
+                  {todasMensalidades.slice(0, 5).map((mensalidade) => {
+                    const date = new Date(mensalidade.mes_referencia + 'T00:00:00');
+                    const mesAno = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    const [ano, mes, dia] = mensalidade.data_vencimento.split('T')[0].split('-');
+                    const vencimento = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia)).toLocaleDateString('pt-BR');
+
+                    // Determinar cor do status
+                    let statusClass = '';
+                    let statusText = mensalidade.status.toUpperCase();
+                    
+                    if (mensalidade.status === 'Pago') {
+                      statusClass = 'bg-green-950/50 text-green-500';
+                      statusText = 'PAGO';
+                    } else if (mensalidade.status === 'Atrasado') {
+                      statusClass = 'bg-red-950/50 text-brand-red';
+                      statusText = 'ATRASADO';
+                    } else if (mensalidade.status === 'Aberto' || mensalidade.status === 'Pendente') {
+                      statusClass = 'bg-yellow-950/50 text-yellow-500';
+                      statusText = mensalidade.status === 'Aberto' ? 'ABERTO' : 'PENDENTE';
+                    } else {
+                      statusClass = 'bg-gray-950/50 text-gray-500';
+                    }
 
                     return (
                       <div key={mensalidade.id} className="grid grid-cols-12 gap-2 py-2 text-sm border-b border-gray-800/50">
-                        <div className="col-span-4 text-white capitalize font-medium">{mesAno.split(' ')[0]} {mesAno.split(' ')[1]}</div>
+                        <div className="col-span-4 text-white capitalize font-medium">{mesAno}</div>
                         <div className="col-span-3 text-gray-400">{vencimento}</div>
                         <div className="col-span-3 text-right text-white font-semibold">R$ {mensalidade.valor.toFixed(2)}</div>
                         <div className="col-span-2 text-right">
-                          <span className="inline-flex items-center gap-1 bg-red-950/50 text-brand-red px-2 py-0.5 rounded text-xs font-bold">
-                            ATRASADO
+                          <span className={`inline-flex items-center gap-1 ${statusClass} px-2 py-0.5 rounded text-xs font-bold`}>
+                            {statusText}
                           </span>
                         </div>
                       </div>
                     );
                   })}
 
-                  {/* Últimas mensalidades pagas */}
-                  {mensalidadesPendentes.slice(0, 3).map((mensalidade) => {
-                    const mesAno = new Date(mensalidade.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    const vencimento = new Date(mensalidade.data_vencimento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-                    return (
-                      <div key={mensalidade.id} className="grid grid-cols-12 gap-2 py-2 text-sm border-b border-gray-800/50">
-                        <div className="col-span-4 text-white capitalize font-medium">{mesAno.split(' ')[0]} {mesAno.split(' ')[1]}</div>
-                        <div className="col-span-3 text-gray-400">{vencimento}</div>
-                        <div className="col-span-3 text-right text-white font-semibold">R$ {mensalidade.valor.toFixed(2)}</div>
-                        <div className="col-span-2 text-right">
-                          <span className="inline-flex items-center gap-1 bg-green-950/50 text-green-500 px-2 py-0.5 rounded text-xs font-bold">
-                            PAGO
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {todasMensalidades.length === 0 && (
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      Nenhuma mensalidade encontrada
+                    </div>
+                  )}
                 </div>
 
                 {/* Link Ver Tudo */}

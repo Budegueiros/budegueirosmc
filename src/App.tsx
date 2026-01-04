@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Header from './components/Header';
 import Home from './pages/Home';
 import Sobre from './pages/Sobre';  
@@ -247,7 +248,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

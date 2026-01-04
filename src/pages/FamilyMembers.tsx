@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Users, User, Shield, ArrowLeft, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -21,6 +22,7 @@ interface FilhoData {
 
 export default function FamilyMembers() {
   const { user } = useAuth();
+  const { error: toastError } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [membroId, setMembroId] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export default function FamilyMembers() {
       await carregarDados();
     } catch (error) {
       console.error('Erro ao salvar cônjuge:', error);
-      alert('Erro ao salvar cônjuge. Tente novamente.');
+      toastError('Erro ao salvar cônjuge. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -165,7 +167,7 @@ export default function FamilyMembers() {
       await carregarDados();
     } catch (error) {
       console.error('Erro ao salvar filho:', error);
-      alert('Erro ao salvar filho. Tente novamente.');
+      toastError('Erro ao salvar filho. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -187,7 +189,7 @@ export default function FamilyMembers() {
       await carregarDados();
     } catch (error) {
       console.error('Erro ao excluir cônjuge:', error);
-      alert('Erro ao excluir cônjuge. Tente novamente.');
+      toastError('Erro ao excluir cônjuge. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -208,7 +210,7 @@ export default function FamilyMembers() {
       await carregarDados();
     } catch (error) {
       console.error('Erro ao excluir filho:', error);
-      alert('Erro ao excluir filho. Tente novamente.');
+      toastError('Erro ao excluir filho. Tente novamente.');
     } finally {
       setSaving(false);
     }

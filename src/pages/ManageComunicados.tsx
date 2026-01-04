@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Plus, Edit2, Trash2, ArrowLeft, Eye, Users, X, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import CreateComunicadoForm from '../components/CreateComunicadoForm';
 import { ComunicadoComAutor, ComunicadoPrioridade, ComunicadoTipoDestinatario } from '../types/database.types';
 
@@ -20,6 +21,7 @@ interface ComunicadoComEstatisticas extends ComunicadoComAutor {
 
 export default function ManageComunicados() {
   const { user } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const navigate = useNavigate();
   const [comunicados, setComunicados] = useState<ComunicadoComEstatisticas[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +123,7 @@ export default function ManageComunicados() {
       setComunicados(comunicadosComStats);
     } catch (error) {
       console.error('Erro ao carregar comunicados:', error);
-      alert('Erro ao carregar comunicados.');
+      toastError('Erro ao carregar comunicados.');
     } finally {
       setLoading(false);
     }
@@ -153,12 +155,12 @@ export default function ManageComunicados() {
 
       if (error) throw error;
 
-      alert('Comunicado atualizado com sucesso!');
+      toastSuccess('Comunicado atualizado com sucesso!');
       setEditando(null);
       carregarDados();
     } catch (error) {
       console.error('Erro ao atualizar comunicado:', error);
-      alert('Erro ao atualizar comunicado.');
+      toastError('Erro ao atualizar comunicado.');
     }
   };
 
@@ -173,11 +175,11 @@ export default function ManageComunicados() {
 
       if (error) throw error;
 
-      alert('Comunicado deletado com sucesso!');
+      toastSuccess('Comunicado deletado com sucesso!');
       carregarDados();
     } catch (error) {
       console.error('Erro ao deletar comunicado:', error);
-      alert('Erro ao deletar comunicado.');
+      toastError('Erro ao deletar comunicado.');
     }
   };
 
