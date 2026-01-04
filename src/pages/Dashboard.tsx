@@ -22,6 +22,7 @@ interface MembroData {
   padrinho_id?: string | null;
   conjuge?: {
     nome_completo: string;
+    nome_guerra: string;
   } | null;
   padrinho?: {
     nome_guerra: string;
@@ -64,13 +65,12 @@ interface MensalidadeData {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [membro, setMembro] = useState<MembroData | null>(null);
   const [motos, setMotos] = useState<MotoData[]>([]);
   const [proximoEvento, setProximoEvento] = useState<EventoData | null>(null);
-  const [mensalidadesPendentes, setMensalidadesPendentes] = useState<MensalidadeData[]>([]);
   const [mensalidadesAtrasadas, setMensalidadesAtrasadas] = useState<MensalidadeData[]>([]);
-  const [mensalidadesPagas, setMensalidadesPagas] = useState<MensalidadeData[]>([]);
   const [todasMensalidades, setTodasMensalidades] = useState<MensalidadeData[]>([]);
   const [confirmados, setConfirmados] = useState(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
@@ -109,7 +109,8 @@ export default function Dashboard() {
             )
           ),
           conjuges (
-            nome_completo
+            nome_completo,
+            nome_guerra
           ),
           padrinho:membros!padrinho_id (
             nome_guerra
@@ -191,22 +192,14 @@ export default function Dashboard() {
           .order('mes_referencia', { ascending: false });
 
         if (!mensalidadesError && mensalidadesData) {
-          // Separar em pagas, atrasadas e pendentes
-          const pagas = mensalidadesData.filter(m => m.status === 'Pago');
+          // Separar em atrasadas
           const atrasadas = mensalidadesData.filter(m => {
             if (m.status === 'Pago') return false;
             const vencimento = new Date(m.data_vencimento);
             return vencimento < hoje;
           });
-          const pendentes = mensalidadesData.filter(m => {
-            if (m.status === 'Pago') return false;
-            const vencimento = new Date(m.data_vencimento);
-            return vencimento >= hoje;
-          });
 
-          setMensalidadesPagas(pagas);
           setMensalidadesAtrasadas(atrasadas);
-          setMensalidadesPendentes(pendentes);
           setTodasMensalidades(mensalidadesData);
         } else if (mensalidadesError) {
           console.error('Erro ao buscar mensalidades:', mensalidadesError);
@@ -257,7 +250,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Erro ao confirmar presença:', error);
-      toastError('Erro ao processar confirmação. Tente novamente.');
+      toast.error('Erro ao processar confirmação. Tente novamente.');
     } finally {
       setConfirmandoPresenca(false);
     }
@@ -396,7 +389,9 @@ export default function Dashboard() {
                           <Users className="w-4 h-4" />
                           <span className="uppercase">Cônjuge</span>
                         </div>
-                        <p className="text-white font-semibold text-sm lg:text-base">{membro.conjuge.nome_completo}</p>
+                        <p className="text-white font-semibold text-sm lg:text-base">
+                          {membro.conjuge.nome_guerra || membro.conjuge.nome_completo.split(' ')[0]}
+                        </p>
                       </div>
                     )}
                     {membro.padrinho && membro.padrinho.nome_guerra && (
@@ -603,29 +598,29 @@ export default function Dashboard() {
                 </div>
 
                 <div className="p-5 flex-1 flex flex-col">
-                  {/* Lista de Motos */}
-                  <div className="space-y-2 mb-5 flex-1 overflow-y-auto">
+                  {/* Cards de Motos */}
+                  <div className="space-y-3 mb-5 flex-1 overflow-y-auto">
                     {motos.map((moto, index) => (
-                      <div key={moto.id} className="flex items-center justify-between py-3 border-b border-gray-800 hover:bg-gray-800/30 transition px-2 rounded">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 text-sm">{index + 1}.</span>
-                            <div>
-                              <h4 className="text-white font-oswald text-sm uppercase font-bold">
-                                {moto.marca} {moto.modelo}
-                              </h4>
-                              <p className="text-gray-400 text-xs">
-                                <span className="font-mono">{moto.placa}</span> • {moto.ano}
-                              </p>
+                      <div key={moto.id} className="bg-[#0A0A10] rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-gray-500 text-sm">{index + 1}.</span>
                             </div>
+                            <h4 className="text-white font-oswald text-lg uppercase font-bold mb-1">
+                              {moto.marca} {moto.modelo}
+                            </h4>
+                            <p className="text-gray-400 text-xs">
+                              <span className="font-mono">{moto.placa}</span> • {moto.ano}
+                            </p>
                           </div>
+                          <Link
+                            to={`/edit-moto/${moto.id}`}
+                            className="text-white hover:text-brand-red transition text-xs uppercase font-oswald font-bold"
+                          >
+                            EDITAR
+                          </Link>
                         </div>
-                        <Link
-                          to={`/edit-moto/${moto.id}`}
-                          className="text-gray-400 hover:text-brand-red transition text-xs uppercase font-oswald font-bold"
-                        >
-                          Editar
-                        </Link>
                       </div>
                     ))}
                   </div>
@@ -633,9 +628,9 @@ export default function Dashboard() {
                   {/* Botão Adicionar Nova Moto */}
                   <Link
                     to="/add-moto"
-                    className="block w-full bg-brand-red/20 hover:bg-brand-red/30 border border-brand-red text-brand-red hover:text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition text-center"
+                    className="block w-full bg-[#661A1A] hover:bg-[#771A1A] border border-[#CC3333] text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition text-center"
                   >
-                    + Cadastrar Nova Moto
+                    + CADASTRAR NOVA MOTO
                   </Link>
                 </div>
               </div>
