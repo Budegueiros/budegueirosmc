@@ -339,11 +339,11 @@ export default function ManageMembers() {
               <div className="flex items-center gap-3 mb-2">
                 <Users className="w-8 h-8 text-brand-red" />
                 <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
-                  Gerenciar Membros
+                  Gerenciar Integrantes
                 </h1>
               </div>
               <p className="text-gray-400 text-sm">
-                Gerencie os membros do clube, cargos e permissões
+                Gerencie os integrantes do clube, cargos e permissões
               </p>
             </div>
 
@@ -371,7 +371,7 @@ export default function ManageMembers() {
           </div>
         </div>
 
-        {/* Lista de Membros */}
+        {/* Lista de Integrantes */}
         <div className="space-y-4">
           {membrosFiltrados.map((membro) => (
             <div

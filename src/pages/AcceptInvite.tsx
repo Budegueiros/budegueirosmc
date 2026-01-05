@@ -221,7 +221,7 @@ export default function AcceptInvite() {
             Bem-vindo à Irmandade!
           </h1>
           <p className="text-gray-400 text-sm mt-2">
-            Configure sua senha para acessar a área do membro
+            Configure sua senha para acessar a área do integrante
           </p>
         </div>
 

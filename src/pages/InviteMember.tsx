@@ -169,7 +169,7 @@ export default function InviteMember() {
             </li>
             <li className="flex gap-3">
               <span className="text-brand-red font-bold">4.</span>
-              <span>Pronto! Ele terá acesso completo à área do membro</span>
+              <span>Pronto! Ele terá acesso completo à área do integrante</span>
             </li>
           </ol>
         </div>

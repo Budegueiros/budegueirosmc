@@ -169,7 +169,7 @@ export default function ManageCargos() {
   const handleToggleAtivo = async (cargo: CargoComEstatisticas) => {
     if (cargo.membros_count > 0 && cargo.ativo) {
       const confirmar = window.confirm(
-        `Este cargo está atribuído a ${cargo.membros_count} membro(s). Deseja realmente desativá-lo?`
+        `Este cargo está atribuído a ${cargo.membros_count} integrante(s). Deseja realmente desativá-lo?`
       );
       if (!confirmar) return;
     }
@@ -397,7 +397,7 @@ export default function ManageCargos() {
 
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
                       <Users className="w-4 h-4" />
-                      <span>{cargo.membros_count} membro(s) com este cargo</span>
+                      <span>{cargo.membros_count} integrante(s) com este cargo</span>
                     </div>
                   </div>
 

@@ -460,7 +460,7 @@ export default function ManageDocumentos() {
                     {/* Lista de Acessos */}
                     {expandido === documento.id && (
                       <div className="mt-4 bg-zinc-900/50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                        <h4 className="text-sm font-bold text-white mb-3">Membros que acessaram:</h4>
+                        <h4 className="text-sm font-bold text-white mb-3">Integrantes que acessaram:</h4>
                         {documento.acessos.length > 0 ? (
                           <div className="space-y-2">
                             {documento.acessos.map((acesso: any, index: number) => (

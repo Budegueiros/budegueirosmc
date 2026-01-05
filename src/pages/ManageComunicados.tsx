@@ -432,7 +432,7 @@ export default function ManageComunicados() {
                     {/* Lista de Leituras */}
                     {expandido === comunicado.id && (
                       <div className="mt-4 bg-zinc-900/50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                        <h4 className="text-sm font-bold text-white mb-3">Membros que leram:</h4>
+                        <h4 className="text-sm font-bold text-white mb-3">Integrantes que leram:</h4>
                         {comunicado.leituras.length > 0 ? (
                           <div className="space-y-2">
                             {comunicado.leituras.map((leitura: any, index: number) => (
