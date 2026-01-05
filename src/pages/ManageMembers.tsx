@@ -384,7 +384,7 @@ export default function ManageMembers() {
                 /* Modo de Edição */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Membro</h3>
+                    <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Integrante</h3>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveMembro(membro.id)}
