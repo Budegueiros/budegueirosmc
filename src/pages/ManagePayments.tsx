@@ -402,15 +402,15 @@ export default function ManagePayments() {
       {editingId === mensalidade.id && editingData ? (
         /* Modo de Edição */
         <div className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-oswald text-lg uppercase font-bold">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+            <h3 className="text-white font-oswald text-lg uppercase font-bold break-words">
               Editando: {mensalidade.membros.nome_guerra}
             </h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={() => handleSaveMensalidade(mensalidade.id)}
                 disabled={saving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Salvar
@@ -418,7 +418,7 @@ export default function ManagePayments() {
               <button
                 onClick={handleCancelEdit}
                 disabled={saving}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded transition text-sm whitespace-nowrap flex-1 sm:flex-initial"
               >
                 <X className="w-4 h-4" />
                 Cancelar
@@ -516,34 +516,36 @@ export default function ManagePayments() {
       ) : (
         /* Modo de Visualização */
         <div>
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-white font-oswald text-lg uppercase font-bold">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-white font-oswald text-lg uppercase font-bold break-words">
                 {mensalidade.membros.nome_guerra}
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-sm break-words">
                 {mensalidade.membros.nome_completo} - Carteira: {mensalidade.membros.numero_carteira}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={() => handleEditMensalidade(mensalidade)}
-                className="p-2 bg-blue-600 hover:bg-blue-700 rounded transition"
+                className="p-2 bg-blue-600 hover:bg-blue-700 rounded transition flex items-center justify-center gap-2 sm:gap-0"
                 title="Editar"
               >
                 <Edit2 className="w-4 h-4 text-white" />
+                <span className="sm:hidden text-xs text-white font-oswald uppercase">Editar</span>
               </button>
               <button
                 onClick={() => handleDeleteMensalidade(mensalidade.id)}
-                className="p-2 bg-red-600 hover:bg-red-700 rounded transition"
+                className="p-2 bg-red-600 hover:bg-red-700 rounded transition flex items-center justify-center gap-2 sm:gap-0"
                 title="Excluir"
               >
                 <Trash2 className="w-4 h-4 text-white" />
+                <span className="sm:hidden text-xs text-white font-oswald uppercase">Excluir</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div>
               <p className="text-gray-500 text-xs uppercase">Mês Referência</p>
               <p className="text-white font-semibold capitalize">{formatarMes(mensalidade.mes_referencia)}</p>
@@ -619,7 +621,7 @@ export default function ManagePayments() {
 
   return (
     <div className="min-h-screen bg-black pt-20 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 overflow-x-hidden">
         
         {/* Header */}
         <div className="mb-8">
@@ -631,11 +633,11 @@ export default function ManagePayments() {
             Voltar ao Dashboard
           </Link>
           
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <DollarSign className="w-8 h-8 text-brand-red" />
-                <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
+                <DollarSign className="w-8 h-8 text-brand-red flex-shrink-0" />
+                <h1 className="text-brand-red font-oswald text-2xl sm:text-3xl md:text-4xl uppercase font-bold break-words">
                   Gerenciar Mensalidades
                 </h1>
               </div>
@@ -644,17 +646,17 @@ export default function ManagePayments() {
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0 w-full sm:w-auto">
               <button
                 onClick={() => setShowBatchForm(!showBatchForm)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
+                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
               >
                 <Users className="w-4 h-4" />
                 Gerar Lote
               </button>
               <button
                 onClick={() => setShowNewForm(!showNewForm)}
-                className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
+                className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" />
                 Nova Mensalidade
@@ -732,19 +734,20 @@ export default function ManagePayments() {
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
               <button
                 onClick={handleGenerateBatch}
                 disabled={saving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                Gerar para Todos os Integrantes Ativos
+                <span className="hidden sm:inline">Gerar para Todos os Integrantes Ativos</span>
+                <span className="sm:hidden">Gerar Lote</span>
               </button>
               <button
                 onClick={() => setShowBatchForm(false)}
                 disabled={saving}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded transition text-sm whitespace-nowrap flex-1 sm:flex-initial"
               >
                 <X className="w-4 h-4" />
                 Cancelar
@@ -839,11 +842,11 @@ export default function ManagePayments() {
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
               <button
                 onClick={handleCreateMensalidade}
                 disabled={saving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Criar
@@ -851,7 +854,7 @@ export default function ManagePayments() {
               <button
                 onClick={() => setShowNewForm(false)}
                 disabled={saving}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded transition text-sm whitespace-nowrap flex-1 sm:flex-initial"
               >
                 <X className="w-4 h-4" />
                 Cancelar
@@ -925,13 +928,13 @@ export default function ManagePayments() {
                 <div key={grupoKey} className="space-y-3">
                   {/* Cabeçalho do Grupo */}
                   <div className="bg-gradient-to-r from-brand-red/20 to-transparent border border-brand-red/30 rounded-lg p-4">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex items-center gap-3">
-                        {groupBy === 'membro' && <Users className="w-5 h-5 text-brand-red" />}
-                        {groupBy === 'mes' && <Calendar className="w-5 h-5 text-brand-red" />}
-                        {groupBy === 'status' && <Filter className="w-5 h-5 text-brand-red" />}
-                        <div>
-                          <h3 className="text-white font-oswald text-lg uppercase font-bold">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {groupBy === 'membro' && <Users className="w-5 h-5 text-brand-red flex-shrink-0" />}
+                        {groupBy === 'mes' && <Calendar className="w-5 h-5 text-brand-red flex-shrink-0" />}
+                        {groupBy === 'status' && <Filter className="w-5 h-5 text-brand-red flex-shrink-0" />}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-white font-oswald text-lg uppercase font-bold break-words">
                             {grupoKey}
                           </h3>
                           <p className="text-gray-400 text-sm">
@@ -940,7 +943,7 @@ export default function ManagePayments() {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right flex-shrink-0">
                         <p className="text-gray-400 text-xs uppercase">Total do Grupo</p>
                         <p className="text-white font-bold text-lg">R$ {totalGrupo.toFixed(2)}</p>
                         {totalPago > 0 && (
@@ -981,18 +984,18 @@ export default function ManagePayments() {
                 <span className="text-white font-semibold">R$ {parseFloat(batchData.valor).toFixed(2)}</span>
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={() => setShowConfirmBatch(false)}
                 disabled={saving}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50 w-full sm:w-auto"
               >
                 Cancelar
               </button>
               <button
                 onClick={executeGenerateBatch}
                 disabled={saving}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 {saving ? (
                   <>
@@ -1018,16 +1021,16 @@ export default function ManagePayments() {
             <p className="text-gray-300 mb-6">
               Tem certeza que deseja excluir esta mensalidade?
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={() => setDeleteId(null)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition w-full sm:w-auto"
               >
                 Cancelar
               </button>
               <button
                 onClick={executeDeleteMensalidade}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Trash2 className="w-4 h-4" />
                 Excluir

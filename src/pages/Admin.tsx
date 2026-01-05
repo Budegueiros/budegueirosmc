@@ -84,33 +84,33 @@ export default function Admin() {
     <DashboardLayout>
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Shield className="w-8 h-8 text-brand-red" />
-            <h1 className="text-4xl md:text-5xl font-oswald font-bold text-white uppercase">
+        <div className="mb-4 md:mb-8">
+          <div className="flex items-center gap-2 md:gap-3 mb-2">
+            <Shield className="w-6 h-6 md:w-8 md:h-8 text-brand-red flex-shrink-0" />
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-oswald font-bold text-white uppercase break-words">
               Painel Administrativo
             </h1>
           </div>
-          <p className="text-gray-400 text-lg">
+          <p className="text-gray-400 text-sm md:text-lg">
             Gerencie integrantes, eventos e mensalidades do clube
           </p>
         </div>
 
-        {/* Grid de Opções */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Grid de Opções - Mobile: Botões Compactos, Desktop: Cards */}
+        <div className="space-y-2 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6 md:space-y-0">
           {/* Gerenciar Integrantes */}
           <Link 
             to="/manage-members"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <Users className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <Users className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Integrantes
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Visualize e edite informações dos integrantes
               </p>
             </div>
@@ -119,16 +119,16 @@ export default function Admin() {
           {/* Gerenciar Mensalidades */}
           <Link 
             to="/manage-payments"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <DollarSign className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <DollarSign className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Mensalidades
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Controle de pagamentos mensais dos integrantes
               </p>
             </div>
@@ -137,16 +137,16 @@ export default function Admin() {
           {/* Gerenciar Eventos */}
           <Link 
             to="/manage-events"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <Bike className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <Bike className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Eventos
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Edite e visualize eventos criados
               </p>
             </div>
@@ -155,16 +155,16 @@ export default function Admin() {
           {/* Gerenciar Comunicados */}
           <Link 
             to="/manage-comunicados"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <Bell className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <Bell className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Comunicados
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Administre e acompanhe leituras dos comunicados
               </p>
             </div>
@@ -173,16 +173,16 @@ export default function Admin() {
           {/* Gerenciar Documentos */}
           <Link 
             to="/manage-documentos"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <FileText className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <FileText className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Documentos
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Administre e acompanhe acessos aos documentos
               </p>
             </div>
@@ -191,16 +191,16 @@ export default function Admin() {
           {/* Gerenciar Cargos */}
           <Link 
             to="/manage-cargos"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <Shield className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <Shield className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Cargos
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Crie e gerencie os cargos do clube
               </p>
             </div>
@@ -209,45 +209,45 @@ export default function Admin() {
           {/* Gerenciar Enquetes */}
           <Link 
             to="/manage-polls"
-            className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
+            className="group flex items-center gap-3 bg-gradient-to-br from-gray-900 to-black rounded-lg border border-gray-800 hover:border-brand-red/50 p-4 md:p-8 transition-all hover:scale-[1.02] md:hover:scale-105 transform"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center mb-4 transition">
-                <BarChart3 className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
-              </div>
-              <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-800/50 group-hover:bg-brand-red/20 rounded-full flex items-center justify-center flex-shrink-0 transition">
+              <BarChart3 className="w-6 h-6 md:w-8 md:h-8 text-gray-400 group-hover:text-brand-red transition" />
+            </div>
+            <div className="flex-1 min-w-0 md:text-center">
+              <h3 className="text-white text-sm md:text-xl font-oswald uppercase font-bold mb-0 md:mb-2">
                 Gerenciar Enquetes
               </h3>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
                 Visualize resultados e gerencie enquetes
               </p>
             </div>
           </Link>
         </div>
 
-        {/* Seção de Estatísticas (futuro) */}
-        <div className="mt-12 bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-8">
-          <h2 className="text-white text-2xl font-oswald uppercase font-bold mb-6">
+        {/* Seção de Estatísticas */}
+        <div className="mt-6 md:mt-12 bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-4 md:p-8">
+          <h2 className="text-white text-lg md:text-2xl font-oswald uppercase font-bold mb-4 md:mb-6">
             Estatísticas Rápidas
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-2 md:grid-cols-3 md:gap-6">
             <div className="text-center">
-              <div className="text-brand-red text-4xl font-bold mb-2">
+              <div className="text-brand-red text-2xl md:text-4xl font-bold mb-1 md:mb-2">
                 {loadingStats ? '...' : stats.membrosAtivos}
               </div>
-              <div className="text-gray-400 text-sm uppercase">Integrantes Ativos</div>
+              <div className="text-gray-400 text-xs md:text-sm uppercase">Integrantes Ativos</div>
             </div>
             <div className="text-center">
-              <div className="text-brand-red text-4xl font-bold mb-2">
+              <div className="text-brand-red text-2xl md:text-4xl font-bold mb-1 md:mb-2">
                 {loadingStats ? '...' : stats.eventosFuturos}
               </div>
-              <div className="text-gray-400 text-sm uppercase">Eventos Futuros</div>
+              <div className="text-gray-400 text-xs md:text-sm uppercase">Eventos Futuros</div>
             </div>
             <div className="text-center">
-              <div className="text-brand-red text-4xl font-bold mb-2">
+              <div className="text-brand-red text-2xl md:text-4xl font-bold mb-1 md:mb-2">
                 {loadingStats ? '...' : stats.mensalidadesPendentes}
               </div>
-              <div className="text-gray-400 text-sm uppercase">Mensalidades Pendentes</div>
+              <div className="text-gray-400 text-xs md:text-sm uppercase">Mensalidades Pendentes</div>
             </div>
           </div>
         </div>

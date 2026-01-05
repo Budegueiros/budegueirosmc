@@ -65,9 +65,9 @@ export default function ComunicadoCard({ comunicado, onMarcarComoLido }: Comunic
       <div className="flex gap-4 items-start">
         <div className="mt-1 flex-shrink-0">{getIcon()}</div>
         <div className="flex-1">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
-            <div className="flex-1">
-              <h3 className={`text-lg font-bold ${isCritica ? 'text-red-500' : 'text-white'} font-oswald uppercase`}>
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2 gap-2">
+            <div className="flex-1 min-w-0">
+              <h3 className={`text-lg font-bold ${isCritica ? 'text-red-500' : 'text-white'} font-oswald uppercase break-words`}>
                 {comunicado.titulo}
               </h3>
               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400 mt-1">
@@ -81,15 +81,15 @@ export default function ComunicadoCard({ comunicado, onMarcarComoLido }: Comunic
               </div>
             </div>
             {comunicado.ja_lido ? (
-              <div className="flex items-center gap-1 text-green-500 text-xs mt-2 md:mt-0 bg-green-900/20 px-2 py-1 rounded">
+              <div className="flex items-center gap-1 text-green-500 text-xs mt-2 md:mt-0 bg-green-900/20 px-2 py-1 rounded flex-shrink-0">
                 <CheckCheck size={14} /> Lido
               </div>
             ) : (
               <button
                 onClick={() => onMarcarComoLido(comunicado.id)}
-                className="flex items-center gap-2 text-white hover:text-white text-sm font-semibold mt-2 md:mt-0 bg-brand-red/20 hover:bg-brand-red/30 border-2 border-brand-red/50 hover:border-brand-red px-4 py-2 rounded-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 focus:ring-offset-zinc-800 shadow-lg hover:shadow-brand-red/20"
+                className="flex items-center gap-2 text-white hover:text-white text-xs sm:text-sm font-semibold mt-2 md:mt-0 bg-brand-red/20 hover:bg-brand-red/30 border-2 border-brand-red/50 hover:border-brand-red px-3 sm:px-4 py-2 rounded-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 focus:ring-offset-zinc-800 shadow-lg hover:shadow-brand-red/20 flex-shrink-0 w-full sm:w-auto justify-center"
               >
-                <Eye size={16} /> Marcar como lido
+                <Eye size={16} /> <span className="whitespace-nowrap">Marcar como lido</span>
               </button>
             )}
           </div>
