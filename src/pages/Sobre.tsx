@@ -169,14 +169,14 @@ export default function Sobre() {
                                     celebra a amizade, o respeito e o espírito de aventura.
                                 </p>
                                 <p>
-                                    Inspirado pelos valores de união e lealdade, o clube proporciona aos seus membros 
+                                    Inspirado pelos valores de união e lealdade, o clube proporciona aos seus integrantes 
                                     experiências marcantes, seja em viagens, encontros ou ações sociais. A organização 
                                     do Budegueiros MC se baseia na hierarquia e na disciplina, garantindo harmonia e um 
                                     convívio saudável entre seus integrantes, que compartilham do compromisso com 
                                     segurança, camaradagem e diversão.
                                 </p>
                                 <p>
-                                    O clube é também um espaço acolhedor, onde cada membro é tratado como parte de 
+                                    O clube é também um espaço acolhedor, onde cada integrante é tratado como parte de 
                                     uma grande família unida pelo amor às motocicletas e ao prazer da convivência. Seja 
                                     em eventos, nas estradas ou no ponto de encontro tradicional no Budega do Chopp, 
                                     o Budegueiros MC mantém viva a essência da liberdade sobre duas rodas e o prazer 
@@ -222,7 +222,7 @@ export default function Sobre() {
                     {/* Hierarchy Chart */}
                     <section>
                         <div className="text-center mb-12">
-                            <h2 className="text-2xl font-bold text-white uppercase tracking-widest mb-2 font-oswald">Hierarquia & Membros</h2>
+                            <h2 className="text-2xl font-bold text-white uppercase tracking-widest mb-2 font-oswald">Hierarquia & Integrantes</h2>
                             <div className="h-1 w-24 bg-red-600 mx-auto"></div>
                         </div>
 
@@ -253,7 +253,7 @@ export default function Sobre() {
                         {/* Members */}
                         {fullMembers.length > 0 && (
                             <div className="mb-12">
-                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2">Membros Brasão Fechado</h3>
+                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2">Integrantes Brasão Fechado</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                                     {fullMembers.map(m => <MemberCard key={m.id} member={m} />)}
                                 </div>

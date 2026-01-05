@@ -92,13 +92,13 @@ export default function Admin() {
             </h1>
           </div>
           <p className="text-gray-400 text-lg">
-            Gerencie membros, eventos e mensalidades do clube
+            Gerencie integrantes, eventos e mensalidades do clube
           </p>
         </div>
 
         {/* Grid de Opções */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Gerenciar Membros */}
+          {/* Gerenciar Integrantes */}
           <Link 
             to="/manage-members"
             className="group bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 hover:border-brand-red/50 p-8 transition-all hover:scale-105 transform"
@@ -108,10 +108,10 @@ export default function Admin() {
                 <Users className="w-8 h-8 text-gray-400 group-hover:text-brand-red transition" />
               </div>
               <h3 className="text-white text-xl font-oswald uppercase font-bold mb-2">
-                Gerenciar Membros
+                Gerenciar Integrantes
               </h3>
               <p className="text-gray-400 text-sm">
-                Visualize e edite informações dos membros
+                Visualize e edite informações dos integrantes
               </p>
             </div>
           </Link>
@@ -129,7 +129,7 @@ export default function Admin() {
                 Gerenciar Mensalidades
               </h3>
               <p className="text-gray-400 text-sm">
-                Controle de pagamentos mensais dos membros
+                Controle de pagamentos mensais dos integrantes
               </p>
             </div>
           </Link>
@@ -235,7 +235,7 @@ export default function Admin() {
               <div className="text-brand-red text-4xl font-bold mb-2">
                 {loadingStats ? '...' : stats.membrosAtivos}
               </div>
-              <div className="text-gray-400 text-sm uppercase">Membros Ativos</div>
+              <div className="text-gray-400 text-sm uppercase">Integrantes Ativos</div>
             </div>
             <div className="text-center">
               <div className="text-brand-red text-4xl font-bold mb-2">

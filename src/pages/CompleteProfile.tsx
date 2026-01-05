@@ -109,7 +109,7 @@ export default function CompleteProfile() {
             Bem-vindo, Irmão!
           </h1>
           <p className="text-gray-400 text-sm mt-2">
-            Complete seu perfil para acessar a área do membro
+            Complete seu perfil para acessar a área do integrante
           </p>
         </div>
 

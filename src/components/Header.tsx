@@ -26,7 +26,7 @@ function Header() {
           <Link to="/eventos" className={`${isActive('/eventos') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Eventos</Link>
           <Link to="/contato" className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Contato</Link>
           <Link to="/dashboard" className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>
-            Área do Membro
+            Área do Integrante
           </Link>
           {/* Sociais */}
           <div className="flex items-center gap-4 ml-4">
