@@ -379,7 +379,7 @@ export default function Dashboard() {
                     <div>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Calendar className="w-4 h-4" />
-                        <span className="uppercase">Membro desde</span>
+                        <span className="uppercase">Integrante desde</span>
                       </div>
                       <p className="text-white font-semibold text-sm lg:text-base">{formatarData(membro.data_inicio)}</p>
                     </div>
@@ -406,7 +406,7 @@ export default function Dashboard() {
                     <div className={membro.conjuge || (membro.padrinho && membro.padrinho.nome_guerra) ? '' : 'lg:col-span-2'}>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Shield className="w-4 h-4" />
-                        <span className="uppercase">Nº Membro</span>
+                        <span className="uppercase">Nº Integrante</span>
                       </div>
                       <p className="text-brand-red font-mono font-bold text-base lg:text-lg">{membro.numero_carteira}</p>
                     </div>

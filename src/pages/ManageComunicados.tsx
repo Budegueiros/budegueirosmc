@@ -371,7 +371,7 @@ export default function ManageComunicados() {
                         >
                           <option value="geral">Geral</option>
                           <option value="cargo">Por Cargo</option>
-                          <option value="membro">Membro Específico</option>
+                          <option value="membro">Integrante Específico</option>
                         </select>
                       </div>
                       {formData.tipo_destinatario !== 'geral' && (
