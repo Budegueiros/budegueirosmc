@@ -322,7 +322,7 @@ export default function ManageMembers() {
 
   return (
     <div className="min-h-screen bg-black pt-20 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 overflow-x-hidden">
         
         {/* Header */}
         <div className="mb-8">
@@ -334,11 +334,11 @@ export default function ManageMembers() {
             Voltar ao Dashboard
           </Link>
           
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <Users className="w-8 h-8 text-brand-red" />
-                <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
+                <Users className="w-8 h-8 text-brand-red flex-shrink-0" />
+                <h1 className="text-brand-red font-oswald text-2xl sm:text-3xl md:text-4xl uppercase font-bold break-words">
                   Gerenciar Integrantes
                 </h1>
               </div>
@@ -349,7 +349,7 @@ export default function ManageMembers() {
 
             <Link
               to="/invite-member"
-              className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
+              className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap flex-shrink-0 w-full sm:w-auto"
             >
               <UserPlus className="w-4 h-4" />
               Convidar Membro
@@ -383,13 +383,13 @@ export default function ManageMembers() {
               {editingId === membro.id && editingData ? (
                 /* Modo de Edição */
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                     <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Integrante</h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleSaveMembro(membro.id)}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Salvar
@@ -397,7 +397,7 @@ export default function ManageMembers() {
                       <button
                         onClick={handleCancelEdit}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
                       >
                         <X className="w-4 h-4" />
                         Cancelar
@@ -614,9 +614,9 @@ export default function ManageMembers() {
                 /* Modo de Visualização */
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   {/* Info Principal */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-white font-oswald text-xl uppercase font-bold">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="text-white font-oswald text-xl uppercase font-bold break-words">
                         {membro.nome_guerra}
                       </h3>
                       {membro.is_admin && (
@@ -635,8 +635,8 @@ export default function ManageMembers() {
                     <p className="text-gray-400 text-sm mb-2">{membro.nome_completo}</p>
                     
                     {/* Badge de Status */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${STATUS_STYLES[membro.status_membro].bg} ${STATUS_STYLES[membro.status_membro].text}`}>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold flex-shrink-0 ${STATUS_STYLES[membro.status_membro].bg} ${STATUS_STYLES[membro.status_membro].text}`}>
                         {membro.status_membro}
                       </span>
                       
@@ -646,7 +646,7 @@ export default function ManageMembers() {
                           {membro.cargos_ativos.map((cargo) => (
                             <span
                               key={cargo.id}
-                              className="inline-flex px-2 py-1 rounded text-xs bg-gray-700 text-gray-300"
+                              className="inline-flex px-2 py-1 rounded text-xs bg-gray-700 text-gray-300 whitespace-nowrap"
                               title={cargo.tipo_cargo}
                             >
                               {cargo.nome}
@@ -656,27 +656,28 @@ export default function ManageMembers() {
                       )}
                     </div>
                     
-                    <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                      <span>📧 {membro.email}</span>
-                      <span>🎫 {membro.numero_carteira}</span>
+                    <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-gray-500">
+                      <span className="whitespace-nowrap">📧 {membro.email}</span>
+                      <span className="whitespace-nowrap">🎫 {membro.numero_carteira}</span>
                       {membro.data_inicio && (
-                        <span>📅 {new Date(membro.data_inicio).toLocaleDateString('pt-BR')}</span>
+                        <span className="whitespace-nowrap">📅 {new Date(membro.data_inicio).toLocaleDateString('pt-BR')}</span>
                       )}
-                      {membro.telefone && <span>📱 {membro.telefone}</span>}
+                      {membro.telefone && <span className="whitespace-nowrap">📱 {membro.telefone}</span>}
                       {membro.endereco_cidade && membro.endereco_estado && (
-                        <span>📍 {membro.endereco_cidade} - {membro.endereco_estado}</span>
+                        <span className="whitespace-nowrap">📍 {membro.endereco_cidade} - {membro.endereco_estado}</span>
                       )}
                     </div>
                   </div>
 
                   {/* Ações */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleEditMembro(membro)}
-                      className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition"
+                      className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition flex items-center justify-center sm:justify-start gap-2"
                       title="Editar membro"
                     >
                       <Edit2 className="w-4 h-4" />
+                      <span className="sm:hidden text-xs font-oswald uppercase">Editar</span>
                     </button>
                     
                     <button
@@ -685,10 +686,11 @@ export default function ManageMembers() {
                         membro.is_admin
                           ? 'bg-brand-red/20 hover:bg-brand-red/30 text-brand-red'
                           : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                      } p-2 rounded transition`}
+                      } p-2 rounded transition flex items-center justify-center sm:justify-start gap-2`}
                       title={membro.is_admin ? 'Remover admin' : 'Tornar admin'}
                     >
                       {membro.is_admin ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                      <span className="sm:hidden text-xs font-oswald uppercase">{membro.is_admin ? 'Remover Admin' : 'Tornar Admin'}</span>
                     </button>
                     
                     <button
@@ -697,7 +699,7 @@ export default function ManageMembers() {
                         membro.ativo
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                           : 'bg-green-600/20 hover:bg-green-600/30 text-green-500'
-                      } px-3 py-2 rounded transition text-sm font-oswald uppercase`}
+                      } px-3 py-2 rounded transition text-sm font-oswald uppercase flex items-center justify-center`}
                       title={membro.ativo ? 'Desativar membro' : 'Ativar membro'}
                     >
                       {membro.ativo ? 'Desativar' : 'Ativar'}

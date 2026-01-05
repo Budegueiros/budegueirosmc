@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart3, Search, Edit2, ArrowLeft, X, Loader2, Save, Users, CheckCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart3, Search, Edit2, ArrowLeft, X, Loader2, Save, Users, CheckCircle, Clock, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
@@ -71,6 +71,8 @@ export default function ManagePolls() {
   const [enquetesExpandidas, setEnquetesExpandidas] = useState<Record<string, boolean>>({});
   const [showConfirmToggle, setShowConfirmToggle] = useState<string | null>(null);
   const [toggleStatus, setToggleStatus] = useState<'aberta' | 'encerrada' | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTitulo, setDeleteTitulo] = useState<string>('');
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -350,6 +352,51 @@ export default function ManagePolls() {
     }
   };
 
+  const handleDeleteEnquete = (enqueteId: string, enqueteTitulo: string) => {
+    setDeleteId(enqueteId);
+    setDeleteTitulo(enqueteTitulo);
+  };
+
+  const executeDeleteEnquete = async () => {
+    if (!deleteId) return;
+
+    try {
+      // Deletar votos primeiro (cascata)
+      const { error: votosError } = await supabase
+        .from('votos')
+        .delete()
+        .eq('enquete_id', deleteId);
+
+      if (votosError) throw votosError;
+
+      // Deletar opções (cascata)
+      const { error: opcoesError } = await supabase
+        .from('enquete_opcoes')
+        .delete()
+        .eq('enquete_id', deleteId);
+
+      if (opcoesError) throw opcoesError;
+
+      // Deletar enquete
+      const { error: enqueteError } = await supabase
+        .from('enquetes')
+        .delete()
+        .eq('id', deleteId);
+
+      if (enqueteError) throw enqueteError;
+
+      setDeleteId(null);
+      setDeleteTitulo('');
+      await carregarEnquetes();
+      toastSuccess('Enquete excluída com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir enquete:', error);
+      toastError('Erro ao excluir enquete.');
+      setDeleteId(null);
+      setDeleteTitulo('');
+    }
+  };
+
   const formatarData = (data: string) => {
     return new Date(data).toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -389,25 +436,36 @@ export default function ManagePolls() {
       <div className="container mx-auto max-w-6xl px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link to="/admin" className="text-gray-400 hover:text-white transition">
-              <ArrowLeft className="w-6 h-6" />
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-4 mb-4">
+                <Link to="/admin" className="text-gray-400 hover:text-white transition flex-shrink-0">
+                  <ArrowLeft className="w-6 h-6" />
+                </Link>
+                <BarChart3 className="w-8 h-8 text-brand-red flex-shrink-0" />
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-oswald font-bold text-white uppercase break-words">
+                  Gerenciar Enquetes
+                </h1>
+              </div>
+              <p className="text-gray-400 text-sm sm:text-lg">
+                Gerencie e visualize resultados das enquetes
+              </p>
+            </div>
+            <Link
+              to="/create-poll"
+              className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap flex-shrink-0 w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              Criar Enquete
             </Link>
-            <BarChart3 className="w-8 h-8 text-brand-red" />
-            <h1 className="text-4xl md:text-5xl font-oswald font-bold text-white uppercase">
-              Gerenciar Enquetes
-            </h1>
           </div>
-          <p className="text-gray-400 text-lg">
-            Gerencie e visualize resultados das enquetes
-          </p>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-800 mb-6 overflow-x-auto">
+        <div className="flex border-b border-gray-800 mb-6 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           <button 
             onClick={() => setActiveTab('aberta')}
-            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-4 sm:px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex-shrink-0 min-w-max ${
               activeTab === 'aberta' 
                 ? 'border-brand-red text-white' 
                 : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -417,7 +475,7 @@ export default function ManagePolls() {
           </button>
           <button 
             onClick={() => setActiveTab('encerrada')}
-            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-4 sm:px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex-shrink-0 min-w-max ${
               activeTab === 'encerrada' 
                 ? 'border-brand-red text-white' 
                 : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -556,11 +614,11 @@ export default function ManagePolls() {
               )}
 
               {/* Botões */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold px-6 py-3 rounded-lg transition disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold px-4 sm:px-6 py-3 rounded-lg transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
                 >
                   {saving ? (
                     <>
@@ -576,7 +634,7 @@ export default function ManagePolls() {
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-oswald uppercase font-bold px-6 py-3 rounded-lg transition"
+                  className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-oswald uppercase font-bold px-4 sm:px-6 py-3 rounded-lg transition text-sm whitespace-nowrap flex-1 sm:flex-initial"
                 >
                   <X className="w-5 h-5" />
                   Cancelar
@@ -602,9 +660,9 @@ export default function ManagePolls() {
                 className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-6 hover:border-gray-700 transition"
               >
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-white text-xl font-oswald uppercase font-bold">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <h3 className="text-white text-xl font-oswald uppercase font-bold break-words">
                         {enquete.titulo}
                       </h3>
                       <span className={`px-3 py-1 rounded text-xs font-bold ${
@@ -741,17 +799,18 @@ export default function ManagePolls() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleEditEnquete(enquete)}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition flex items-center justify-center gap-2 sm:gap-0"
                       title="Editar"
                     >
                       <Edit2 className="w-5 h-5" />
+                      <span className="sm:hidden text-xs text-white font-oswald uppercase">Editar</span>
                     </button>
                     <button
                       onClick={() => handleToggleStatus(enquete)}
-                      className={`p-2 rounded transition ${
+                      className={`p-2 rounded transition flex items-center justify-center gap-2 sm:gap-0 ${
                         enquete.status === 'aberta'
                           ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-950/30'
                           : 'text-green-400 hover:text-green-300 hover:bg-green-950/30'
@@ -759,10 +818,24 @@ export default function ManagePolls() {
                       title={enquete.status === 'aberta' ? 'Encerrar' : 'Reabrir'}
                     >
                       {enquete.status === 'aberta' ? (
-                        <Clock className="w-5 h-5" />
+                        <>
+                          <Clock className="w-5 h-5" />
+                          <span className="sm:hidden text-xs font-oswald uppercase">Encerrar</span>
+                        </>
                       ) : (
-                        <CheckCircle className="w-5 h-5" />
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="sm:hidden text-xs font-oswald uppercase">Reabrir</span>
+                        </>
                       )}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEnquete(enquete.id, enquete.titulo)}
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded transition flex items-center justify-center gap-2 sm:gap-0"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      <span className="sm:hidden text-xs text-red-400 font-oswald uppercase">Excluir</span>
                     </button>
                   </div>
                 </div>
@@ -782,19 +855,19 @@ export default function ManagePolls() {
             <p className="text-gray-300 mb-6">
               Deseja realmente {toggleStatus === 'encerrada' ? 'encerrar' : 'reabrir'} esta enquete?
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={() => {
                   setShowConfirmToggle(null);
                   setToggleStatus(null);
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition w-full sm:w-auto"
               >
                 Cancelar
               </button>
               <button
                 onClick={executeToggleStatus}
-                className={`px-4 py-2 rounded transition flex items-center gap-2 ${
+                className={`px-4 py-2 rounded transition flex items-center justify-center gap-2 w-full sm:w-auto ${
                   toggleStatus === 'encerrada'
                     ? 'bg-orange-600 hover:bg-orange-700 text-white'
                     : 'bg-green-600 hover:bg-green-700 text-white'
@@ -811,6 +884,40 @@ export default function ManagePolls() {
                     Reabrir
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação - Excluir Enquete */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+              Confirmar Exclusão
+            </h3>
+            <p className="text-gray-300 mb-6">
+              Tem certeza que deseja excluir a enquete <strong>"{deleteTitulo}"</strong>?
+              <br />
+              <span className="text-red-400 text-sm">Esta ação não pode ser desfeita e todos os votos serão perdidos.</span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setDeleteId(null);
+                  setDeleteTitulo('');
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition w-full sm:w-auto"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeDeleteEnquete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir
               </button>
             </div>
           </div>

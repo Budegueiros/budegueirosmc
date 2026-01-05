@@ -383,7 +383,7 @@ export default function ManageEvents() {
 
   return (
     <div className="min-h-screen bg-black pt-20 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 overflow-x-hidden">
         
         {/* Header */}
         <div className="mb-8">
@@ -395,11 +395,11 @@ export default function ManageEvents() {
             Voltar ao Dashboard
           </Link>
           
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <Calendar className="w-8 h-8 text-brand-red" />
-                <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
+                <Calendar className="w-8 h-8 text-brand-red flex-shrink-0" />
+                <h1 className="text-brand-red font-oswald text-2xl sm:text-3xl md:text-4xl uppercase font-bold break-words">
                   Gerenciar Eventos
                 </h1>
               </div>
@@ -410,7 +410,7 @@ export default function ManageEvents() {
 
             <Link
               to="/create-event"
-              className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
+              className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap flex-shrink-0 w-full sm:w-auto"
             >
               <Calendar className="w-4 h-4" />
               Criar Evento
@@ -444,13 +444,13 @@ export default function ManageEvents() {
               {editingId === evento.id && editingData ? (
                 /* Modo de Edição */
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                     <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Evento</h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleSaveEvento(evento.id)}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Salvar
@@ -458,7 +458,7 @@ export default function ManageEvents() {
                       <button
                         onClick={handleCancelEdit}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
                       >
                         <X className="w-4 h-4" />
                         Cancelar
@@ -727,9 +727,9 @@ export default function ManageEvents() {
                 /* Modo de Visualização */
                 <div className="flex flex-col md:flex-row md:items-start gap-4">
                   {/* Info Principal */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-white font-oswald text-xl uppercase font-bold">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="text-white font-oswald text-xl uppercase font-bold break-words">
                         {evento.nome}
                       </h3>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-oswald uppercase ${
@@ -745,13 +745,13 @@ export default function ManageEvents() {
                     
                     <p className="text-gray-400 text-sm mb-2">{evento.tipo_evento}</p>
                     
-                    <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                      <span>📅 {new Date(evento.data_evento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                      {evento.hora_saida && <span>🕐 {evento.hora_saida}</span>}
-                      <span>📍 {evento.cidade} - {evento.estado}</span>
-                      {evento.distancia_km && <span>🏍️ {evento.distancia_km} km</span>}
+                    <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-gray-500">
+                      <span className="whitespace-nowrap">📅 {new Date(evento.data_evento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                      {evento.hora_saida && <span className="whitespace-nowrap">🕐 {evento.hora_saida}</span>}
+                      <span className="whitespace-nowrap">📍 {evento.cidade} - {evento.estado}</span>
+                      {evento.distancia_km && <span className="whitespace-nowrap">🏍️ {evento.distancia_km} km</span>}
                       {evento.vagas_limitadas && evento.max_participantes && (
-                        <span>👥 Máx: {evento.max_participantes}</span>
+                        <span className="whitespace-nowrap">👥 Máx: {evento.max_participantes}</span>
                       )}
                     </div>
 
@@ -761,21 +761,23 @@ export default function ManageEvents() {
                   </div>
 
                   {/* Ações */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleEditEvento(evento)}
-                      className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition"
+                      className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition flex items-center justify-center gap-2 sm:gap-0"
                       title="Editar evento"
                     >
                       <Edit2 className="w-4 h-4" />
+                      <span className="sm:hidden text-xs text-brand-red font-oswald uppercase">Editar</span>
                     </button>
                     
                     <button
                       onClick={() => handleDeleteEvento(evento.id, evento.nome)}
-                      className="bg-red-600/20 hover:bg-red-600/30 text-red-500 p-2 rounded transition"
+                      className="bg-red-600/20 hover:bg-red-600/30 text-red-500 p-2 rounded transition flex items-center justify-center gap-2 sm:gap-0"
                       title="Deletar evento"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="sm:hidden text-xs text-red-500 font-oswald uppercase">Excluir</span>
                     </button>
                   </div>
                 </div>
@@ -804,19 +806,19 @@ export default function ManageEvents() {
             <p className="text-gray-300 mb-6">
               Tem certeza que deseja deletar o evento <strong>"{deleteNome}"</strong>?
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={() => {
                   setDeleteId(null);
                   setDeleteNome('');
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition w-full sm:w-auto"
               >
                 Cancelar
               </button>
               <button
                 onClick={executeDeleteEvento}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Trash2 className="w-4 h-4" />
                 Excluir
