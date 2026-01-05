@@ -74,11 +74,11 @@ export default function InviteMember() {
           <div className="flex items-center gap-3 mb-2">
             <UserPlus className="w-8 h-8 text-brand-red" />
             <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
-              Convidar Membro
+              Convidar Integrante
             </h1>
           </div>
           <p className="text-gray-400 text-sm">
-            Envie um convite para um novo membro se juntar ao Budegueiros MC
+            Envie um convite para um novo integrante se juntar ao Budegueiros MC
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export default function InviteMember() {
                 />
               </div>
               <p className="text-gray-500 text-xs mt-2">
-                O membro receberá um email com um link para aceitar o convite e criar sua conta
+                O integrante receberá um email com um link para aceitar o convite e criar sua conta
               </p>
             </div>
 
@@ -157,7 +157,7 @@ export default function InviteMember() {
           <ol className="space-y-2 text-gray-400 text-sm">
             <li className="flex gap-3">
               <span className="text-brand-red font-bold">1.</span>
-              <span>O novo membro receberá um email com um link de convite</span>
+              <span>O novo integrante receberá um email com um link de convite</span>
             </li>
             <li className="flex gap-3">
               <span className="text-brand-red font-bold">2.</span>
@@ -169,7 +169,7 @@ export default function InviteMember() {
             </li>
             <li className="flex gap-3">
               <span className="text-brand-red font-bold">4.</span>
-              <span>Pronto! Ele terá acesso completo à área do membro</span>
+              <span>Pronto! Ele terá acesso completo à área do integrante</span>
             </li>
           </ol>
         </div>

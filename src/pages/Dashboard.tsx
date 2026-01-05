@@ -6,14 +6,14 @@ import { FaMoneyBillAlt } from "react-icons/fa";
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
-import { StatusMembroEnum } from '../types/database.types';
+import { StatusIntegranteEnum } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
 
-interface MembroData {
+interface IntegranteData {
   id: string;
   nome_completo: string;
   nome_guerra: string;
-  status_membro: StatusMembroEnum;
+  status_integrante: StatusIntegranteEnum;
   foto_url: string | null;
   data_inicio: string;
   numero_carteira: string;
@@ -67,7 +67,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [membro, setMembro] = useState<MembroData | null>(null);
+  const [integrante, setIntegrante] = useState<IntegranteData | null>(null);
   const [motos, setMotos] = useState<MotoData[]>([]);
   const [proximoEvento, setProximoEvento] = useState<EventoData | null>(null);
   const [mensalidadesAtrasadas, setMensalidadesAtrasadas] = useState<MensalidadeData[]>([]);
@@ -94,12 +94,12 @@ export default function Dashboard() {
     if (!user) return;
 
     try {
-      // Buscar dados do membro com seus cargos ativos
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
+      // Buscar dados do integrante com seus cargos ativos
+      const { data: integranteData, error: integranteError } = await supabase
+        .from('integrantes')
         .select(`
           *,
-          membro_cargos (
+          integrante_cargos (
             id,
             ativo,
             cargos (
@@ -112,38 +112,38 @@ export default function Dashboard() {
             nome_completo,
             nome_guerra
           ),
-          padrinho:membros!padrinho_id (
+          padrinho:integrantes!padrinho_id (
             nome_guerra
           )
         `)
         .eq('user_id', user.id)
-        .eq('membro_cargos.ativo', true)
+        .eq('integrante_cargos.ativo', true)
         .single();
 
-      // Se não encontrou o membro, redirecionar para completar perfil
-      if (membroError || !membroData) {
+      // Se não encontrou o integrante, redirecionar para completar perfil
+      if (integranteError || !integranteData) {
         navigate('/complete-profile');
         return;
       }
 
       // Transformar dados para incluir apenas cargos ativos
-      const membroComCargos = {
-        ...membroData,
-        cargos: membroData.membro_cargos
+      const integranteComCargos = {
+        ...integranteData,
+        cargos: integranteData.integrante_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
           .map((mc: any) => mc.cargos) || [],
-        conjuge: membroData.conjuges && membroData.conjuges.length > 0 ? membroData.conjuges[0] : null,
-        padrinho: membroData.padrinho || null
+        conjuge: integranteData.conjuges && integranteData.conjuges.length > 0 ? integranteData.conjuges[0] : null,
+        padrinho: integranteData.padrinho || null
       };
 
-      setMembro(membroComCargos);
+      setMembro(integranteComCargos);
 
-      // Buscar motos ativas do membro
-      if (membroData) {
+      // Buscar motos ativas do integrante
+      if (integranteData) {
         const { data: motosData } = await supabase
           .from('motos')
           .select('*')
-          .eq('membro_id', membroData.id)
+          .eq('integrante_id', integranteData.id)
           .eq('ativa', true)
           .order('created_at', { ascending: false });
 
@@ -176,7 +176,7 @@ export default function Dashboard() {
             .from('confirmacoes_presenca')
             .select('id')
             .eq('evento_id', eventoData.id)
-            .eq('membro_id', membroData.id)
+            .eq('integrante_id', integranteData.id)
             .eq('status', 'Confirmado')
             .maybeSingle();
 
@@ -188,7 +188,7 @@ export default function Dashboard() {
         const { data: mensalidadesData, error: mensalidadesError } = await supabase
           .from('mensalidades')
           .select('*')
-          .eq('membro_id', membroData.id)
+          .eq('integrante_id', integranteData.id)
           .order('mes_referencia', { ascending: false });
 
         if (!mensalidadesError && mensalidadesData) {
@@ -214,7 +214,7 @@ export default function Dashboard() {
 
 
   const handleConfirmarPresenca = async () => {
-    if (!membro || !proximoEvento || confirmandoPresenca) return;
+    if (!integrante || !proximoEvento || confirmandoPresenca) return;
 
     setConfirmandoPresenca(true);
 
@@ -236,7 +236,7 @@ export default function Dashboard() {
           .from('confirmacoes_presenca')
           .insert({
             evento_id: proximoEvento.id,
-            membro_id: membro.id,
+            integrante_id: integrante.id,
             status: 'Confirmado',
             data_confirmacao: new Date().toISOString()
           })
@@ -262,8 +262,8 @@ export default function Dashboard() {
     return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia)).toLocaleDateString('pt-BR');
   };
 
-  // Se não tem dados do membro, redirecionar para completar perfil
-  if (!loading && !membro && user) {
+  // Se não tem dados do integrante, redirecionar para completar perfil
+  if (!loading && !integrante && user) {
     navigate('/complete-profile');
     return null;
   }
@@ -283,7 +283,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!membro) {
+  if (!integrante) {
     return null;
   }
 
@@ -326,10 +326,10 @@ export default function Dashboard() {
                 {/* Foto */}
                 <div className="relative flex-shrink-0 mx-auto lg:mx-0">
                   <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-gray-800 border-4 border-gray-700 flex items-center justify-center overflow-hidden">
-                    {membro.foto_url ? (
-                      <img src={membro.foto_url} alt={membro.nome_guerra} className="w-full h-full object-cover" />
+                    {integrante.foto_url ? (
+                      <img src={integrante.foto_url} alt={integrante.nome_guerra} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-gray-500 text-4xl lg:text-6xl font-bold">{membro.nome_guerra[0]}</span>
+                      <span className="text-gray-500 text-4xl lg:text-6xl font-bold">{integrante.nome_guerra[0]}</span>
                     )}
                   </div>
                 </div>
@@ -339,9 +339,9 @@ export default function Dashboard() {
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-3 lg:mb-4">
                     <div className="text-center lg:text-left">
                       <h2 className="text-white font-oswald text-3xl lg:text-5xl uppercase font-bold leading-none">
-                        {membro.nome_guerra}
+                        {integrante.nome_guerra}
                       </h2>
-                      <p className="text-gray-400 text-base lg:text-lg mt-1">{membro.endereco_cidade || 'Brasiliado'}</p>
+                      <p className="text-gray-400 text-base lg:text-lg mt-1">{integrante.endereco_cidade || 'Brasiliado'}</p>
                     </div>
                     <Link to="/edit-profile" className="text-gray-400 hover:text-white flex items-center gap-2 text-sm justify-center lg:justify-start mt-2 lg:mt-0">
                       <User className="w-4 h-4" />
@@ -351,12 +351,12 @@ export default function Dashboard() {
 
                   {/* Badges */}
                   <div className="flex flex-wrap gap-2 mb-4 lg:mb-6 justify-center lg:justify-start">
-                    {membro.endereco_estado && (
+                    {integrante.endereco_estado && (
                       <span className="bg-gray-800 text-gray-300 px-3 py-1.5 rounded text-xs font-oswald uppercase">
-                        {membro.endereco_estado}
+                        {integrante.endereco_estado}
                       </span>
                     )}
-                    {membro.cargos && membro.cargos.map((cargo) => (
+                    {integrante.cargos && integrante.cargos.map((cargo) => (
                       <span key={cargo.id} className="bg-gray-800 text-gray-300 px-3 py-1.5 rounded text-xs font-oswald uppercase">
                         {cargo.nome}
                       </span>
@@ -371,44 +371,44 @@ export default function Dashboard() {
                         <span className="uppercase">Localização</span>
                       </div>
                       <p className="text-white font-semibold text-sm lg:text-base">
-                        {membro.endereco_cidade && membro.endereco_estado
-                          ? `${membro.endereco_cidade} - ${membro.endereco_estado}`
+                        {integrante.endereco_cidade && integrante.endereco_estado
+                          ? `${integrante.endereco_cidade} - ${integrante.endereco_estado}`
                           : 'Não informado'}
                       </p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Calendar className="w-4 h-4" />
-                        <span className="uppercase">Membro desde</span>
+                        <span className="uppercase">Integrante desde</span>
                       </div>
-                      <p className="text-white font-semibold text-sm lg:text-base">{formatarData(membro.data_inicio)}</p>
+                      <p className="text-white font-semibold text-sm lg:text-base">{formatarData(integrante.data_inicio)}</p>
                     </div>
-                    {membro.conjuge && (
+                    {integrante.conjuge && (
                       <div>
                         <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                           <Users className="w-4 h-4" />
                           <span className="uppercase">Cônjuge</span>
                         </div>
                         <p className="text-white font-semibold text-sm lg:text-base">
-                          {membro.conjuge.nome_guerra || membro.conjuge.nome_completo.split(' ')[0]}
+                          {integrante.conjuge.nome_guerra || integrante.conjuge.nome_completo.split(' ')[0]}
                         </p>
                       </div>
                     )}
-                    {membro.padrinho && membro.padrinho.nome_guerra && (
+                    {integrante.padrinho && integrante.padrinho.nome_guerra && (
                       <div>
                         <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                           <Shield className="w-4 h-4" />
                           <span className="uppercase">Padrinho</span>
                         </div>
-                        <p className="text-white font-semibold text-sm lg:text-base">{membro.padrinho.nome_guerra}</p>
+                        <p className="text-white font-semibold text-sm lg:text-base">{integrante.padrinho.nome_guerra}</p>
                       </div>
                     )}
-                    <div className={membro.conjuge || (membro.padrinho && membro.padrinho.nome_guerra) ? '' : 'lg:col-span-2'}>
+                    <div className={integrante.conjuge || (integrante.padrinho && integrante.padrinho.nome_guerra) ? '' : 'lg:col-span-2'}>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Shield className="w-4 h-4" />
-                        <span className="uppercase">Nº Membro</span>
+                        <span className="uppercase">Nº Integrante</span>
                       </div>
-                      <p className="text-brand-red font-mono font-bold text-base lg:text-lg">{membro.numero_carteira}</p>
+                      <p className="text-brand-red font-mono font-bold text-base lg:text-lg">{integrante.numero_carteira}</p>
                     </div>
                   </div>
                 </div>

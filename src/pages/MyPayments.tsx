@@ -35,7 +35,7 @@ export default function MyPayments() {
 
     setLoading(true);
     try {
-      // Buscar ID do membro
+      // Buscar ID do integrante
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .select('id')
@@ -49,7 +49,7 @@ export default function MyPayments() {
         return;
       }
 
-      // Carregar mensalidades do membro
+      // Carregar mensalidades do integrante
       const { data: mensalidadesData, error: mensalidadesError } = await supabase
         .from('mensalidades')
         .select('*')

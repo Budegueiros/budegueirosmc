@@ -128,7 +128,7 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, current
         </div>
 
         <div className="pt-4 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-          {/* Confirmados - só exibe se houver membro logado e contagem > 0 */}
+          {/* Confirmados - só exibe se houver integrante logado e contagem > 0 */}
           {currentMember && confirmadosCount > 0 && (
             <div className="flex items-center gap-2 text-gray-400 text-sm">
               <Users className="w-5 h-5" />

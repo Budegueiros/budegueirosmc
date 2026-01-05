@@ -29,7 +29,7 @@ export default function Admin() {
 
   const carregarEstatisticas = async () => {
     try {
-      // Contar membros ativos
+      // Contar integrantes ativos
       const { count: membrosCount } = await supabase
         .from('membros')
         .select('*', { count: 'exact', head: true })
@@ -111,7 +111,7 @@ export default function Admin() {
                 Gerenciar Membros
               </h3>
               <p className="text-gray-400 text-sm">
-                Visualize e edite informações dos membros
+                Visualize e edite informações dos integrantes
               </p>
             </div>
           </Link>
@@ -129,7 +129,7 @@ export default function Admin() {
                 Gerenciar Mensalidades
               </h3>
               <p className="text-gray-400 text-sm">
-                Controle de pagamentos mensais dos membros
+                Controle de pagamentos mensais dos integrantes
               </p>
             </div>
           </Link>
@@ -235,7 +235,7 @@ export default function Admin() {
               <div className="text-brand-red text-4xl font-bold mb-2">
                 {loadingStats ? '...' : stats.membrosAtivos}
               </div>
-              <div className="text-gray-400 text-sm uppercase">Membros Ativos</div>
+              <div className="text-gray-400 text-sm uppercase">Integrantes Ativos</div>
             </div>
             <div className="text-center">
               <div className="text-brand-red text-4xl font-bold mb-2">

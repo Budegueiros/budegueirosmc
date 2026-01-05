@@ -48,7 +48,7 @@ export default function AddMoto() {
     e.preventDefault();
     
     if (!membroId) {
-      toastError('Erro ao identificar o membro. Tente novamente.');
+      toastError('Erro ao identificar o integrante. Tente novamente.');
       return;
     }
 

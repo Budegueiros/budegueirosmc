@@ -110,7 +110,7 @@ export default function ManagePolls() {
             .select('membro_id, opcao_id, texto_livre, created_at')
             .eq('enquete_id', enquete.id);
 
-          // Buscar informações dos membros que votaram
+          // Buscar informações dos integrantes que votaram
           const membrosIds = [...new Set(votosData?.map(v => v.membro_id) || [])];
           const { data: membrosData } = await supabase
             .from('membros')
@@ -166,7 +166,7 @@ export default function ManagePolls() {
               opcoes: opcoesComVotos
             };
           } else {
-            // Para texto livre, buscar os textos com informações dos membros
+            // Para texto livre, buscar os textos com informações dos integrantes
             const votantesTexto: Votante[] = (votosData || [])
               .filter(v => v.texto_livre)
               .map(v => ({
@@ -716,7 +716,7 @@ export default function ManagePolls() {
                             {enquete.votos_texto_livre && enquete.votos_texto_livre.length > 0 ? (
                               <div className="space-y-1 max-h-40 overflow-y-auto">
                                 {enquete.votantes && enquetesExpandidas[enquete.id] ? (
-                                  // Mostrar com nome do membro
+                                  // Mostrar com nome do integrante
                                   enquete.votantes.map((votante, index) => (
                                     <div key={index} className="text-gray-300 text-sm bg-gray-800/50 p-3 rounded">
                                       <div className="font-semibold text-brand-red mb-1">{votante.nome_guerra}</div>

@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { Shield, Calendar, MapPin, Phone, Mail } from 'lucide-react';
-import { IntegranteComCargos } from '../hooks/useMembro';
+import { IntegranteComCargos } from '../hooks/useIntegrante';
 import { STATUS_STYLES, TIPO_CARGO_STYLES } from '../types/database.types';
 
 interface IntegranteCardProps {

@@ -28,7 +28,7 @@ export default function Documentos() {
 
     setLoading(true);
     try {
-      // Buscar membro
+      // Buscar integrante
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .select('id, is_admin, nome_guerra')
@@ -54,7 +54,7 @@ export default function Documentos() {
 
       if (documentosError) throw documentosError;
 
-      // Buscar acessos do membro
+      // Buscar acessos do integrante
       const { data: acessosData } = await supabase
         .from('documentos_acesso')
         .select('documento_id')
@@ -66,12 +66,12 @@ export default function Documentos() {
       const documentosFiltrados = (documentosData || []).filter((doc: any) => {
         if (doc.tipo_destinatario === 'geral') return true;
         if (doc.tipo_destinatario === 'cargo') {
-          // Verificar se o membro tem o cargo
+          // Verificar se o integrante tem o cargo
           // Isso precisa ser verificado de forma diferente, por enquanto aceita todos
           // TODO: Implementar verificação de cargo
           return true;
         }
-        if (doc.tipo_destinatario === 'membro') {
+        if (doc.tipo_destinatario === 'integrante') {
           // Verificar se é para este membro específico (comparar nome de guerra)
           return doc.valor_destinatario?.toUpperCase() === membroData.nome_guerra?.toUpperCase();
         }

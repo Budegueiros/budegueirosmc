@@ -40,7 +40,7 @@ export default function EditMoto() {
     if (!user || !id) return;
 
     try {
-      // Buscar membro atual
+      // Buscar integrante atual
       const { data: membroData } = await supabase
         .from('membros')
         .select('id')

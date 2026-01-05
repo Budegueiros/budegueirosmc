@@ -6,15 +6,15 @@ import { TiMessages } from "react-icons/ti";
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
-import { StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
+import { StatusIntegranteEnum, STATUS_STYLES } from '../types/database.types';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-interface MembroData {
+interface IntegranteData {
   nome_guerra: string;
-  status_membro: StatusMembroEnum;
+  status_integrante: StatusIntegranteEnum;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -24,29 +24,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const [comunicadosNaoLidos, setComunicadosNaoLidos] = useState(0);
-  const [membro, setMembro] = useState<MembroData | null>(null);
+  const [integrante, setIntegrante] = useState<IntegranteData | null>(null);
 
   useEffect(() => {
     carregarComunicadosNaoLidos();
-    carregarDadosMembro();
+    carregarDadosIntegrante();
   }, []);
 
-  const carregarDadosMembro = async () => {
+  const carregarDadosIntegrante = async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return;
 
-      const { data: membroData } = await supabase
+      const { data: integranteData } = await supabase
         .from('membros')
         .select('nome_guerra, status_membro')
         .eq('user_id', userData.user.id)
         .single();
 
-      if (membroData) {
-        setMembro(membroData);
+      if (integranteData) {
+        setIntegrante({
+          nome_guerra: integranteData.nome_guerra,
+          status_integrante: integranteData.status_membro as StatusIntegranteEnum
+        });
       }
     } catch (error) {
-      console.error('Erro ao carregar dados do membro:', error);
+      console.error('Erro ao carregar dados do integrante:', error);
     }
   };
 
@@ -55,13 +58,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return;
 
-      const { data: membroData } = await supabase
+      const { data: integranteData } = await supabase
         .from('membros')
         .select('id')
         .eq('user_id', userData.user.id)
         .single();
 
-      if (!membroData) return;
+      if (!integranteData) return;
 
       // Buscar comunicados não lidos
       // Primeiro, buscar todos os comunicados
@@ -75,11 +78,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         return;
       }
 
-      // Buscar leituras do membro
+      // Buscar leituras do integrante
       const { data: leiturasData } = await supabase
         .from('comunicados_leitura')
         .select('comunicado_id')
-        .eq('membro_id', membroData.id);
+        .eq('membro_id', integranteData.id);
 
       const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
       const naoLidos = comunicadosData.filter((c) => !idsLidos.has(c.id));
@@ -117,7 +120,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Saudação centralizada */}
           <div className="flex-1 text-center">
             <h1 className="text-white font-oswald text-xl uppercase font-bold">
-              Bem vindo de volta, {membro?.nome_guerra || 'Irmão'}
+              Bem vindo de volta, {integrante?.nome_guerra || 'Irmão'}
             </h1>
           </div>
 
@@ -139,9 +142,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Link>
 
             {/* Badge de Status */}
-            {membro && (
-              <div className={`px-4 py-2 rounded-lg text-xs font-oswald uppercase font-bold ${STATUS_STYLES[membro.status_membro]?.bg || 'bg-gray-800'} ${STATUS_STYLES[membro.status_membro]?.text || 'text-gray-400'} border border-gray-700`}>
-                Status: {membro.status_membro}
+            {integrante && (
+              <div className={`px-4 py-2 rounded-lg text-xs font-oswald uppercase font-bold ${STATUS_STYLES[integrante.status_integrante]?.bg || 'bg-gray-800'} ${STATUS_STYLES[integrante.status_integrante]?.text || 'text-gray-400'} border border-gray-700`}>
+                Status: {integrante.status_integrante}
               </div>
             )}
           </div>

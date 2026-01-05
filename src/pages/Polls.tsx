@@ -57,7 +57,7 @@ export default function Polls() {
 
     setLoading(true);
     try {
-      // Buscar membro
+      // Buscar integrante
       const { data: membroData } = await supabase
         .from('membros')
         .select('id')

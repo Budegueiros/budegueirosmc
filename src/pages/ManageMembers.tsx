@@ -6,12 +6,12 @@ import { compressImage, isValidImageFile } from '../utils/imageCompression';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
-import { Membro, StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
+import { Integrante, StatusIntegranteEnum, STATUS_STYLES } from '../types/database.types';
 
-interface EditingMembro {
+interface EditingIntegrante {
   nome_completo: string;
   nome_guerra: string;
-  status_membro: StatusMembroEnum;
+  status_integrante: StatusIntegranteEnum;
   numero_carteira: string;
   data_inicio: string;
   telefone: string;
@@ -21,7 +21,7 @@ interface EditingMembro {
   padrinho_id: string | null;
 }
 
-interface MembroWithCargos extends Membro {
+interface IntegranteWithCargos extends Integrante {
   cargos_ativos?: Array<{
     id: string;
     nome: string;
@@ -35,11 +35,11 @@ export default function ManageMembers() {
   const { error: toastError, warning: toastWarning } = useToast();
   const navigate = useNavigate();
   
-  const [membros, setMembros] = useState<MembroWithCargos[]>([]);
+  const [integrantes, setIntegrantes] = useState<IntegranteWithCargos[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<EditingMembro | null>(null);
+  const [editingData, setEditingData] = useState<EditingIntegrante | null>(null);
   const [saving, setSaving] = useState(false);
   
   // Estados para gerenciamento de cargos
@@ -68,12 +68,12 @@ export default function ManageMembers() {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      // Carregar todos os membros com seus cargos ativos (LEFT JOIN para incluir membros sem cargos)
-      const { data: membrosData, error: membrosError } = await supabase
-        .from('membros')
+      // Carregar todos os integrantes com seus cargos ativos (LEFT JOIN para incluir integrantes sem cargos)
+      const { data: integrantesData, error: integrantesError } = await supabase
+        .from('integrantes')
         .select(`
           *,
-          membro_cargos (
+          integrante_cargos (
             id,
             ativo,
             cargos (
@@ -85,17 +85,17 @@ export default function ManageMembers() {
         `)
         .order('created_at', { ascending: false });
 
-      if (membrosError) throw membrosError;
+      if (integrantesError) throw integrantesError;
       
       // Transformar dados para incluir apenas cargos ativos
-      const membrosTransformados = (membrosData || []).map((m: any) => ({
+      const integrantesTransformados = (integrantesData || []).map((m: any) => ({
         ...m,
-        cargos_ativos: m.membro_cargos
+        cargos_ativos: m.integrante_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
           .map((mc: any) => mc.cargos) || []
       }));
       
-      setMembros(membrosTransformados);
+      setIntegrantes(integrantesTransformados);
       
       // Carregar todos os cargos disponíveis
       const { data: cargosData, error: cargosError } = await supabase
@@ -107,9 +107,9 @@ export default function ManageMembers() {
       if (cargosError) throw cargosError;
       setTodosOsCargos(cargosData || []);
       
-      // Carregar membros disponíveis para serem padrinhos
+      // Carregar integrantes disponíveis para serem padrinhos
       const { data: padrinhosData, error: padrinhosError } = await supabase
-        .from('membros')
+        .from('integrantes')
         .select('id, nome_guerra, nome_completo')
         .eq('ativo', true)
         .order('nome_guerra', { ascending: true });
@@ -123,28 +123,28 @@ export default function ManageMembers() {
     }
   };
 
-  const handleEditMembro = (membro: MembroWithCargos) => {
-    setEditingId(membro.id);
+  const handleEditIntegrante = (integrante: IntegranteWithCargos) => {
+    setEditingId(integrante.id);
     setEditingData({
-      nome_completo: membro.nome_completo,
-      nome_guerra: membro.nome_guerra,
-      status_membro: membro.status_membro,
-      numero_carteira: membro.numero_carteira,
-      data_inicio: membro.data_inicio || '',
-      telefone: membro.telefone || '',
-      endereco_cidade: membro.endereco_cidade || '',
-      endereco_estado: membro.endereco_estado || '',
-      foto_url: membro.foto_url || null,
-      padrinho_id: membro.padrinho_id || null,
+      nome_completo: integrante.nome_completo,
+      nome_guerra: integrante.nome_guerra,
+      status_integrante: integrante.status_integrante,
+      numero_carteira: integrante.numero_carteira,
+      data_inicio: integrante.data_inicio || '',
+      telefone: integrante.telefone || '',
+      endereco_cidade: integrante.endereco_cidade || '',
+      endereco_estado: integrante.endereco_estado || '',
+      foto_url: integrante.foto_url || null,
+      padrinho_id: integrante.padrinho_id || null,
     });
-    setPreviewUrl(membro.foto_url || null);
-    // Carregar cargos atuais do membro
-    const cargosAtuaisIds = membro.cargos_ativos?.map(c => c.id) || [];
+    setPreviewUrl(integrante.foto_url || null);
+    // Carregar cargos atuais do integrante
+    const cargosAtuaisIds = integrante.cargos_ativos?.map(c => c.id) || [];
     setCargosSelecionados(cargosAtuaisIds);
     setCargosOriginais(cargosAtuaisIds);
   };
 
-  const handleSaveCargos = async (membroId: string) => {
+  const handleSaveCargos = async (integranteId: string) => {
     // Identificar cargos a adicionar e remover
     const cargosParaAdicionar = cargosSelecionados.filter(id => !cargosOriginais.includes(id));
     const cargosParaRemover = cargosOriginais.filter(id => !cargosSelecionados.includes(id));
@@ -152,9 +152,9 @@ export default function ManageMembers() {
     // Adicionar novos cargos
     for (const cargoId of cargosParaAdicionar) {
       const { error } = await supabase
-        .from('membro_cargos')
+        .from('integrante_cargos')
         .insert({
-          membro_id: membroId,
+          integrante_id: integranteId,
           cargo_id: cargoId,
           ativo: true
         });
@@ -165,16 +165,16 @@ export default function ManageMembers() {
     // Remover cargos (desativar)
     for (const cargoId of cargosParaRemover) {
       const { error } = await supabase
-        .from('membro_cargos')
+        .from('integrante_cargos')
         .update({ ativo: false })
-        .eq('membro_id', membroId)
+        .eq('integrante_id', integranteId)
         .eq('cargo_id', cargoId);
       
       if (error) throw error;
     }
   };
 
-  const handleSaveMembro = async (membroId: string) => {
+  const handleSaveIntegrante = async (integranteId: string) => {
     if (!editingData) return;
     setSaving(true);
     try {
@@ -189,7 +189,7 @@ export default function ManageMembers() {
           const compressed = await compressImage(file, 2);
           const ext = file.name.split('.').pop();
           // Usar estrutura de pastas permitida pelas políticas RLS
-          const filePath = `${user.id}/membros/${membroId}_${Date.now()}.${ext}`;
+          const filePath = `${user.id}/integrantes/${integranteId}_${Date.now()}.${ext}`;
           const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, compressed, { upsert: true });
           if (uploadError) throw uploadError;
           const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
@@ -198,11 +198,11 @@ export default function ManageMembers() {
         setUploading(false);
       }
       const { error } = await supabase
-        .from('membros')
+        .from('integrantes')
         .update({
           nome_completo: editingData.nome_completo,
           nome_guerra: editingData.nome_guerra.toUpperCase(),
-          status_membro: editingData.status_membro,
+          status_integrante: editingData.status_integrante,
           numero_carteira: editingData.numero_carteira,
           data_inicio: editingData.data_inicio || null,
           telefone: editingData.telefone || null,
@@ -211,9 +211,9 @@ export default function ManageMembers() {
           foto_url: fotoUrl,
           padrinho_id: editingData.padrinho_id || null,
         })
-        .eq('id', membroId);
+        .eq('id', integranteId);
       if (error) throw error;
-      await handleSaveCargos(membroId);
+      await handleSaveCargos(integranteId);
       await carregarDados();
       setEditingId(null);
       setEditingData(null);
@@ -221,8 +221,8 @@ export default function ManageMembers() {
       setCargosOriginais([]);
       setPreviewUrl(null);
     } catch (error) {
-      console.error('Erro ao atualizar membro:', error);
-      toastError('Erro ao atualizar dados do membro');
+      console.error('Erro ao atualizar integrante:', error);
+      toastError('Erro ao atualizar dados do integrante');
     } finally {
       setSaving(false);
       setUploading(false);
@@ -252,43 +252,43 @@ export default function ManageMembers() {
     setUploading(false);
   };
 
-  const handleToggleAtivo = async (membro: Membro) => {
+  const handleToggleAtivo = async (integrante: Integrante) => {
     try {
       const { error } = await supabase
-        .from('membros')
-        .update({ ativo: !membro.ativo })
-        .eq('id', membro.id);
+        .from('integrantes')
+        .update({ ativo: !integrante.ativo })
+        .eq('id', integrante.id);
 
       if (error) throw error;
 
       // Atualizar lista local
-      setMembros(membros.map(m => 
-        m.id === membro.id ? { ...m, ativo: !m.ativo } : m
+      setIntegrantes(integrantes.map(m => 
+        m.id === integrante.id ? { ...m, ativo: !m.ativo } : m
       ));
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      toastError('Erro ao alterar status do membro');
+      toastError('Erro ao alterar status do integrante');
     }
   };
 
-  const handleToggleAdmin = async (membro: Membro) => {
+  const handleToggleAdmin = async (integrante: Integrante) => {
     // Não permitir remover admin de si mesmo
-    if (membro.user_id === user?.id && membro.is_admin) {
+    if (integrante.user_id === user?.id && integrante.is_admin) {
       toastWarning('Você não pode remover seus próprios privilégios de administrador');
       return;
     }
 
     try {
       const { error } = await supabase
-        .from('membros')
-        .update({ is_admin: !membro.is_admin })
-        .eq('id', membro.id);
+        .from('integrantes')
+        .update({ is_admin: !integrante.is_admin })
+        .eq('id', integrante.id);
 
       if (error) throw error;
 
       // Atualizar lista local
-      setMembros(membros.map(m => 
-        m.id === membro.id ? { ...m, is_admin: !m.is_admin } : m
+      setIntegrantes(integrantes.map(m => 
+        m.id === integrante.id ? { ...m, is_admin: !m.is_admin } : m
       ));
     } catch (error) {
       console.error('Erro ao alterar admin:', error);
@@ -296,7 +296,7 @@ export default function ManageMembers() {
     }
   };
 
-  const membrosFiltrados = membros.filter(m => 
+  const integrantesFiltrados = integrantes.filter(m => 
     m.nome_guerra.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -339,11 +339,11 @@ export default function ManageMembers() {
               <div className="flex items-center gap-3 mb-2">
                 <Users className="w-8 h-8 text-brand-red" />
                 <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
-                  Gerenciar Membros
+                  Gerenciar Integrantes
                 </h1>
               </div>
               <p className="text-gray-400 text-sm">
-                Gerencie os membros do clube, cargos e permissões
+                Gerencie os integrantes do clube, cargos e permissões
               </p>
             </div>
 
@@ -352,7 +352,7 @@ export default function ManageMembers() {
               className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
             >
               <UserPlus className="w-4 h-4" />
-              Convidar Membro
+              Convidar Integrante
             </Link>
           </div>
         </div>
@@ -363,7 +363,7 @@ export default function ManageMembers() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Buscar membro por nome, email ou carteira..."
+              placeholder="Buscar integrante por nome, email ou carteira..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-red"
@@ -371,23 +371,23 @@ export default function ManageMembers() {
           </div>
         </div>
 
-        {/* Lista de Membros */}
+        {/* Lista de Integrantes */}
         <div className="space-y-4">
-          {membrosFiltrados.map((membro) => (
+          {integrantesFiltrados.map((integrante) => (
             <div
-              key={membro.id}
+              key={integrante.id}
               className={`bg-brand-gray border ${
-                membro.ativo ? 'border-brand-red/30' : 'border-gray-700'
-              } rounded-xl p-5 ${!membro.ativo ? 'opacity-60' : ''}`}
+                integrante.ativo ? 'border-brand-red/30' : 'border-gray-700'
+              } rounded-xl p-5 ${!integrante.ativo ? 'opacity-60' : ''}`}
             >
-              {editingId === membro.id && editingData ? (
+              {editingId === integrante.id && editingData ? (
                 /* Modo de Edição */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Membro</h3>
+                    <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Integrante</h3>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleSaveMembro(membro.id)}
+                        onClick={() => handleSaveIntegrante(integrante.id)}
                         disabled={saving}
                         className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
                       >
@@ -408,7 +408,7 @@ export default function ManageMembers() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Upload de Foto */}
                     <div className="md:col-span-2">
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Foto do Membro (opcional)</label>
+                      <label className="block text-gray-400 text-xs uppercase mb-1">Foto do Integrante (opcional)</label>
                       <div className="flex items-center gap-4">
                         <div>
                           {previewUrl ? (
@@ -472,8 +472,8 @@ export default function ManageMembers() {
                     <div>
                       <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
                       <select
-                        value={editingData.status_membro}
-                        onChange={(e) => setEditingData({ ...editingData, status_membro: e.target.value as StatusMembroEnum })}
+                        value={editingData.status_integrante}
+                        onChange={(e) => setEditingData({ ...editingData, status_integrante: e.target.value as StatusIntegranteEnum })}
                         className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
                         disabled={saving}
                       >
@@ -559,7 +559,7 @@ export default function ManageMembers() {
                       >
                         <option value="">Nenhum</option>
                         {padrinhosDisponiveis
-                          .filter(p => p.id !== editingId) // Excluir o próprio membro da lista
+                          .filter(p => p.id !== editingId) // Excluir o próprio integrante da lista
                           .map((padrinho) => (
                             <option key={padrinho.id} value={padrinho.id}>
                               {padrinho.nome_guerra} - {padrinho.nome_completo}
@@ -606,7 +606,7 @@ export default function ManageMembers() {
 
                   <div className="pt-3 border-t border-gray-700">
                     <p className="text-gray-500 text-xs">
-                      📧 Email: <span className="text-gray-400">{membro.email}</span> (não editável)
+                      📧 Email: <span className="text-gray-400">{integrante.email}</span> (não editável)
                     </p>
                   </div>
                 </div>
@@ -617,33 +617,33 @@ export default function ManageMembers() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-white font-oswald text-xl uppercase font-bold">
-                        {membro.nome_guerra}
+                        {integrante.nome_guerra}
                       </h3>
-                      {membro.is_admin && (
+                      {integrante.is_admin && (
                         <span className="inline-flex items-center gap-1 bg-brand-red/20 border border-brand-red/50 text-brand-red px-2 py-0.5 rounded text-xs font-oswald uppercase">
                           <Shield className="w-3 h-3" />
                           Admin
                         </span>
                       )}
-                      {!membro.ativo && (
+                      {!integrante.ativo && (
                         <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-400 px-2 py-0.5 rounded text-xs font-oswald uppercase">
                           Inativo
                         </span>
                       )}
                     </div>
                     
-                    <p className="text-gray-400 text-sm mb-2">{membro.nome_completo}</p>
+                    <p className="text-gray-400 text-sm mb-2">{integrante.nome_completo}</p>
                     
                     {/* Badge de Status */}
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${STATUS_STYLES[membro.status_membro].bg} ${STATUS_STYLES[membro.status_membro].text}`}>
-                        {membro.status_membro}
+                      <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${STATUS_STYLES[integrante.status_integrante].bg} ${STATUS_STYLES[integrante.status_integrante].text}`}>
+                        {integrante.status_integrante}
                       </span>
                       
                       {/* Cargos Ativos */}
-                      {membro.cargos_ativos && membro.cargos_ativos.length > 0 && (
+                      {integrante.cargos_ativos && integrante.cargos_ativos.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {membro.cargos_ativos.map((cargo) => (
+                          {integrante.cargos_ativos.map((cargo) => (
                             <span
                               key={cargo.id}
                               className="inline-flex px-2 py-1 rounded text-xs bg-gray-700 text-gray-300"
@@ -657,14 +657,14 @@ export default function ManageMembers() {
                     </div>
                     
                     <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                      <span>📧 {membro.email}</span>
-                      <span>🎫 {membro.numero_carteira}</span>
-                      {membro.data_inicio && (
-                        <span>📅 {new Date(membro.data_inicio).toLocaleDateString('pt-BR')}</span>
+                      <span>📧 {integrante.email}</span>
+                      <span>🎫 {integrante.numero_carteira}</span>
+                      {integrante.data_inicio && (
+                        <span>📅 {new Date(integrante.data_inicio).toLocaleDateString('pt-BR')}</span>
                       )}
-                      {membro.telefone && <span>📱 {membro.telefone}</span>}
-                      {membro.endereco_cidade && membro.endereco_estado && (
-                        <span>📍 {membro.endereco_cidade} - {membro.endereco_estado}</span>
+                      {integrante.telefone && <span>📱 {integrante.telefone}</span>}
+                      {integrante.endereco_cidade && integrante.endereco_estado && (
+                        <span>📍 {integrante.endereco_cidade} - {integrante.endereco_estado}</span>
                       )}
                     </div>
                   </div>
@@ -672,35 +672,35 @@ export default function ManageMembers() {
                   {/* Ações */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleEditMembro(membro)}
+                      onClick={() => handleEditIntegrante(integrante)}
                       className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition"
-                      title="Editar membro"
+                      title="Editar integrante"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     
                     <button
-                      onClick={() => handleToggleAdmin(membro)}
+                      onClick={() => handleToggleAdmin(integrante)}
                       className={`${
-                        membro.is_admin
+                        integrante.is_admin
                           ? 'bg-brand-red/20 hover:bg-brand-red/30 text-brand-red'
                           : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                       } p-2 rounded transition`}
-                      title={membro.is_admin ? 'Remover admin' : 'Tornar admin'}
+                      title={integrante.is_admin ? 'Remover admin' : 'Tornar admin'}
                     >
-                      {membro.is_admin ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                      {integrante.is_admin ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
                     </button>
                     
                     <button
-                      onClick={() => handleToggleAtivo(membro)}
+                      onClick={() => handleToggleAtivo(integrante)}
                       className={`${
-                        membro.ativo
+                        integrante.ativo
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                           : 'bg-green-600/20 hover:bg-green-600/30 text-green-500'
                       } px-3 py-2 rounded transition text-sm font-oswald uppercase`}
-                      title={membro.ativo ? 'Desativar membro' : 'Ativar membro'}
+                      title={integrante.ativo ? 'Desativar integrante' : 'Ativar integrante'}
                     >
-                      {membro.ativo ? 'Desativar' : 'Ativar'}
+                      {integrante.ativo ? 'Desativar' : 'Ativar'}
                     </button>
                   </div>
                 </div>
@@ -708,11 +708,11 @@ export default function ManageMembers() {
             </div>
           ))}
 
-          {membrosFiltrados.length === 0 && (
+          {integrantesFiltrados.length === 0 && (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400">
-                {searchTerm ? 'Nenhum membro encontrado' : 'Nenhum membro cadastrado'}
+                {searchTerm ? 'Nenhum integrante encontrado' : 'Nenhum integrante cadastrado'}
               </p>
             </div>
           )}

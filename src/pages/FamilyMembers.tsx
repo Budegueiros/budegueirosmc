@@ -55,7 +55,7 @@ export default function FamilyMembers() {
     if (!user) return;
 
     try {
-      // Buscar membro
+      // Buscar integrante
       const { data: membroData } = await supabase
         .from('membros')
         .select('id')

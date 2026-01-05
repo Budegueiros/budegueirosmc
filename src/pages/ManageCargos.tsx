@@ -54,7 +54,7 @@ export default function ManageCargos() {
 
       if (cargosError) throw cargosError;
 
-      // Para cada cargo, contar quantos membros ativos têm esse cargo
+      // Para cada cargo, contar quantos integrantes ativos têm esse cargo
       const cargosComStats = await Promise.all(
         (cargosData || []).map(async (cargo: Cargo) => {
           const { count } = await supabase

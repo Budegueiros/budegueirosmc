@@ -101,9 +101,9 @@ export default function CreateComunicadoForm({ membroId, onSuccess, onCancel }: 
               onChange={(e) => setTipoDestinatario(e.target.value as ComunicadoTipoDestinatario)}
               className="w-full bg-zinc-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-brand-red"
             >
-              <option value="geral">Geral (Todos os Membros)</option>
+              <option value="geral">Geral (Todos os Integrantes)</option>
               <option value="cargo">Por Cargo/Função</option>
-              <option value="membro">Membro Específico (Privado)</option>
+              <option value="integrante">Integrante Específico (Privado)</option>
             </select>
           </div>
         </div>
@@ -131,11 +131,11 @@ export default function CreateComunicadoForm({ membroId, onSuccess, onCancel }: 
           </div>
         )}
 
-        {/* Campo condicional para membro específico */}
-        {tipoDestinatario === 'membro' && (
+        {/* Campo condicional para integrante específico */}
+        {tipoDestinatario === 'integrante' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nome de Guerra do Membro <span className="text-red-500">*</span>
+              Nome de Guerra do Integrante <span className="text-red-500">*</span>
             </label>
             <input
               type="text"

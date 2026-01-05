@@ -6,9 +6,9 @@
 // ============================================================================
 
 /**
- * Status possíveis de um membro no Moto Clube
+ * Status possíveis de um integrante no Moto Clube
  */
-export type StatusMembroEnum = 
+export type StatusIntegranteEnum = 
   | 'Aspirante'
   | 'Prospect'
   | 'Brasionado'
@@ -23,15 +23,15 @@ export type TipoCargoEnum =
   | 'Honorario';
 
 /**
- * Interface base para membros
+ * Interface base para integrantes
  */
-export interface Membro {
+export interface Integrante {
   id: string;
   user_id: string;
   nome_completo: string;
   nome_guerra: string;
   padrinho_id: string | null;
-  status_membro: StatusMembroEnum;
+  status_integrante: StatusIntegranteEnum;
   numero_carteira: string;
   data_inicio: string | null;
   telefone: string | null;
@@ -47,7 +47,7 @@ export interface Membro {
 }
 
 /**
- * Informações resumidas do padrinho (membro responsável)
+ * Informações resumidas do padrinho (integrante responsável)
  */
 export interface PadrinhoInfo {
   id: string;
@@ -70,11 +70,11 @@ export interface Cargo {
 }
 
 /**
- * Interface para relacionamento membro-cargo
+ * Interface para relacionamento integrante-cargo
  */
-export interface MembroCargo {
+export interface IntegranteCargo {
   id: string;
-  membro_id: string;
+  integrante_id: string;
   cargo_id: string;
   data_atribuicao: string;
   ativo: boolean;
@@ -84,16 +84,16 @@ export interface MembroCargo {
 }
 
 /**
- * Interface estendida: Membro com seus cargos incluídos
+ * Interface estendida: Integrante com seus cargos incluídos
  */
-export interface MembroComCargos extends Membro {
+export interface IntegranteComCargos extends Integrante {
   cargos: Cargo[];
 }
 
 /**
- * Interface para dados do join membro_cargos
+ * Interface para dados do join integrante_cargos
  */
-export interface MembroCargoJoin {
+export interface IntegranteCargoJoin {
   id: string;
   data_atribuicao: string;
   ativo: boolean;
@@ -104,7 +104,7 @@ export interface MembroCargoJoin {
 /**
  * Helper para verificar se um valor é um status válido
  */
-export function isStatusMembro(value: string): value is StatusMembroEnum {
+export function isStatusIntegrante(value: string): value is StatusIntegranteEnum {
   return ['Aspirante', 'Prospect', 'Brasionado', 'Nomade'].includes(value);
 }
 
@@ -118,7 +118,7 @@ export function isTipoCargo(value: string): value is TipoCargoEnum {
 /**
  * Cores e estilos para cada status
  */
-export const STATUS_STYLES: Record<StatusMembroEnum, { bg: string; text: string; label: string }> = {
+export const STATUS_STYLES: Record<StatusIntegranteEnum, { bg: string; text: string; label: string }> = {
   Aspirante: {
     bg: 'bg-yellow-100',
     text: 'text-yellow-800',
@@ -167,7 +167,7 @@ export type ComunicadoPrioridade = 'normal' | 'alta' | 'critica';
 /**
  * Tipo de destinatário do comunicado
  */
-export type ComunicadoTipoDestinatario = 'geral' | 'cargo' | 'membro';
+export type ComunicadoTipoDestinatario = 'geral' | 'cargo' | 'integrante';
 
 /**
  * Interface para comunicados
@@ -179,7 +179,7 @@ export interface Comunicado {
   prioridade: ComunicadoPrioridade;
   tipo_destinatario: ComunicadoTipoDestinatario;
   valor_destinatario: string | null;
-  membro_id_autor: string;
+  integrante_id_autor: string;
   created_at: string;
 }
 
@@ -189,7 +189,7 @@ export interface Comunicado {
 export interface ComunicadoLeitura {
   id: string;
   comunicado_id: string;
-  membro_id: string;
+  integrante_id: string;
   lido_em: string;
 }
 
@@ -253,7 +253,7 @@ export interface EventoComFotos extends Evento {
 /**
  * Tipo de destinatário do documento (igual ao de comunicados)
  */
-export type DocumentoTipoDestinatario = 'geral' | 'cargo' | 'membro';
+export type DocumentoTipoDestinatario = 'geral' | 'cargo' | 'integrante';
 
 /**
  * Interface para documentos
@@ -268,7 +268,7 @@ export interface Documento {
   tamanho_bytes: number | null;
   tipo_destinatario: DocumentoTipoDestinatario;
   valor_destinatario: string | null;
-  membro_id_autor: string;
+  integrante_id_autor: string;
   created_at: string;
 }
 
@@ -278,7 +278,7 @@ export interface Documento {
 export interface DocumentoAcesso {
   id: string;
   documento_id: string;
-  membro_id: string;
+  integrante_id: string;
   acessado_em: string;
 }
 

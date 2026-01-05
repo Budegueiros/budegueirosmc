@@ -30,7 +30,7 @@ export default function Comunicados() {
 
     setLoading(true);
     try {
-      // Buscar membro
+      // Buscar integrante
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .select('id, is_admin')
@@ -56,7 +56,7 @@ export default function Comunicados() {
 
       if (comunicadosError) throw comunicadosError;
 
-      // Buscar leituras do membro
+      // Buscar leituras do integrante
       const { data: leiturasData } = await supabase
         .from('comunicados_leitura')
         .select('comunicado_id')

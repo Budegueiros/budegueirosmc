@@ -48,7 +48,7 @@ export default function ManageComunicados() {
 
     setLoading(true);
     try {
-      // Buscar membro
+      // Buscar integrante
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .select('id')
@@ -77,7 +77,7 @@ export default function ManageComunicados() {
       // Para cada comunicado, buscar estatísticas de leitura
       const comunicadosComStats = await Promise.all(
         (comunicadosData || []).map(async (comunicado: any) => {
-          // Buscar leituras com dados do membro
+          // Buscar leituras com dados do integrante
           const { data: leiturasData } = await supabase
             .from('comunicados_leitura')
             .select(`
@@ -105,7 +105,7 @@ export default function ManageComunicados() {
               .eq('ativo', true)
               .eq('cargos.nome', comunicado.valor_destinatario);
             totalDestinatarios = count || 0;
-          } else if (comunicado.tipo_destinatario === 'membro') {
+          } else if (comunicado.tipo_destinatario === 'integrante') {
             totalDestinatarios = 1;
           }
 
@@ -371,7 +371,7 @@ export default function ManageComunicados() {
                         >
                           <option value="geral">Geral</option>
                           <option value="cargo">Por Cargo</option>
-                          <option value="membro">Membro Específico</option>
+                          <option value="integrante">Membro Específico</option>
                         </select>
                       </div>
                       {formData.tipo_destinatario !== 'geral' && (
@@ -381,7 +381,7 @@ export default function ManageComunicados() {
                           onChange={(e) => setFormData({ ...formData, valor_destinatario: e.target.value })}
                           className="w-full bg-zinc-900 border border-gray-700 rounded px-3 py-2 text-white"
                           placeholder={
-                            formData.tipo_destinatario === 'cargo' ? 'Nome do Cargo' : 'Nome de Guerra do Membro'
+                            formData.tipo_destinatario === 'cargo' ? 'Nome do Cargo' : 'Nome de Guerra do Integrante'
                           }
                         />
                       )}
@@ -454,7 +454,7 @@ export default function ManageComunicados() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-sm">Nenhum membro leu este comunicado ainda.</p>
+                          <p className="text-gray-500 text-sm">Nenhum integrante leu este comunicado ainda.</p>
                         )}
                       </div>
                     )}

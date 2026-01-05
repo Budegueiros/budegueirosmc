@@ -20,7 +20,7 @@ interface Evento {
   estado: string;
 }
 
-interface MembroData {
+interface IntegranteData {
   id: string;
   nome_guerra: string;
 }
@@ -32,7 +32,7 @@ interface AgendaContentProps {
 export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps) {
   const { user } = useAuth();
   const { error: toastError } = useToast();
-  const [membro, setMembro] = useState<MembroData | null>(null);
+  const [integrante, setIntegrante] = useState<IntegranteData | null>(null);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,26 +79,26 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
           setConfirmadosCount(confirmadosMap);
         }
 
-        // Buscar dados do membro (só se estiver autenticado E for página logada)
+        // Buscar dados do integrante (só se estiver autenticado E for página logada)
         if (user && isLoggedIn) {
-          const { data: membroData, error: membroError } = await supabase
-            .from('membros')
+          const { data: integranteData, error: integranteError } = await supabase
+            .from('integrantes')
             .select('id, nome_guerra')
             .eq('user_id', user.id)
             .single();
 
-          if (membroError) {
-            console.error('Erro ao buscar membro:', membroError);
+          if (integranteError) {
+            console.error('Erro ao buscar integrante:', integranteError);
           } else {
-            setMembro(membroData);
+            setMembro(integranteData);
 
-            // Buscar confirmações de presença do membro para todos os eventos
-            if (membroData && eventosData) {
+            // Buscar confirmações de presença do integrante para todos os eventos
+            if (integranteData && eventosData) {
               const eventIds = eventosData.map(e => e.id);
               const { data: confirmacoesData } = await supabase
                 .from('confirmacoes_presenca')
                 .select('id, evento_id')
-                .eq('membro_id', membroData.id)
+                .eq('integrante_id', integranteData.id)
                 .eq('status', 'Confirmado')
                 .in('evento_id', eventIds);
 
@@ -125,7 +125,7 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
   }, [user, isLoggedIn]);
 
   const handleRSVP = async (eventId: string, status: 'confirmed' | 'maybe') => {
-    if (!membro || confirmandoPresenca[eventId]) return;
+    if (!integrante || confirmandoPresenca[eventId]) return;
 
     setConfirmandoPresenca(prev => ({ ...prev, [eventId]: true }));
 
@@ -149,7 +149,7 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
           .from('confirmacoes_presenca')
           .insert({
             evento_id: eventId,
-            membro_id: membro.id,
+            integrante_id: integrante.id,
             status: 'Confirmado',
             data_confirmacao: new Date().toISOString()
           })
@@ -251,7 +251,7 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
                 <AgendaEventCard 
                   key={event.id}
                   event={event}
-                  currentMember={isLoggedIn ? membro : null}
+                  currentMember={isLoggedIn ? integrante : null}
                   onRSVP={isLoggedIn ? handleRSVP : undefined}
                   isConfirmed={isLoggedIn ? !!confirmacoes[event.id] : false}
                   isConfirming={isLoggedIn ? (confirmandoPresenca[event.id] || false) : false}

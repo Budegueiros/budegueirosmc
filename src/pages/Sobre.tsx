@@ -1,30 +1,30 @@
 import { useState, useEffect } from 'react';
 import { User, Shield, Award, Users as UsersIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { MembroComCargos } from '../types/database.types';
+import { IntegranteComCargos } from '../types/database.types';
 
 export default function Sobre() {
-    const [membros, setMembros] = useState<MembroComCargos[]>([]);
+    const [integrantes, setIntegrantes] = useState<IntegranteComCargos[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        carregarMembros();
+        carregarIntegrantes();
     }, []);
 
-    const carregarMembros = async () => {
+    const carregarIntegrantes = async () => {
         try {
-            // Buscar todos os membros ativos
-            const { data: membrosData, error: membrosError } = await supabase
+            // Buscar todos os integrantes ativos
+            const { data: integrantesData, error: integrantesError } = await supabase
                 .from('membros')
                 .select('*')
                 .eq('ativo', true)
                 .order('created_at', { ascending: true });
 
-            if (membrosError) throw membrosError;
+            if (integrantesError) throw integrantesError;
 
-            // Para cada membro, buscar seus cargos ativos
-            const membrosComCargos: MembroComCargos[] = await Promise.all(
-                (membrosData || []).map(async (membro) => {
+            // Para cada integrante, buscar seus cargos ativos
+            const integrantesComCargos: IntegranteComCargos[] = await Promise.all(
+                (integrantesData || []).map(async (integrante) => {
                     const { data: cargosData, error: cargosError } = await supabase
                         .from('membro_cargos')
                         .select(`
@@ -36,7 +36,7 @@ export default function Sobre() {
                                 descricao
                             )
                         `)
-                        .eq('membro_id', membro.id)
+                        .eq('membro_id', integrante.id)
                         .eq('ativo', true);
 
                     if (cargosError) {
@@ -44,15 +44,15 @@ export default function Sobre() {
                     }
 
                     return {
-                        ...membro,
+                        ...integrante,
                         cargos: cargosData?.map((mc: any) => mc.cargos).filter(Boolean) || []
                     };
                 })
             );
 
-            setMembros(membrosComCargos);
+            setIntegrantes(integrantesComCargos);
         } catch (error) {
-            console.error('Erro ao carregar membros:', error);
+            console.error('Erro ao carregar integrantes:', error);
         } finally {
             setLoading(false);
         }
@@ -67,7 +67,7 @@ export default function Sobre() {
     };
 
     const getMainRole = (cargos: any[]) => {
-        if (!cargos || cargos.length === 0) return 'MEMBRO';
+        if (!cargos || cargos.length === 0) return 'INTEGRANTE';
         
         const cargoNomes = cargos.map(c => c.nome);
         
@@ -79,11 +79,11 @@ export default function Sobre() {
             (a.nivel || 999) - (b.nivel || 999)
         )[0];
         
-        return cargoMaiorPrioridade?.nome || 'MEMBRO';
+        return cargoMaiorPrioridade?.nome || 'INTEGRANTE';
     };
 
-    // Ordenar membros por hierarquia e, em caso de empate, por número do membro
-    const sortedMembers = [...membros].sort((a, b) => {
+    // Ordenar integrantes por hierarquia e, em caso de empate, por número do integrante
+    const sortedMembers = [...integrantes].sort((a, b) => {
         const priorityA = getRolePriority(a.cargos);
         const priorityB = getRolePriority(b.cargos);
         
@@ -92,7 +92,7 @@ export default function Sobre() {
             return priorityA - priorityB;
         }
         
-        // Se a hierarquia for igual, ordena por número do membro
+        // Se a hierarquia for igual, ordena por número do integrante
         const numeroA = parseInt(a.numero_carteira) || 999;
         const numeroB = parseInt(b.numero_carteira) || 999;
         return numeroA - numeroB;
@@ -106,7 +106,7 @@ export default function Sobre() {
         return priority > 3 && priority < 100;
     });
 
-    const MemberCard = ({ member, size = 'normal' }: { member: MembroComCargos, size?: 'large' | 'normal' }) => (
+    const MemberCard = ({ member, size = 'normal' }: { member: IntegranteComCargos, size?: 'large' | 'normal' }) => (
         <div className={`bg-[#1a1d23] border border-gray-800 rounded-lg overflow-hidden flex flex-col items-center p-6 hover:border-red-900/50 transition-all group ${size === 'large' ? 'transform md:scale-105 border-red-900/30 shadow-[0_0_30px_rgba(220,38,38,0.1)]' : ''}`}>
             <div className={`rounded-full bg-gray-900 border-4 border-[#252a33] overflow-hidden mb-4 group-hover:border-red-600 transition-colors ${size === 'large' ? 'w-40 h-40' : 'w-24 h-24'}`}>
                 {member.foto_url ? (
@@ -134,7 +134,7 @@ export default function Sobre() {
                 </div>
             )}
             <p className="text-gray-600 text-xs mt-4 font-mono">
-                Membro #{member.numero_carteira}
+                Integrante #{member.numero_carteira}
             </p>
         </div>
     );
@@ -169,14 +169,14 @@ export default function Sobre() {
                                     celebra a amizade, o respeito e o espírito de aventura.
                                 </p>
                                 <p>
-                                    Inspirado pelos valores de união e lealdade, o clube proporciona aos seus membros 
+                                    Inspirado pelos valores de união e lealdade, o clube proporciona aos seus integrantes 
                                     experiências marcantes, seja em viagens, encontros ou ações sociais. A organização 
                                     do Budegueiros MC se baseia na hierarquia e na disciplina, garantindo harmonia e um 
                                     convívio saudável entre seus integrantes, que compartilham do compromisso com 
                                     segurança, camaradagem e diversão.
                                 </p>
                                 <p>
-                                    O clube é também um espaço acolhedor, onde cada membro é tratado como parte de 
+                                    O clube é também um espaço acolhedor, onde cada integrante é tratado como parte de 
                                     uma grande família unida pelo amor às motocicletas e ao prazer da convivência. Seja 
                                     em eventos, nas estradas ou no ponto de encontro tradicional no Budega do Chopp, 
                                     o Budegueiros MC mantém viva a essência da liberdade sobre duas rodas e o prazer 
@@ -222,7 +222,7 @@ export default function Sobre() {
                     {/* Hierarchy Chart */}
                     <section>
                         <div className="text-center mb-12">
-                            <h2 className="text-2xl font-bold text-white uppercase tracking-widest mb-2 font-oswald">Hierarquia & Membros</h2>
+                            <h2 className="text-2xl font-bold text-white uppercase tracking-widest mb-2 font-oswald">Hierarquia & Integrantes</h2>
                             <div className="h-1 w-24 bg-red-600 mx-auto"></div>
                         </div>
 
@@ -253,7 +253,7 @@ export default function Sobre() {
                         {/* Members */}
                         {fullMembers.length > 0 && (
                             <div className="mb-12">
-                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2">Membros Brasão Fechado</h3>
+                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2">Integrantes Brasão Fechado</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                                     {fullMembers.map(m => <MemberCard key={m.id} member={m} />)}
                                 </div>

@@ -12,7 +12,7 @@ export default function CompleteProfile() {
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
 
-  // Dados do Membro
+  // Dados do Integrante
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeGuerra, setNomeGuerra] = useState('');
   const [statusMembro, setStatusMembro] = useState<StatusMembroEnum>('Aspirante');
@@ -51,7 +51,7 @@ export default function CompleteProfile() {
       const ano = new Date().getFullYear();
       const numeroCarteira = `BMC-${ano}-${Math.floor(Math.random() * 9000) + 1000}`;
 
-      // 1. Inserir dados do membro
+      // 1. Inserir dados do integrante
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .insert({
@@ -109,7 +109,7 @@ export default function CompleteProfile() {
             Bem-vindo, Irmão!
           </h1>
           <p className="text-gray-400 text-sm mt-2">
-            Complete seu perfil para acessar a área do membro
+            Complete seu perfil para acessar a área do integrante
           </p>
         </div>
 

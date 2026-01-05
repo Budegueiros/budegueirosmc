@@ -26,7 +26,7 @@ function Header() {
           <Link to="/eventos" className={`${isActive('/eventos') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Eventos</Link>
           <Link to="/contato" className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>Contato</Link>
           <Link to="/dashboard" className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-sm tracking-wide`}>
-            Área do Membro
+            Área do Integrante
           </Link>
           {/* Sociais */}
           <div className="flex items-center gap-4 ml-4">
@@ -58,7 +58,7 @@ function Header() {
             <Link to="/agenda" className={`${isActive('/agenda') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Agenda</Link>
             <Link to="/eventos" className={`${isActive('/eventos') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Eventos</Link>
             <Link to="/contato" className={`${isActive('/contato') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Contato</Link>
-            <Link to="/dashboard" className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Área do Membro</Link>
+            <Link to="/dashboard" className={`${isActive('/dashboard') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase`} onClick={() => setIsMenuOpen(false)}>Área do Integrante</Link>
             <div className="flex items-center gap-4 mt-4">
               <a href="https://www.instagram.com/budegueirosmc/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-white hover:text-brand-red transition">
                 <Instagram className="w-5 h-5" />

@@ -36,7 +36,7 @@ export default function Login() {
             <img src="/BT.png" alt="Budegueiros MC" className="w-20 h-auto" />
           </div>
           <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
-            Área do Membro
+            Área do Integrante
           </h1>
           <p className="text-gray-400 text-sm mt-2">
             Acesso exclusivo para membros da irmandade
@@ -112,7 +112,7 @@ export default function Login() {
                   Entrando...
                 </>
               ) : (
-                'Entrar na Área do Membro'
+                'Entrar na Área do Integrante'
               )}
             </button>
 

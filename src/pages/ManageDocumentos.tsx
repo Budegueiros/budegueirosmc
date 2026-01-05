@@ -47,7 +47,7 @@ export default function ManageDocumentos() {
 
     setLoading(true);
     try {
-      // Buscar membro
+      // Buscar integrante
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .select('id')
@@ -76,7 +76,7 @@ export default function ManageDocumentos() {
       // Para cada documento, buscar estatísticas de acesso
       const documentosComStats = await Promise.all(
         (documentosData || []).map(async (documento: any) => {
-          // Buscar acessos com dados do membro
+          // Buscar acessos com dados do integrante
           const { data: acessosData } = await supabase
             .from('documentos_acesso')
             .select(`
@@ -103,7 +103,7 @@ export default function ManageDocumentos() {
               .select('membro_id', { count: 'exact', head: true })
               .eq('ativo', true);
             totalDestinatarios = count || 0;
-          } else if (documento.tipo_destinatario === 'membro') {
+          } else if (documento.tipo_destinatario === 'integrante') {
             totalDestinatarios = 1;
           }
 
@@ -397,7 +397,7 @@ export default function ManageDocumentos() {
                         >
                           <option value="geral">Geral</option>
                           <option value="cargo">Por Cargo</option>
-                          <option value="membro">Membro Específico</option>
+                          <option value="integrante">Membro Específico</option>
                         </select>
                       </div>
                       {formData.tipo_destinatario !== 'geral' && (
@@ -407,7 +407,7 @@ export default function ManageDocumentos() {
                           onChange={(e) => setFormData({ ...formData, valor_destinatario: e.target.value })}
                           className="w-full bg-zinc-900 border border-gray-700 rounded px-3 py-2 text-white"
                           placeholder={
-                            formData.tipo_destinatario === 'cargo' ? 'Nome do Cargo' : 'Nome de Guerra do Membro'
+                            formData.tipo_destinatario === 'cargo' ? 'Nome do Cargo' : 'Nome de Guerra do Integrante'
                           }
                         />
                       )}
@@ -482,7 +482,7 @@ export default function ManageDocumentos() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-sm">Nenhum membro acessou este documento ainda.</p>
+                          <p className="text-gray-500 text-sm">Nenhum integrante acessou este documento ainda.</p>
                         )}
                       </div>
                     )}

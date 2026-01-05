@@ -41,7 +41,7 @@ export default function ManagePayments() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
-  const [groupBy, setGroupBy] = useState<'none' | 'membro' | 'mes' | 'status'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'integrante' | 'mes' | 'status'>('none');
   const [showNewForm, setShowNewForm] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export default function ManagePayments() {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      // Carregar mensalidades com dados dos membros (incluindo membros inativos)
+      // Carregar mensalidades com dados dos membros (incluindo integrantes inativos)
       const { data: mensalidadesData, error: mensalidadesError } = await supabase
         .from('mensalidades')
         .select(`
@@ -122,7 +122,7 @@ export default function ManagePayments() {
 
   const handleCreateMensalidade = async () => {
     if (!newMensalidade.membro_id) {
-      toastWarning('Selecione um membro');
+      toastWarning('Selecione um integrante');
       return;
     }
 
@@ -166,7 +166,7 @@ export default function ManagePayments() {
     setShowConfirmBatch(false);
     setSaving(true);
     try {
-      // Buscar todos os membros ativos
+      // Buscar todos os integrantes ativos
       const { data: membrosAtivos, error: membrosError } = await supabase
         .from('membros')
         .select('id')
@@ -175,7 +175,7 @@ export default function ManagePayments() {
       if (membrosError) throw membrosError;
 
       if (!membrosAtivos || membrosAtivos.length === 0) {
-        toastWarning('Nenhum membro ativo encontrado.');
+        toastWarning('Nenhum integrante ativo encontrado.');
         return;
       }
 
@@ -193,13 +193,13 @@ export default function ManagePayments() {
       const membrosParaCriar = membrosAtivos.filter(m => !idsComMensalidade.has(m.id));
 
       if (membrosParaCriar.length === 0) {
-        toastInfo('Todos os membros ativos já possuem mensalidade para este mês.');
+        toastInfo('Todos os integrantes ativos já possuem mensalidade para este mês.');
         return;
       }
 
       // Criar mensalidades em lote
-      const mensalidadesParaInserir = membrosParaCriar.map(membro => ({
-        membro_id: membro.id,
+      const mensalidadesParaInserir = integrantesParaCriar.map(integrante => ({
+        membro_id: integrante.id,
         mes_referencia: batchData.mes_referencia,
         valor: parseFloat(batchData.valor),
         data_vencimento: batchData.data_vencimento,
@@ -214,7 +214,7 @@ export default function ManagePayments() {
       if (insertError) throw insertError;
 
       const mensagem = idsComMensalidade.size > 0 
-        ? `${membrosParaCriar.length} mensalidades criadas com sucesso! (${idsComMensalidade.size} membros já tinham mensalidade neste mês)`
+        ? `${membrosParaCriar.length} mensalidades criadas com sucesso! (${idsComMensalidade.size} integrantes já tinham mensalidade neste mês)`
         : `${membrosParaCriar.length} mensalidades criadas com sucesso!`;
       toastSuccess(mensagem);
       setShowBatchForm(false);
@@ -341,7 +341,7 @@ export default function ManagePayments() {
     mensalidadesFiltradas.forEach(m => {
       let key = '';
       
-      if (groupBy === 'membro') {
+      if (groupBy === 'integrante') {
         key = `${m.membros.nome_guerra} - ${m.membros.numero_carteira}`;
       } else if (groupBy === 'mes') {
         key = formatarMes(m.mes_referencia);
@@ -640,7 +640,7 @@ export default function ManagePayments() {
                 </h1>
               </div>
               <p className="text-gray-400 text-sm">
-                Controle de pagamentos mensais dos membros
+                Controle de pagamentos mensais dos integrantes
               </p>
             </div>
 
@@ -668,7 +668,7 @@ export default function ManagePayments() {
           <div className="bg-brand-gray border border-green-600/30 rounded-xl p-5 mb-6">
             <h3 className="text-white font-oswald text-lg uppercase font-bold mb-2">Gerar Mensalidades em Lote</h3>
             <p className="text-gray-400 text-sm mb-4">
-              Cria mensalidades para todos os membros ativos que ainda não possuem lançamento no mês selecionado
+              Cria mensalidades para todos os integrantes ativos que ainda não possuem lançamento no mês selecionado
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -739,7 +739,7 @@ export default function ManagePayments() {
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                Gerar para Todos os Membros Ativos
+                Gerar para Todos os Integrantes Ativos
               </button>
               <button
                 onClick={() => setShowBatchForm(false)}
@@ -760,14 +760,14 @@ export default function ManagePayments() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-400 text-xs uppercase mb-1">Membro</label>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Integrante</label>
                 <select
                   value={newMensalidade.membro_id}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, membro_id: e.target.value })}
                   className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
                   disabled={saving}
                 >
-                  <option value="">Selecione um membro</option>
+                  <option value="">Selecione um integrante</option>
                   {membros.map(m => (
                     <option key={m.id} value={m.id}>
                       {m.nome_guerra} ({m.numero_carteira})
@@ -890,11 +890,11 @@ export default function ManagePayments() {
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <select
               value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value as 'none' | 'membro' | 'mes' | 'status')}
+              onChange={(e) => setGroupBy(e.target.value as 'none' | 'integrante' | 'mes' | 'status')}
               className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-brand-red appearance-none"
             >
               <option value="none">Sem Agrupamento</option>
-              <option value="membro">Agrupar por Usuário</option>
+              <option value="integrante">Agrupar por Integrante</option>
               <option value="mes">Agrupar por Mês</option>
               <option value="status">Agrupar por Status</option>
           </select>
@@ -927,7 +927,7 @@ export default function ManagePayments() {
                   <div className="bg-gradient-to-r from-brand-red/20 to-transparent border border-brand-red/30 rounded-lg p-4">
                     <div className="flex items-center justify-between flex-wrap gap-4">
                       <div className="flex items-center gap-3">
-                        {groupBy === 'membro' && <Users className="w-5 h-5 text-brand-red" />}
+                        {groupBy === 'integrante' && <Users className="w-5 h-5 text-brand-red" />}
                         {groupBy === 'mes' && <Calendar className="w-5 h-5 text-brand-red" />}
                         {groupBy === 'status' && <Filter className="w-5 h-5 text-brand-red" />}
                         <div>
@@ -969,7 +969,7 @@ export default function ManagePayments() {
               Confirmar Geração em Lote
             </h3>
             <p className="text-gray-300 mb-4">
-              Deseja gerar mensalidades para todos os membros ativos?
+              Deseja gerar mensalidades para todos os integrantes ativos?
             </p>
             <div className="bg-black/50 border border-brand-red/20 rounded-lg p-4 mb-4 space-y-2">
               <div className="flex justify-between">
