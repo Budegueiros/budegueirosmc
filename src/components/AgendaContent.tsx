@@ -211,7 +211,7 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
 
   return (
     <section className={`relative bg-zinc-900 min-h-screen overflow-hidden ${isLoggedIn ? 'py-8' : 'py-20 pt-24'}`}>
-      <div className={`container mx-auto px-4 ${isLoggedIn ? '' : 'pl-16 md:pl-24'}`}>
+      <div className="container mx-auto px-4">
         <div className="animate-fade-in max-w-5xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
