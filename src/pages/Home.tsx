@@ -53,7 +53,7 @@ export default function Home() {
 
                     {/* Descrição */}
                     <p className="text-gray-300 text-base md:text-lg leading-relaxed mb-8 max-w-2xl">
-                        Fundado em 14/04, o <span className="text-brand-red font-semibold">BUDEGUEIROS MC</span> é movido por liberdade, respeito e irmandade. Junte-se a nós nessa jornada sem fim.
+                        Fundado em 14/04/2024, o <span className="text-brand-red font-semibold">BUDEGUEIROS MC</span> é movido por liberdade, respeito e irmandade. Junte-se a nós nessa jornada sem fim.
                     </p>
 
                     {/* Botão CTA */}
