@@ -61,7 +61,7 @@ export default function Home() {
                         to="/contato"
                         className="inline-block bg-brand-red hover:bg-red-700 text-white font-oswald font-bold text-lg uppercase tracking-wider px-8 py-4 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-brand-red/50"
                     >
-                        Seja Membro
+                        Seja Integrante
                     </Link>
                 </div>
             </div>
