@@ -107,7 +107,7 @@ export default function Sobre() {
     });
 
     const MemberCard = ({ member, size = 'normal' }: { member: MembroComCargos, size?: 'large' | 'normal' }) => (
-        <div className={`bg-[#1a1d23] border border-gray-800 rounded-lg overflow-hidden flex flex-col items-center p-6 hover:border-red-900/50 transition-all group ${size === 'large' ? 'transform md:scale-105 border-red-900/30 shadow-[0_0_30px_rgba(220,38,38,0.1)]' : ''}`}>
+        <div className={`bg-[#1a1d23] border border-gray-800 rounded-lg overflow-hidden flex flex-col items-center p-4 md:p-6 hover:border-red-900/50 transition-all group w-full max-w-[200px] ${size === 'large' ? 'transform md:scale-105 border-red-900/30 shadow-[0_0_30px_rgba(220,38,38,0.1)] max-w-[280px]' : ''}`}>
             <div className={`rounded-full bg-gray-900 border-4 border-[#252a33] overflow-hidden mb-4 group-hover:border-red-600 transition-colors ${size === 'large' ? 'w-40 h-40' : 'w-24 h-24'}`}>
                 {member.foto_url ? (
                     <img src={member.foto_url} alt={member.nome_guerra} className="w-full h-full object-cover" />
@@ -142,7 +142,7 @@ export default function Sobre() {
     if (loading) {
         return (
             <section className="relative py-20 min-h-screen bg-zinc-900 pt-24 overflow-hidden">
-                <div className="container mx-auto px-4 pl-16 md:pl-24">
+                <div className="container mx-auto px-4 md:pl-16 lg:pl-24">
                     <div className="text-center text-white">Carregando...</div>
                 </div>
             </section>
@@ -151,16 +151,16 @@ export default function Sobre() {
 
     return (
         <section className="relative py-20 min-h-screen bg-zinc-900 pt-24 overflow-hidden">
-            <div className="container mx-auto px-4 pl-16 md:pl-24">
+            <div className="container mx-auto px-4 md:pl-16 lg:pl-24">
                 <div className="animate-fade-in max-w-7xl mx-auto space-y-16 pb-12">
                     
                     {/* Hero / History Section */}
                     <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                        <div className="space-y-6">
-                            <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-wide border-l-4 border-red-600 pl-4 font-oswald">
+                        <div className="space-y-6 text-center lg:text-left">
+                            <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-wide border-l-4 border-red-600 pl-4 font-oswald text-left">
                                 Sobre o Clube
                             </h2>
-                            <div className="text-gray-300 space-y-4 leading-relaxed text-justify">
+                            <div className="text-gray-300 space-y-4 leading-relaxed text-left">
                                 <p>
                                     Fundado em 14 de abril de 2024 por Anderson, Igor, Luiz, Marconi, Michel e Weslei, o 
                                     Budegueiros Moto Clube nasceu da união de amigos que compartilham a paixão por 
@@ -202,18 +202,24 @@ export default function Sobre() {
 
                     {/* Values Cards */}
                     <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-[#1a1d23] p-6 rounded border-t-4 border-red-600">
-                            <UsersIcon className="text-red-500 mb-4" size={32} />
+                        <div className="bg-[#1a1d23] p-6 rounded border-t-4 border-red-600 text-center md:text-left">
+                            <div className="flex justify-center md:justify-start">
+                                <UsersIcon className="text-red-500 mb-4" size={32} />
+                            </div>
                             <h4 className="text-white font-bold text-lg mb-2 font-oswald">Irmandade</h4>
                             <p className="text-gray-400 text-sm">Mais que amigos, somos irmãos unidos pela estrada e pela lealdade incondicional.</p>
                         </div>
-                        <div className="bg-[#1a1d23] p-6 rounded border-t-4 border-white">
-                            <Award className="text-white mb-4" size={32} />
+                        <div className="bg-[#1a1d23] p-6 rounded border-t-4 border-white text-center md:text-left">
+                            <div className="flex justify-center md:justify-start">
+                                <Award className="text-white mb-4" size={32} />
+                            </div>
                             <h4 className="text-white font-bold text-lg mb-2 font-oswald">Respeito</h4>
                             <p className="text-gray-400 text-sm">Respeito mútuo, hierarquia e disciplina são os pilares que sustentam nossa organização.</p>
                         </div>
-                        <div className="bg-[#1a1d23] p-6 rounded border-t-4 border-gray-500">
-                            <Shield className="text-gray-500 mb-4" size={32} />
+                        <div className="bg-[#1a1d23] p-6 rounded border-t-4 border-gray-500 text-center md:text-left">
+                            <div className="flex justify-center md:justify-start">
+                                <Shield className="text-gray-500 mb-4" size={32} />
+                            </div>
                             <h4 className="text-white font-bold text-lg mb-2 font-oswald">Liberdade</h4>
                             <p className="text-gray-400 text-sm">A liberdade sobre duas rodas é o que nos move e nos inspira a cada novo quilômetro.</p>
                         </div>
@@ -228,14 +234,14 @@ export default function Sobre() {
 
                         {/* President */}
                         {presidents.length > 0 && (
-                            <div className="flex justify-center mb-8">
+                            <div className="flex flex-wrap justify-center gap-6 mb-8">
                                 {presidents.map(m => <MemberCard key={m.id} member={m} size="large" />)}
                             </div>
                         )}
 
                         {/* Vice President */}
                         {vps.length > 0 && (
-                            <div className="flex justify-center mb-12">
+                            <div className="flex flex-wrap justify-center gap-6 mb-12">
                                 {vps.map(m => <MemberCard key={m.id} member={m} size="normal" />)}
                             </div>
                         )}
@@ -243,8 +249,8 @@ export default function Sobre() {
                         {/* Officers (Diretoria) */}
                         {officers.length > 0 && (
                             <div className="mb-12">
-                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2">Oficiais & Diretoria</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2 text-center md:text-left">Oficiais & Diretoria</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center">
                                     {officers.map(m => <MemberCard key={m.id} member={m} />)}
                                 </div>
                             </div>
@@ -253,8 +259,8 @@ export default function Sobre() {
                         {/* Members */}
                         {fullMembers.length > 0 && (
                             <div className="mb-12">
-                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2">Integrantes Brasão Fechado</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2 text-center md:text-left">Integrantes Brasão Fechado</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 justify-items-center">
                                     {fullMembers.map(m => <MemberCard key={m.id} member={m} />)}
                                 </div>
                             </div>
