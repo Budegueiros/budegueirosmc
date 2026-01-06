@@ -84,7 +84,7 @@ export default function Eventos() {
   if (loading) {
     return (
       <section className="relative py-12 md:py-20 min-h-screen pt-24 bg-black overflow-hidden">
-        <div className="container mx-auto px-4 pl-16 md:pl-24">
+        <div className="container mx-auto px-4">
           <div className="text-center text-white">Carregando eventos...</div>
         </div>
       </section>
@@ -93,7 +93,7 @@ export default function Eventos() {
 
   return (
     <section className="relative py-12 md:py-20 min-h-screen pt-24 bg-black overflow-hidden">
-      <div className="container mx-auto px-4 pl-16 md:pl-24 max-w-5xl">
+      <div className="container mx-auto px-4 max-w-5xl">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-3 font-oswald uppercase">Eventos Realizados</h2>
           <div className="w-20 h-1 bg-brand-red mx-auto mb-4"></div>
@@ -183,7 +183,7 @@ export default function Eventos() {
       </div>
 
       {/* Call-to-Action */}
-      <div className="container mx-auto px-4 pl-16 md:pl-24 max-w-5xl mt-16 mb-12">
+      <div className="container mx-auto px-4 max-w-5xl mt-16 mb-12">
         <div className="border-t border-brand-red/30 pt-8">
           <div className="bg-brand-gray border border-brand-red/20 rounded-lg p-8">
             <p className="text-white text-center text-lg md:text-xl italic leading-relaxed">
