@@ -210,19 +210,19 @@ export default function ManageCargos() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-6xl px-4 py-8 overflow-x-hidden">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link to="/admin" className="text-gray-400 hover:text-white transition">
+        <div className="mb-4 md:mb-8">
+          <div className="flex items-center gap-2 md:gap-4 mb-4">
+            <Link to="/admin" className="text-gray-400 hover:text-white transition flex-shrink-0">
               <ArrowLeft className="w-6 h-6" />
             </Link>
-            <Shield className="w-8 h-8 text-brand-red" />
-            <h1 className="text-4xl md:text-5xl font-oswald font-bold text-white uppercase">
+            <Shield className="w-6 h-6 md:w-8 md:h-8 text-brand-red flex-shrink-0" />
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-oswald font-bold text-white uppercase break-words">
               Gerenciar Cargos
             </h1>
           </div>
-          <p className="text-gray-400 text-lg">
+          <p className="text-gray-400 text-sm md:text-lg">
             Crie e gerencie os cargos do clube
           </p>
         </div>
@@ -232,7 +232,7 @@ export default function ManageCargos() {
           <div className="mb-6">
             <button
               onClick={handleCreate}
-              className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold px-6 py-3 rounded-lg transition"
+              className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold px-4 md:px-6 py-3 rounded-lg transition w-full sm:w-auto"
             >
               <Plus className="w-5 h-5" />
               Novo Cargo
@@ -240,114 +240,131 @@ export default function ManageCargos() {
           </div>
         )}
 
-        {/* Formulário de Edição/Criação */}
+        {/* Modal de Edição/Criação */}
         {editingData && (
-          <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-6 mb-6">
-            <h2 className="text-white text-2xl font-oswald uppercase font-bold mb-6">
-              {isCreating ? 'Criar Novo Cargo' : 'Editar Cargo'}
-            </h2>
-
-            <div className="space-y-4">
-              {/* Nome */}
-              <div>
-                <label className="block text-gray-400 text-sm uppercase mb-2">
-                  Nome do Cargo *
-                </label>
-                <input
-                  type="text"
-                  value={editingData.nome}
-                  onChange={(e) => setEditingData({ ...editingData, nome: e.target.value })}
-                  className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
-                  placeholder="Ex: Presidente, Tesoureiro, etc."
-                />
-              </div>
-
-              {/* Tipo e Nível */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-400 text-sm uppercase mb-2">
-                    Tipo de Cargo *
-                  </label>
-                  <select
-                    value={editingData.tipo_cargo}
-                    onChange={(e) => setEditingData({ ...editingData, tipo_cargo: e.target.value as TipoCargoEnum })}
-                    className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
-                  >
-                    <option value="Administrativo">Administrativo</option>
-                    <option value="Operacional">Operacional</option>
-                    <option value="Honorario">Honorário</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 text-sm uppercase mb-2">
-                    Nível *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editingData.nivel}
-                    onChange={(e) => setEditingData({ ...editingData, nivel: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
-                  />
-                  <p className="text-gray-500 text-xs mt-1">Nível hierárquico (1 = mais alto)</p>
-                </div>
-              </div>
-
-              {/* Descrição */}
-              <div>
-                <label className="block text-gray-400 text-sm uppercase mb-2">
-                  Descrição
-                </label>
-                <textarea
-                  value={editingData.descricao}
-                  onChange={(e) => setEditingData({ ...editingData, descricao: e.target.value })}
-                  rows={3}
-                  className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red resize-none"
-                  placeholder="Descrição das responsabilidades do cargo..."
-                />
-              </div>
-
-              {/* Ativo */}
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="ativo"
-                  checked={editingData.ativo}
-                  onChange={(e) => setEditingData({ ...editingData, ativo: e.target.checked })}
-                  className="w-5 h-5 rounded border-gray-700 bg-black text-brand-red focus:ring-brand-red"
-                />
-                <label htmlFor="ativo" className="text-gray-400 text-sm">
-                  Cargo ativo
-                </label>
-              </div>
-
-              {/* Botões */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold px-6 py-3 rounded-lg transition disabled:opacity-50"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      Salvar
-                    </>
-                  )}
-                </button>
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-4 md:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto my-4">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h2 className="text-white text-lg md:text-2xl font-oswald uppercase font-bold break-words">
+                  {isCreating ? 'Criar Novo Cargo' : 'Editar Cargo'}
+                </h2>
                 <button
                   onClick={handleCancel}
-                  className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-oswald uppercase font-bold px-6 py-3 rounded-lg transition"
+                  className="text-gray-400 hover:text-white transition flex-shrink-0"
+                  disabled={saving}
                 >
-                  <X className="w-5 h-5" />
-                  Cancelar
+                  <X className="w-6 h-6" />
                 </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Nome */}
+                <div>
+                  <label className="block text-gray-400 text-sm uppercase mb-2">
+                    Nome do Cargo *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingData.nome}
+                    onChange={(e) => setEditingData({ ...editingData, nome: e.target.value })}
+                    className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
+                    placeholder="Ex: Presidente, Tesoureiro, etc."
+                    disabled={saving}
+                  />
+                </div>
+
+                {/* Tipo e Nível */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm uppercase mb-2">
+                      Tipo de Cargo *
+                    </label>
+                    <select
+                      value={editingData.tipo_cargo}
+                      onChange={(e) => setEditingData({ ...editingData, tipo_cargo: e.target.value as TipoCargoEnum })}
+                      className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
+                      disabled={saving}
+                    >
+                      <option value="Administrativo">Administrativo</option>
+                      <option value="Operacional">Operacional</option>
+                      <option value="Honorario">Honorário</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 text-sm uppercase mb-2">
+                      Nível *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editingData.nivel}
+                      onChange={(e) => setEditingData({ ...editingData, nivel: parseInt(e.target.value) || 1 })}
+                      className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
+                      disabled={saving}
+                    />
+                    <p className="text-gray-500 text-xs mt-1">Nível hierárquico (1 = mais alto)</p>
+                  </div>
+                </div>
+
+                {/* Descrição */}
+                <div>
+                  <label className="block text-gray-400 text-sm uppercase mb-2">
+                    Descrição
+                  </label>
+                  <textarea
+                    value={editingData.descricao}
+                    onChange={(e) => setEditingData({ ...editingData, descricao: e.target.value })}
+                    rows={3}
+                    className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red resize-none"
+                    placeholder="Descrição das responsabilidades do cargo..."
+                    disabled={saving}
+                  />
+                </div>
+
+                {/* Ativo */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="ativo"
+                    checked={editingData.ativo}
+                    onChange={(e) => setEditingData({ ...editingData, ativo: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-700 bg-black text-brand-red focus:ring-brand-red"
+                    disabled={saving}
+                  />
+                  <label htmlFor="ativo" className="text-gray-400 text-sm">
+                    Cargo ativo
+                  </label>
+                </div>
+
+                {/* Botões */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center justify-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold px-4 md:px-6 py-3 rounded-lg transition disabled:opacity-50 text-sm whitespace-nowrap flex-1 sm:flex-initial"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Salvar
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={saving}
+                    className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-oswald uppercase font-bold px-4 md:px-6 py-3 rounded-lg transition text-sm whitespace-nowrap flex-1 sm:flex-initial disabled:opacity-50"
+                  >
+                    <X className="w-5 h-5" />
+                    Cancelar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -366,14 +383,14 @@ export default function ManageCargos() {
                 key={cargo.id}
                 className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-6 hover:border-gray-700 transition"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-white text-xl font-oswald uppercase font-bold">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="text-white text-lg md:text-xl font-oswald uppercase font-bold break-words">
                         {cargo.nome}
                       </h3>
                       <span
-                        className={`px-3 py-1 rounded text-xs font-bold ${
+                        className={`px-2 md:px-3 py-1 rounded text-xs font-bold flex-shrink-0 whitespace-nowrap ${
                           TIPO_CARGO_STYLES[cargo.tipo_cargo]?.bg || 'bg-gray-800'
                         } ${
                           TIPO_CARGO_STYLES[cargo.tipo_cargo]?.text || 'text-gray-400'
@@ -381,11 +398,11 @@ export default function ManageCargos() {
                       >
                         {cargo.tipo_cargo}
                       </span>
-                      <span className="px-3 py-1 rounded text-xs font-bold bg-gray-800 text-gray-400">
+                      <span className="px-2 md:px-3 py-1 rounded text-xs font-bold bg-gray-800 text-gray-400 flex-shrink-0 whitespace-nowrap">
                         Nível {cargo.nivel}
                       </span>
                       {!cargo.ativo && (
-                        <span className="px-3 py-1 rounded text-xs font-bold bg-red-950/50 text-red-400">
+                        <span className="px-2 md:px-3 py-1 rounded text-xs font-bold bg-red-950/50 text-red-400 flex-shrink-0 whitespace-nowrap">
                           Inativo
                         </span>
                       )}
@@ -401,17 +418,18 @@ export default function ManageCargos() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleEdit(cargo)}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition flex items-center justify-center gap-2 sm:gap-0"
                       title="Editar"
                     >
                       <Edit2 className="w-5 h-5" />
+                      <span className="sm:hidden text-xs text-white font-oswald uppercase">Editar</span>
                     </button>
                     <button
                       onClick={() => handleToggleAtivo(cargo)}
-                      className={`p-2 rounded transition ${
+                      className={`p-2 rounded transition flex items-center justify-center gap-2 sm:gap-0 ${
                         cargo.ativo
                           ? 'text-green-400 hover:text-green-300 hover:bg-green-950/30'
                           : 'text-gray-400 hover:text-green-400 hover:bg-green-950/30'
@@ -419,9 +437,15 @@ export default function ManageCargos() {
                       title={cargo.ativo ? 'Desativar' : 'Ativar'}
                     >
                       {cargo.ativo ? (
-                        <Shield className="w-5 h-5" />
+                        <>
+                          <Shield className="w-5 h-5" />
+                          <span className="sm:hidden text-xs font-oswald uppercase">Desativar</span>
+                        </>
                       ) : (
-                        <ShieldOff className="w-5 h-5" />
+                        <>
+                          <ShieldOff className="w-5 h-5" />
+                          <span className="sm:hidden text-xs font-oswald uppercase">Ativar</span>
+                        </>
                       )}
                     </button>
                   </div>
