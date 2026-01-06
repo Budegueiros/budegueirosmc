@@ -98,13 +98,26 @@ export default function Sobre() {
         return numeroA - numeroB;
     });
 
+    // Função auxiliar para verificar se um membro tem um cargo específico
+    const hasCargo = (membro: MembroComCargos, cargoNome: string) => {
+        return membro.cargos?.some(c => c.nome === cargoNome) || false;
+    };
+
     const presidents = sortedMembers.filter(m => getRolePriority(m.cargos) === 1);
     const vps = sortedMembers.filter(m => getRolePriority(m.cargos) === 2);
-    const officers = sortedMembers.filter(m => getRolePriority(m.cargos) === 3);
+    const sargentoArmas = sortedMembers.filter(m => hasCargo(m, 'Sargento de Armas'));
+    const primeiroSecretario = sortedMembers.filter(m => hasCargo(m, '1º Secretário') || hasCargo(m, 'Primeiro Secretário'));
+    const officers = sortedMembers.filter(m => {
+        const priority = getRolePriority(m.cargos);
+        const cargoNomes = m.cargos?.map(c => c.nome) || [];
+        // Excluir Sargento de Armas e 1º Secretário da seção de oficiais
+        return priority === 3 && !cargoNomes.includes('Sargento de Armas') && !cargoNomes.includes('1º Secretário') && !cargoNomes.includes('Primeiro Secretário');
+    });
     const fullMembers = sortedMembers.filter(m => {
         const priority = getRolePriority(m.cargos);
-        return priority > 3 && priority < 100;
+        return priority > 3 && priority < 100 && m.status_membro !== 'Prospect';
     });
+    const prospects = sortedMembers.filter(m => m.status_membro === 'Prospect');
 
     const MemberCard = ({ member, size = 'normal' }: { member: MembroComCargos, size?: 'large' | 'normal' }) => (
         <div className={`bg-[#1a1d23] border border-gray-800 rounded-lg overflow-hidden flex flex-col items-center p-4 md:p-6 hover:border-red-900/50 transition-all group w-full max-w-[200px] ${size === 'large' ? 'transform md:scale-105 border-red-900/30 shadow-[0_0_30px_rgba(220,38,38,0.1)] max-w-[280px]' : ''}`}>
@@ -119,7 +132,7 @@ export default function Sobre() {
                 {member.nome_guerra}
             </h3>
             <span className="text-red-500 font-bold text-xs bg-red-900/10 px-3 py-1 rounded-full mt-2 border border-red-900/20">
-                {getMainRole(member.cargos)}
+                {member.status_membro === 'Prospect' ? 'PROSPECT' : getMainRole(member.cargos)}
             </span>
             {member.cargos && member.cargos.length > 1 && (
                 <div className="mt-4 flex gap-2 flex-wrap justify-center">
@@ -142,7 +155,7 @@ export default function Sobre() {
     if (loading) {
         return (
             <section className="relative py-20 min-h-screen bg-zinc-900 pt-24 overflow-hidden">
-                <div className="container mx-auto px-4 md:pl-16 lg:pl-24">
+                <div className="container mx-auto px-4">
                     <div className="text-center text-white">Carregando...</div>
                 </div>
             </section>
@@ -151,7 +164,7 @@ export default function Sobre() {
 
     return (
         <section className="relative py-20 min-h-screen bg-zinc-900 pt-24 overflow-hidden">
-            <div className="container mx-auto px-4 md:pl-16 lg:pl-24">
+            <div className="container mx-auto px-4">
                 <div className="animate-fade-in max-w-7xl mx-auto space-y-16 pb-12">
                     
                     {/* Hero / History Section */}
@@ -232,17 +245,21 @@ export default function Sobre() {
                             <div className="h-1 w-24 bg-red-600 mx-auto"></div>
                         </div>
 
-                        {/* President */}
-                        {presidents.length > 0 && (
-                            <div className="flex flex-wrap justify-center gap-6 mb-8">
+                        {/* President & Vice President */}
+                        {(presidents.length > 0 || vps.length > 0) && (
+                            <div className="flex flex-wrap justify-center gap-6 mb-12">
                                 {presidents.map(m => <MemberCard key={m.id} member={m} size="large" />)}
+                                {vps.map(m => <MemberCard key={m.id} member={m} size="large" />)}
                             </div>
                         )}
 
-                        {/* Vice President */}
-                        {vps.length > 0 && (
-                            <div className="flex flex-wrap justify-center gap-6 mb-12">
-                                {vps.map(m => <MemberCard key={m.id} member={m} size="normal" />)}
+                        {/* Sargento de Armas & 1º Secretário */}
+                        {(sargentoArmas.length > 0 || primeiroSecretario.length > 0) && (
+                            <div className="mb-12">
+                                <div className="flex flex-wrap justify-center gap-6">
+                                    {sargentoArmas.map(m => <MemberCard key={m.id} member={m} size="normal" />)}
+                                    {primeiroSecretario.map(m => <MemberCard key={m.id} member={m} size="normal" />)}
+                                </div>
                             </div>
                         )}
 
@@ -262,6 +279,16 @@ export default function Sobre() {
                                 <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2 text-center md:text-left">Integrantes Brasão Fechado</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 justify-items-center">
                                     {fullMembers.map(m => <MemberCard key={m.id} member={m} />)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Prospects */}
+                        {prospects.length > 0 && (
+                            <div className="mb-12">
+                                <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider mb-6 border-b border-gray-800 pb-2 text-center md:text-left">Prospects</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 justify-items-center">
+                                    {prospects.map(m => <MemberCard key={m.id} member={m} />)}
                                 </div>
                             </div>
                         )}
