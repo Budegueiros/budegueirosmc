@@ -15,6 +15,7 @@ import AcceptInvite from './pages/AcceptInvite';
 import CompleteProfile from './pages/CompleteProfile';
 import InviteMember from './pages/InviteMember';
 import ManageMembers from './pages/ManageMembers';
+import ManageMemberDetail from './pages/ManageMemberDetail';
 import EditProfile from './pages/EditProfile';
 import CreateEvent from './pages/CreateEvent';
 import ManageEvents from './pages/ManageEvents';
@@ -102,6 +103,14 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <ManageMembers />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/manage-members/:id" 
+                element={
+                  <ProtectedRoute>
+                    <ManageMemberDetail />
                   </ProtectedRoute>
                 } 
               />
