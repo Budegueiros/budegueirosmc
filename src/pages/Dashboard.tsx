@@ -195,7 +195,10 @@ export default function Dashboard() {
           // Separar em atrasadas
           const atrasadas = mensalidadesData.filter(m => {
             if (m.status === 'Pago') return false;
-            const vencimento = new Date(m.data_vencimento);
+            // Criar data no timezone local para evitar problemas de timezone
+            const dateStr = m.data_vencimento.split('T')[0];
+            const [ano, mes, dia] = dateStr.split('-').map(Number);
+            const vencimento = new Date(ano, mes - 1, dia);
             return vencimento < hoje;
           });
 
