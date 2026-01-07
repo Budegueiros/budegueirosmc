@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
-import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react';
+import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
@@ -220,13 +220,18 @@ export default function MyPayments() {
                 {mensalidade.link_cobranca && mensalidade.status !== 'Pago' && (
                   <div className="mt-4 pt-4 border-t border-gray-700">
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(mensalidade.link_cobranca!);
-                        toastInfo('Código PIX copiado para a área de transferência!');
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(mensalidade.link_cobranca!);
+                          toastInfo('Código PIX copiado para a área de transferência!');
+                        } catch (error) {
+                          console.error('Erro ao copiar:', error);
+                          toastInfo('Erro ao copiar código PIX. Tente novamente.');
+                        }
                       }}
                       className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <Copy className="w-4 h-4" />
                       Copiar Código PIX
                     </button>
                   </div>
