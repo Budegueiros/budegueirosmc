@@ -25,7 +25,10 @@ export function calcularStatus(mensalidade: Mensalidade): string {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   
-  const vencimento = new Date(mensalidade.data_vencimento);
+  // Criar data de vencimento no timezone local para evitar problemas de timezone
+  const dateStr = mensalidade.data_vencimento.split('T')[0];
+  const [ano, mes, dia] = dateStr.split('-').map(Number);
+  const vencimento = new Date(ano, mes - 1, dia);
   vencimento.setHours(0, 0, 0, 0);
 
   // Se venceu e não está pago, está atrasado
@@ -58,7 +61,10 @@ export function calcularDiasAtraso(mensalidade: Mensalidade): number {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   
-  const vencimento = new Date(mensalidade.data_vencimento);
+  // Criar data de vencimento no timezone local para evitar problemas de timezone
+  const dateStr = mensalidade.data_vencimento.split('T')[0];
+  const [ano, mes, dia] = dateStr.split('-').map(Number);
+  const vencimento = new Date(ano, mes - 1, dia);
   vencimento.setHours(0, 0, 0, 0);
 
   const diffTime = hoje.getTime() - vencimento.getTime();
@@ -79,11 +85,23 @@ export function formatarValor(valor: number): string {
 
 /**
  * Formata data para DD/MM/YYYY
+ * Corrige problema de timezone ao criar a data no timezone local
  */
 export function formatarData(data: string | null): string {
   if (!data) return '-';
   
-  const date = new Date(data);
+  // Se a data já está no formato ISO (YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss)
+  // Parsear manualmente para evitar problemas de timezone
+  const dateStr = data.split('T')[0]; // Remove hora se houver
+  const [ano, mes, dia] = dateStr.split('-').map(Number);
+  
+  if (!ano || !mes || !dia || isNaN(ano) || isNaN(mes) || isNaN(dia)) {
+    return '-';
+  }
+  
+  // Criar data no timezone local (não UTC)
+  const date = new Date(ano, mes - 1, dia);
+  
   if (isNaN(date.getTime())) return '-';
   
   return date.toLocaleDateString('pt-BR', {

@@ -64,7 +64,16 @@ export default function MensalidadesTable({
         comparison = a.membros.nome_guerra.localeCompare(b.membros.nome_guerra);
         break;
       case 'vencimento':
-        comparison = new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime();
+        // Criar datas no timezone local para evitar problemas de timezone
+        const dateStrA = a.data_vencimento.split('T')[0];
+        const [anoA, mesA, diaA] = dateStrA.split('-').map(Number);
+        const dateA = new Date(anoA, mesA - 1, diaA);
+        
+        const dateStrB = b.data_vencimento.split('T')[0];
+        const [anoB, mesB, diaB] = dateStrB.split('-').map(Number);
+        const dateB = new Date(anoB, mesB - 1, diaB);
+        
+        comparison = dateA.getTime() - dateB.getTime();
         break;
       case 'valor':
         comparison = a.valor - b.valor;
