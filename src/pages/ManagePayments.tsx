@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DollarSign, ArrowLeft, Plus, Loader2, Users, FileText } from 'lucide-react';
+import { DollarSign, ArrowLeft, Plus, Loader2, Users, FileText, Download, FileDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
@@ -9,7 +9,10 @@ import MetricsCards from '../components/mensalidades/MetricsCards';
 import FilterBar from '../components/mensalidades/FilterBar';
 import MensalidadesTable from '../components/mensalidades/MensalidadesTable';
 import BulkActionsToolbar from '../components/mensalidades/BulkActionsToolbar';
+import MensalidadeDrawer from '../components/mensalidades/MensalidadeDrawer';
+import Pagination from '../components/mensalidades/Pagination';
 import { calcularStatus } from '../utils/mensalidadesHelpers';
+import { exportarParaCSV, exportarParaPDF } from '../utils/exportHelpers';
 
 interface NewMensalidade {
   membro_id: string;
@@ -40,7 +43,11 @@ export default function ManagePayments() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-
+  const [drawerMensalidade, setDrawerMensalidade] = useState<any>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
   const [newMensalidade, setNewMensalidade] = useState<NewMensalidade>({
     membro_id: '',
     mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
@@ -98,6 +105,26 @@ export default function ManagePayments() {
       return matchSearch && matchStatus && matchPeriodo;
     });
   }, [mensalidades, filters]);
+
+  // Paginação
+  const totalPages = Math.ceil(filteredMensalidades.length / itemsPerPage);
+  const paginatedMensalidades = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredMensalidades.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredMensalidades, currentPage]);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  const handleRowClick = (id: string) => {
+    const mensalidade = mensalidades.find(m => m.id === id);
+    if (mensalidade) {
+      setDrawerMensalidade(mensalidade);
+      setIsDrawerOpen(true);
+    }
+  };
 
   // Calcular métricas
   const metrics = useMemo(() => {
@@ -328,6 +355,51 @@ export default function ManagePayments() {
     }
   };
 
+  const handleGerarCobrancas = async () => {
+    if (selectedIds.length === 0) {
+      toastWarning('Selecione pelo menos uma mensalidade');
+      return;
+    }
+
+    const mensalidadesSelecionadas = mensalidades.filter(m => selectedIds.includes(m.id));
+    const semLinkCobranca = mensalidadesSelecionadas.filter(m => !m.link_cobranca);
+
+    if (semLinkCobranca.length > 0) {
+      toastWarning(`${semLinkCobranca.length} mensalidade(s) não possuem código PIX. Adicione o código PIX antes de gerar cobranças.`);
+      return;
+    }
+
+    // Aqui você pode implementar a lógica de gerar cobranças
+    // Por exemplo, copiar todos os códigos PIX ou gerar um arquivo
+    const codigosPix = mensalidadesSelecionadas
+      .map(m => `${m.membros.nome_guerra}: ${m.link_cobranca}`)
+      .join('\n');
+
+    try {
+      await navigator.clipboard.writeText(codigosPix);
+      toastSuccess(`${selectedIds.length} código(s) PIX copiado(s) para a área de transferência!`);
+    } catch (error) {
+      console.error('Erro ao copiar códigos PIX:', error);
+      toastError('Erro ao copiar códigos PIX');
+    }
+  };
+
+  const handleEnviarLembretes = async () => {
+    if (selectedIds.length === 0) {
+      toastWarning('Selecione pelo menos uma mensalidade');
+      return;
+    }
+
+    const mensalidadesSelecionadas = mensalidades.filter(m => selectedIds.includes(m.id));
+    
+    // Aqui você pode implementar a lógica de enviar lembretes
+    // Por exemplo, enviar emails ou notificações
+    toastInfo(`Função de envio de lembretes será implementada em breve. ${selectedIds.length} mensalidade(s) selecionada(s).`);
+    
+    // TODO: Implementar envio de lembretes via email/notificação
+    // Por enquanto, apenas mostra uma mensagem informativa
+  };
+
   const formatarMes = (mesReferencia: string) => {
     const date = new Date(mesReferencia + 'T00:00:00');
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -352,282 +424,105 @@ export default function ManagePayments() {
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Voltar ao Dashboard
-        </Link>
-        
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        {/* Header */}
+        <div className="mb-8">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao Dashboard
+          </Link>
+          
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              Gerenciar Mensalidades
-            </h1>
+                  Gerenciar Mensalidades
+                </h1>
             <p className="text-gray-400">
               Controle de pagamentos e mensalidades dos sócios
-            </p>
-          </div>
+              </p>
+            </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={() => setShowBatchForm(!showBatchForm)}
+              <button
+                onClick={() => setShowBatchForm(!showBatchForm)}
               className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
-            >
-              <Users className="w-4 h-4" />
+              >
+                <Users className="w-4 h-4" />
               Gerar Mensalidades
-            </button>
-            <button
-              onClick={() => setShowNewForm(!showNewForm)}
+              </button>
+              <button
+                onClick={() => setShowNewForm(!showNewForm)}
               className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-            >
-              <Plus className="w-4 h-4" />
-              Nova Mensalidade
-            </button>
+              >
+                <Plus className="w-4 h-4" />
+                Nova Mensalidade
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportarParaCSV(filteredMensalidades, 'mensalidades')}
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                  title="Exportar para CSV"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">CSV</span>
+                </button>
+                <button
+                  onClick={() => exportarParaPDF(filteredMensalidades, 'Relatório de Mensalidades')}
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                  title="Exportar para PDF"
+                >
+                  <FileDown className="w-4 h-4" />
+                  <span className="hidden sm:inline">PDF</span>
+              </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Métricas */}
       <MetricsCards metrics={metrics} />
 
-      {/* Formulário Gerar em Lote */}
-      {showBatchForm && (
+        {/* Formulário Gerar em Lote */}
+        {showBatchForm && (
         <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 mb-6">
           <h3 className="text-white text-lg font-bold mb-2">Gerar Mensalidades em Lote</h3>
-          <p className="text-gray-400 text-sm mb-4">
-            Cria mensalidades para todos os integrantes ativos que ainda não possuem lançamento no mês selecionado
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Mês Referência</label>
-              <input
-                type="month"
-                value={batchData.mes_referencia.slice(0, 7)}
-                onChange={(e) => setBatchData({ ...batchData, mes_referencia: e.target.value + '-01' })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Valor Padrão (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={batchData.valor}
-                onChange={(e) => setBatchData({ ...batchData, valor: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
-              <input
-                type="date"
-                value={batchData.data_vencimento}
-                onChange={(e) => setBatchData({ ...batchData, data_vencimento: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
-              <select
-                value={batchData.status}
-                onChange={(e) => setBatchData({ ...batchData, status: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              >
-                <option value="Aberto">Aberto</option>
-                <option value="Pendente">Pendente</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola (Opcional)</label>
-              <input
-                type="text"
-                placeholder="00020126..." 
-                value={batchData.link_cobranca}
-                onChange={(e) => setBatchData({ ...batchData, link_cobranca: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
-                disabled={saving}
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleGenerateBatch}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-              Gerar para Todos os Integrantes Ativos
-            </button>
-            <button
-              onClick={() => setShowBatchForm(false)}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition text-sm"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Formulário Nova Mensalidade */}
-      {showNewForm && (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 mb-6">
-          <h3 className="text-white text-lg font-bold mb-4">Nova Mensalidade</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Integrante</label>
-              <select
-                value={newMensalidade.membro_id}
-                onChange={(e) => setNewMensalidade({ ...newMensalidade, membro_id: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              >
-                <option value="">Selecione um integrante</option>
-                {membros.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.nome_guerra} ({m.numero_carteira})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Mês Referência</label>
-              <input
-                type="month"
-                value={newMensalidade.mes_referencia.slice(0, 7)}
-                onChange={(e) => setNewMensalidade({ ...newMensalidade, mes_referencia: e.target.value + '-01' })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={newMensalidade.valor}
-                onChange={(e) => setNewMensalidade({ ...newMensalidade, valor: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
-              <input
-                type="date"
-                value={newMensalidade.data_vencimento}
-                onChange={(e) => setNewMensalidade({ ...newMensalidade, data_vencimento: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
-              <select
-                value={newMensalidade.status}
-                onChange={(e) => setNewMensalidade({ ...newMensalidade, status: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
-                disabled={saving}
-              >
-                <option value="Aberto">Aberto</option>
-                <option value="Pendente">Pendente</option>
-                <option value="Pago">Pago</option>
-                <option value="Atrasado">Atrasado</option>
-                <option value="Isento">Isento</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
-              <input
-                type="text"
-                value={newMensalidade.link_cobranca}
-                onChange={(e) => setNewMensalidade({ ...newMensalidade, link_cobranca: e.target.value })}
-                placeholder="00020126..."
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
-                disabled={saving}
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleCreateMensalidade}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
-              Criar
-            </button>
-            <button
-              onClick={() => setShowNewForm(false)}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition text-sm"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filtros */}
-      <FilterBar filters={filters} setFilters={setFilters} />
-
-      {/* Toolbar de ações em lote */}
-      <BulkActionsToolbar
-        selectedCount={selectedIds.length}
-        onClearSelection={() => setSelectedIds([])}
-      />
-
-      {/* Tabela */}
-      {error ? (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4">
-          Erro ao carregar: {error}
-        </div>
-      ) : (
-        <MensalidadesTable
-          mensalidades={filteredMensalidades}
-          selectedIds={selectedIds}
-          setSelectedIds={setSelectedIds}
-          onDelete={handleDeleteMensalidade}
-          onEdit={handleEditMensalidade}
-        />
-      )}
-
-      {/* Modal de Edição */}
-      {editingId && editingData && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-white text-xl font-bold mb-4">Editar Mensalidade</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Cria mensalidades para todos os integrantes ativos que ainda não possuem lançamento no mês selecionado
+            </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Mês Referência</label>
+                <input
+                  type="month"
+                  value={batchData.mes_referencia.slice(0, 7)}
+                  onChange={(e) => setBatchData({ ...batchData, mes_referencia: e.target.value + '-01' })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Valor Padrão (R$)</label>
                 <input
                   type="number"
                   step="0.01"
-                  value={editingData.valor}
-                  onChange={(e) => setEditingData({ ...editingData, valor: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  value={batchData.valor}
+                  onChange={(e) => setBatchData({ ...batchData, valor: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
+                <input
+                  type="date"
+                  value={batchData.data_vencimento}
+                  onChange={(e) => setBatchData({ ...batchData, data_vencimento: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -635,9 +530,112 @@ export default function ManagePayments() {
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
                 <select
-                  value={editingData.status}
-                  onChange={(e) => setEditingData({ ...editingData, status: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  value={batchData.status}
+                  onChange={(e) => setBatchData({ ...batchData, status: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                >
+                  <option value="Aberto">Aberto</option>
+                  <option value="Pendente">Pendente</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="00020126..." 
+                  value={batchData.link_cobranca}
+                  onChange={(e) => setBatchData({ ...batchData, link_cobranca: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+
+          <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleGenerateBatch}
+                disabled={saving}
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+              Gerar para Todos os Integrantes Ativos
+              </button>
+              <button
+                onClick={() => setShowBatchForm(false)}
+                disabled={saving}
+              className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Formulário Nova Mensalidade */}
+        {showNewForm && (
+        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 mb-6">
+          <h3 className="text-white text-lg font-bold mb-4">Nova Mensalidade</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Integrante</label>
+                <select
+                  value={newMensalidade.membro_id}
+                  onChange={(e) => setNewMensalidade({ ...newMensalidade, membro_id: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                >
+                  <option value="">Selecione um integrante</option>
+                  {membros.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.nome_guerra} ({m.numero_carteira})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Mês Referência</label>
+                <input
+                  type="month"
+                  value={newMensalidade.mes_referencia.slice(0, 7)}
+                  onChange={(e) => setNewMensalidade({ ...newMensalidade, mes_referencia: e.target.value + '-01' })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newMensalidade.valor}
+                  onChange={(e) => setNewMensalidade({ ...newMensalidade, valor: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
+                <input
+                  type="date"
+                  value={newMensalidade.data_vencimento}
+                  onChange={(e) => setNewMensalidade({ ...newMensalidade, data_vencimento: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
+                <select
+                  value={newMensalidade.status}
+                  onChange={(e) => setNewMensalidade({ ...newMensalidade, status: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 >
                   <option value="Aberto">Aberto</option>
@@ -649,6 +647,123 @@ export default function ManagePayments() {
               </div>
 
               <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
+                <input
+                  type="text"
+                  value={newMensalidade.link_cobranca}
+                  onChange={(e) => setNewMensalidade({ ...newMensalidade, link_cobranca: e.target.value })}
+                  placeholder="00020126..."
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+
+          <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleCreateMensalidade}
+                disabled={saving}
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
+              >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
+                Criar
+              </button>
+              <button
+                onClick={() => setShowNewForm(false)}
+                disabled={saving}
+              className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Filtros */}
+      <FilterBar filters={filters} setFilters={setFilters} />
+
+      {/* Toolbar de ações em lote */}
+      <BulkActionsToolbar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onGerarCobrancas={handleGerarCobrancas}
+        onEnviarLembretes={handleEnviarLembretes}
+      />
+
+      {/* Tabela */}
+      {error ? (
+        <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4">
+          Erro ao carregar: {error}
+        </div>
+      ) : (
+        <>
+          <MensalidadesTable
+            mensalidades={paginatedMensalidades}
+            selectedIds={selectedIds}
+            setSelectedIds={setSelectedIds}
+            onDelete={handleDeleteMensalidade}
+            onEdit={handleEditMensalidade}
+            onRowClick={handleRowClick}
+          />
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredMensalidades.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </>
+      )}
+
+      {/* Drawer de Detalhes */}
+      <MensalidadeDrawer
+        mensalidade={drawerMensalidade}
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setDrawerMensalidade(null);
+        }}
+        onRefresh={refetch}
+      />
+
+      {/* Modal de Edição */}
+      {editingId && editingData && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-white text-xl font-bold mb-4">Editar Mensalidade</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
+            <input
+                  type="number"
+                  step="0.01"
+                  value={editingData.valor}
+                  onChange={(e) => setEditingData({ ...editingData, valor: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+            />
+          </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
+          <select
+                  value={editingData.status}
+                  onChange={(e) => setEditingData({ ...editingData, status: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                >
+            <option value="Aberto">Aberto</option>
+            <option value="Pendente">Pendente</option>
+            <option value="Pago">Pago</option>
+            <option value="Atrasado">Atrasado</option>
+            <option value="Isento">Isento</option>
+          </select>
+              </div>
+
+              <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
                 <input
                   type="date"
@@ -657,7 +772,7 @@ export default function ManagePayments() {
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
-              </div>
+          </div>
 
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Data Pagamento</label>
@@ -668,7 +783,7 @@ export default function ManagePayments() {
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
-              </div>
+        </div>
 
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
@@ -680,7 +795,7 @@ export default function ManagePayments() {
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
-              </div>
+            </div>
 
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
@@ -692,7 +807,7 @@ export default function ManagePayments() {
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
                   disabled={saving}
                 />
-              </div>
+                  </div>
 
               <div className="md:col-span-2">
                 <label className="block text-gray-400 text-xs uppercase mb-1">Observação</label>
@@ -703,8 +818,8 @@ export default function ManagePayments() {
                   rows={2}
                   disabled={saving}
                 />
-              </div>
-            </div>
+                  </div>
+                </div>
 
             <div className="flex gap-3 justify-end mt-6">
               <button
@@ -731,8 +846,8 @@ export default function ManagePayments() {
                   'Salvar'
                 )}
               </button>
-            </div>
-          </div>
+        </div>
+      </div>
         </div>
       )}
 
