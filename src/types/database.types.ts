@@ -142,20 +142,20 @@ export const STATUS_STYLES: Record<StatusMembroEnum, { bg: string; text: string;
 };
 
 /**
- * Cores para cada tipo de cargo
+ * Cores para cada tipo de cargo (Dark Mode)
  */
 export const TIPO_CARGO_STYLES: Record<TipoCargoEnum, { bg: string; text: string }> = {
   Administrativo: {
-    bg: 'bg-red-100',
-    text: 'text-red-800'
+    bg: 'bg-red-950/40 border border-red-800/30',
+    text: 'text-red-400'
   },
   Operacional: {
-    bg: 'bg-indigo-100',
-    text: 'text-indigo-800'
+    bg: 'bg-indigo-950/40 border border-indigo-800/30',
+    text: 'text-indigo-400'
   },
   Honorario: {
-    bg: 'bg-amber-100',
-    text: 'text-amber-800'
+    bg: 'bg-amber-950/40 border border-amber-800/30',
+    text: 'text-amber-400'
   }
 };
 
