@@ -96,6 +96,14 @@ export default function EditMemberModal({
     nome_guerra: string;
     nome_completo: string;
   }>>([]);
+  const [cargosSelecionados, setCargosSelecionados] = useState<string[]>([]);
+  const [cargosOriginais, setCargosOriginais] = useState<string[]>([]);
+  const [todosOsCargos, setTodosOsCargos] = useState<Array<{
+    id: string;
+    nome: string;
+    tipo_cargo: string;
+    nivel: number;
+  }>>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,6 +124,7 @@ export default function EditMemberModal({
       setPreviewUrl(membro.foto_url);
       setErrors({});
       carregarPadrinhos();
+      carregarCargos();
     }
   }, [membro, isOpen]);
 
@@ -131,6 +140,37 @@ export default function EditMemberModal({
       setPadrinhosDisponiveis(data || []);
     } catch (error) {
       console.error('Erro ao carregar padrinhos:', error);
+    }
+  };
+
+  const carregarCargos = async () => {
+    if (!membro) return;
+
+    try {
+      // Carregar cargos atuais do membro
+      const { data: membroCargosData, error: membroCargosError } = await supabase
+        .from('membro_cargos')
+        .select('cargo_id')
+        .eq('membro_id', membro.id)
+        .eq('ativo', true);
+
+      if (membroCargosError) throw membroCargosError;
+
+      const cargosAtuaisIds = (membroCargosData || []).map((mc: any) => mc.cargo_id);
+      setCargosSelecionados(cargosAtuaisIds);
+      setCargosOriginais(cargosAtuaisIds);
+
+      // Carregar todos os cargos disponíveis
+      const { data: cargosData, error: cargosError } = await supabase
+        .from('cargos')
+        .select('id, nome, tipo_cargo, nivel')
+        .eq('ativo', true)
+        .order('nivel', { ascending: true });
+
+      if (cargosError) throw cargosError;
+      setTodosOsCargos(cargosData || []);
+    } catch (error) {
+      console.error('Erro ao carregar cargos:', error);
     }
   };
 
@@ -226,6 +266,10 @@ export default function EditMemberModal({
       };
 
       await updateMember(membro.id, updateData);
+      
+      // Salvar cargos
+      await handleSaveCargos();
+      
       toastSuccess('Membro atualizado com sucesso!');
       onSuccess();
       onClose();
@@ -236,6 +280,47 @@ export default function EditMemberModal({
       setSaving(false);
       setUploading(false);
     }
+  };
+
+  const handleSaveCargos = async () => {
+    if (!membro) return;
+
+    const cargosParaAdicionar = cargosSelecionados.filter(id => !cargosOriginais.includes(id));
+    const cargosParaRemover = cargosOriginais.filter(id => !cargosSelecionados.includes(id));
+
+    // Adicionar novos cargos
+    for (const cargoId of cargosParaAdicionar) {
+      const { error } = await supabase
+        .from('membro_cargos')
+        .insert({
+          membro_id: membro.id,
+          cargo_id: cargoId,
+          ativo: true
+        });
+
+      if (error) throw error;
+    }
+
+    // Remover cargos
+    for (const cargoId of cargosParaRemover) {
+      const { error } = await supabase
+        .from('membro_cargos')
+        .update({ ativo: false })
+        .eq('membro_id', membro.id)
+        .eq('cargo_id', cargoId);
+
+      if (error) throw error;
+    }
+  };
+
+  const handleToggleCargo = (cargoId: string) => {
+    setCargosSelecionados((prev) => {
+      if (prev.includes(cargoId)) {
+        return prev.filter(id => id !== cargoId);
+      } else {
+        return [...prev, cargoId];
+      }
+    });
   };
 
   if (!isOpen || !membro) return null;
@@ -508,7 +593,43 @@ export default function EditMemberModal({
                 </div>
               </div>
 
-              {/* Seção: Hierarquia */}
+              {/* Seção: Cargos */}
+              <div className="space-y-4">
+                <h3 className="text-white font-oswald text-lg uppercase font-bold border-b border-[#D32F2F]/30 pb-2">
+                  Cargos
+                </h3>
+
+                <div className="space-y-2">
+                  {todosOsCargos.length === 0 ? (
+                    <p className="text-[#B0B0B0] text-sm">Nenhum cargo disponível</p>
+                  ) : (
+                    todosOsCargos.map((cargo) => (
+                      <label
+                        key={cargo.id}
+                        className="flex items-center gap-3 p-3 bg-[#121212] border border-[#D32F2F]/30 rounded-lg hover:border-[#D32F2F]/50 transition cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={cargosSelecionados.includes(cargo.id)}
+                          onChange={() => handleToggleCargo(cargo.id)}
+                          disabled={saving}
+                          className="w-5 h-5 rounded border-[#D32F2F]/30 bg-[#121212] text-[#D32F2F] focus:ring-[#D32F2F] focus:ring-offset-0 cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <p className="text-white font-oswald text-sm uppercase font-bold">
+                            {cargo.nome}
+                          </p>
+                          <p className="text-[#B0B0B0] text-xs">
+                            {cargo.tipo_cargo} • Nível {cargo.nivel}
+                          </p>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Seção: Localização */}
               <div className="space-y-4">
                 <h3 className="text-white font-oswald text-lg uppercase font-bold border-b border-[#D32F2F]/30 pb-2">
                   Localização
