@@ -9,7 +9,7 @@ function Header() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="fixed w-full z-30 top-0 left-0 bg-gradient-to-r from-[#cc0000] via-black/80 to-transparent backdrop-blur-sm border-b border-brand-red/20">
+    <header className="fixed w-full z-50 top-0 left-0 bg-gradient-to-r from-[#cc0000] via-black/80 to-transparent backdrop-blur-sm border-b border-brand-red/20">
       <nav className="container mx-auto px-4 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
@@ -51,7 +51,7 @@ function Header() {
 
       {/* Navegação Mobile */}
       {isMenuOpen && (
-        <div className="md:hidden bg-black/95 border-t border-brand-red/20 px-4 py-6">
+        <div className="md:hidden bg-black/95 border-t border-brand-red/20 px-4 py-6 relative z-50">
           <div className="flex flex-col gap-4 items-center">
             <Link to="/" className={`${isActive('/') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-center`} onClick={() => setIsMenuOpen(false)}>Home</Link>
             <Link to="/sobre" className={`${isActive('/sobre') ? 'text-brand-red' : 'text-white'} hover:text-brand-red transition font-oswald uppercase text-center`} onClick={() => setIsMenuOpen(false)}>Sobre</Link>
