@@ -6,6 +6,7 @@ export default function Home() {
 
     useEffect(() => {
         // Detectar se é um link de convite e redirecionar para /accept-invite
+        // Ou se é um link de recovery e redirecionar para /reset-password
         const hash = window.location.hash;
         const hashParams = new URLSearchParams(hash.substring(1));
         const type = hashParams.get('type');
@@ -14,6 +15,9 @@ export default function Home() {
         if (type === 'invite' && accessToken) {
             // Manter o hash e redirecionar
             navigate(`/accept-invite${hash}`);
+        } else if (type === 'recovery' && accessToken) {
+            // Redirecionar para reset-password mantendo o hash
+            navigate(`/reset-password${hash}`);
         }
     }, [navigate]);
 

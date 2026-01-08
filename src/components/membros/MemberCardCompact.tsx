@@ -5,7 +5,8 @@
 // Data: 2025-01-XX
 // ============================================================================
 
-import { Shield, Mail, Phone, MapPin, Edit2 } from 'lucide-react';
+import { Shield, Mail, Phone, MapPin, Edit2, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Membro, STATUS_STYLES } from '../../types/database.types';
 
 interface MembroWithCargos extends Membro {
@@ -37,6 +38,8 @@ interface MemberCardCompactProps {
  * ```
  */
 export default function MemberCardCompact({ membro, onEdit }: MemberCardCompactProps) {
+  const navigate = useNavigate();
+
   return (
     <div
       className={`bg-[#1E1E1E] border ${
@@ -111,8 +114,15 @@ export default function MemberCardCompact({ membro, onEdit }: MemberCardCompactP
           </div>
         </div>
 
-        {/* Botão de Ação */}
-        <div className="flex-shrink-0">
+        {/* Botões de Ação */}
+        <div className="flex-shrink-0 flex gap-1">
+          <button
+            onClick={() => navigate(`/manage-members/${membro.id}`)}
+            className="bg-[#121212] hover:bg-[#1E1E1E] text-[#B0B0B0] hover:text-[#D32F2F] p-2 rounded transition"
+            title="Ver detalhes do membro"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onEdit(membro)}
             className="bg-[#D32F2F] hover:bg-[#B71C1C] text-white p-2 rounded transition"

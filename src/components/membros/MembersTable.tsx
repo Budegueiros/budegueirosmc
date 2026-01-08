@@ -1,12 +1,8 @@
-// ============================================================================
-// Componente MembersTable
-// ============================================================================
-// Descrição: Tabela responsiva para exibição de membros no Desktop
-// Data: 2025-01-XX
-// ============================================================================
-
-import { Shield, ShieldOff, Mail, Phone, MapPin, Edit2, UserX, UserCheck } from 'lucide-react';
-import { Membro, STATUS_STYLES } from '../../types/database.types';
+import { useState } from 'react';
+import { ChevronUp, ChevronDown, Settings, Edit2, UserX, UserCheck, Shield, ShieldOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Membro } from '../../types/database.types';
+import CargoBadge from './CargoBadge';
 
 interface MembroWithCargos extends Membro {
   cargos_ativos?: Array<{
@@ -18,190 +14,289 @@ interface MembroWithCargos extends Membro {
 
 interface MembersTableProps {
   membros: MembroWithCargos[];
+  selectedIds: string[];
+  setSelectedIds: (ids: string[] | ((prev: string[]) => string[])) => void;
   onEdit: (membro: MembroWithCargos) => void;
   onToggleActive: (membro: MembroWithCargos) => void;
   onToggleAdmin: (membro: MembroWithCargos) => void;
   currentUserId?: string;
 }
 
-/**
- * Componente de tabela para exibição de membros no Desktop
- * 
- * @param membros - Lista de membros
- * @param onEdit - Callback quando o botão de editar é clicado
- * @param onToggleActive - Callback para alternar status ativo/inativo
- * @param onToggleAdmin - Callback para alternar privilégios de admin
- * @param currentUserId - ID do usuário atual (para prevenir auto-desativação)
- * 
- * @example
- * ```tsx
- * <MembersTable 
- *   membros={membros} 
- *   onEdit={handleEdit}
- *   onToggleActive={handleToggleActive}
- *   onToggleAdmin={handleToggleAdmin}
- *   currentUserId={user?.id}
- * />
- * ```
- */
+type SortField = 'nome' | 'carteira' | 'cargo' | 'cidade' | null;
+type SortDirection = 'asc' | 'desc';
+
 export default function MembersTable({
   membros,
+  selectedIds,
+  setSelectedIds,
   onEdit,
   onToggleActive,
   onToggleAdmin,
   currentUserId,
 }: MembersTableProps) {
-  if (membros.length === 0) {
+  const navigate = useNavigate();
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedMembros = [...membros].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let comparison = 0;
+
+    switch (sortField) {
+      case 'nome':
+        comparison = a.nome_guerra.localeCompare(b.nome_guerra);
+        break;
+      case 'carteira':
+        const carteiraA = parseInt(a.numero_carteira) || 0;
+        const carteiraB = parseInt(b.numero_carteira) || 0;
+        comparison = carteiraA - carteiraB;
+        break;
+      case 'cargo':
+        const cargoA = a.cargos_ativos?.[0]?.nome || '';
+        const cargoB = b.cargos_ativos?.[0]?.nome || '';
+        comparison = cargoA.localeCompare(cargoB);
+        break;
+      case 'cidade':
+        const cidadeA = a.endereco_cidade || '';
+        const cidadeB = b.endereco_cidade || '';
+        comparison = cidadeA.localeCompare(cidadeB);
+        break;
+    }
+
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(sortedMembros.map(m => m.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.target.checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+    }
+  };
+
+  const isAllSelected = sortedMembros.length > 0 && selectedIds.length === sortedMembros.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < sortedMembros.length;
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronUp className="w-4 h-4 text-gray-500 opacity-0" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ChevronUp className="w-4 h-4 text-white" />
+      : <ChevronDown className="w-4 h-4 text-white" />;
+  };
+
+  const handleRowClick = (membroId: string) => {
+    navigate(`/manage-members/${membroId}`);
+  };
+
+  const handleDelete = (membroId: string) => {
+    const membro = membros.find(m => m.id === membroId);
+    if (membro && window.confirm(`Deseja realmente ${membro.ativo ? 'desativar' : 'excluir'} este membro?`)) {
+      onToggleActive(membro);
+    }
+  };
+
+  if (sortedMembros.length === 0) {
     return (
-      <div className="bg-[#1E1E1E] border border-[#D32F2F]/30 rounded-lg p-12 text-center">
-        <p className="text-[#B0B0B0] font-oswald uppercase">Nenhum membro encontrado</p>
+      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-12 text-center">
+        <p className="text-gray-400 text-lg mb-2">Nenhum integrante encontrado</p>
+        <p className="text-gray-500 text-sm">Tente ajustar os filtros de busca</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#1E1E1E] border border-[#D32F2F]/30 rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-[#121212] border-b border-[#D32F2F]/30">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-oswald uppercase text-[#B0B0B0] tracking-wider">
-                Foto / Nome
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-oswald uppercase text-[#B0B0B0] tracking-wider">
+    <div className="overflow-x-auto rounded-lg border border-gray-700">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-gray-800 border-b border-gray-700">
+          <tr>
+            <th className="w-10 px-4 py-3">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(input) => {
+                  if (input) input.indeterminate = isIndeterminate;
+                }}
+                onChange={handleSelectAll}
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500"
+              />
+            </th>
+            <th 
+              className="px-4 py-3 text-gray-300 font-medium cursor-pointer hover:bg-gray-700/50 transition"
+              onClick={() => handleSort('nome')}
+            >
+              <div className="flex items-center gap-2">
+                Nome
+                <SortIcon field="nome" />
+              </div>
+            </th>
+            <th 
+              className="px-4 py-3 text-gray-300 font-medium cursor-pointer hover:bg-gray-700/50 transition"
+              onClick={() => handleSort('carteira')}
+            >
+              <div className="flex items-center gap-2">
+                Nº Membro
+                <SortIcon field="carteira" />
+              </div>
+            </th>
+            <th 
+              className="px-4 py-3 text-gray-300 font-medium cursor-pointer hover:bg-gray-700/50 transition"
+              onClick={() => handleSort('cargo')}
+            >
+              <div className="flex items-center gap-2">
                 Cargo
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-oswald uppercase text-[#B0B0B0] tracking-wider">
-                Contato
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-oswald uppercase text-[#B0B0B0] tracking-wider">
+                <SortIcon field="cargo" />
+              </div>
+            </th>
+            <th className="px-4 py-3 text-gray-300 font-medium">
+              Contato
+            </th>
+            <th 
+              className="px-4 py-3 text-gray-300 font-medium cursor-pointer hover:bg-gray-700/50 transition"
+              onClick={() => handleSort('cidade')}
+            >
+              <div className="flex items-center gap-2">
                 Localização
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-oswald uppercase text-[#B0B0B0] tracking-wider">
-                Ações
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#D32F2F]/10">
-            {membros.map((membro) => (
+                <SortIcon field="cidade" />
+              </div>
+            </th>
+            <th className="px-4 py-3 text-gray-300 font-medium text-right">
+              Ações
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-700">
+          {sortedMembros.map((membro) => {
+            const isSelected = selectedIds.includes(membro.id);
+
+            return (
               <tr
                 key={membro.id}
-                className={`hover:bg-[#121212]/50 transition ${
-                  !membro.ativo ? 'opacity-60' : ''
-                }`}
+                onClick={() => handleRowClick(membro.id)}
+                className={`hover:bg-gray-800/30 transition cursor-pointer ${isSelected ? 'bg-gray-800/50' : ''} ${!membro.ativo ? 'opacity-60' : ''}`}
               >
-                {/* Foto / Nome */}
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => handleSelectOne(membro.id, e)}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {membro.foto_url ? (
                       <img
                         src={membro.foto_url}
                         alt={membro.nome_guerra}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-[#D32F2F]/30"
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-[#121212] border-2 border-[#D32F2F]/30 flex items-center justify-center">
-                        <span className="text-sm font-oswald font-bold text-[#D32F2F]">
+                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-medium text-gray-300">
                           {membro.nome_guerra.charAt(0)}
                         </span>
                       </div>
                     )}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white font-oswald text-sm uppercase font-bold truncate">
-                          {membro.nome_guerra}
-                        </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-white truncate">{membro.nome_guerra}</p>
                         {membro.is_admin && (
-                          <Shield className="w-3 h-3 text-[#D32F2F] flex-shrink-0" />
+                          <Shield className="w-3 h-3 text-blue-500 flex-shrink-0" />
                         )}
-                      </div>
-                      <p className="text-[#B0B0B0] text-xs truncate">{membro.nome_completo}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span
-                          className={`inline-flex px-1.5 py-0.5 rounded text-xs font-semibold ${
-                            STATUS_STYLES[membro.status_membro].bg
-                          } ${STATUS_STYLES[membro.status_membro].text}`}
-                        >
-                          {membro.status_membro}
-                        </span>
                         {!membro.ativo && (
-                          <span className="text-xs text-[#B0B0B0]">Inativo</span>
+                          <span className="text-xs text-gray-500">Inativo</span>
                         )}
                       </div>
+                      <p className="text-xs text-gray-400 truncate">{membro.nome_completo}</p>
                     </div>
                   </div>
                 </td>
-
-                {/* Cargo */}
+                <td className="px-4 py-3 text-gray-300 font-medium">
+                  {membro.numero_carteira}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {membro.cargos_ativos && membro.cargos_ativos.length > 0 ? (
                       membro.cargos_ativos.map((cargo) => (
-                        <span
-                          key={cargo.id}
-                          className="inline-flex px-2 py-1 rounded text-xs bg-[#121212] text-[#B0B0B0] border border-[#D32F2F]/20"
-                          title={cargo.tipo_cargo}
-                        >
-                          {cargo.nome}
-                        </span>
+                        <CargoBadge key={cargo.id} nome={cargo.nome} tipo={cargo.tipo_cargo} />
                       ))
                     ) : (
-                      <span className="text-xs text-[#B0B0B0]">Sem cargo</span>
+                      <span className="text-xs text-gray-500">Sem cargo</span>
                     )}
                   </div>
                 </td>
-
-                {/* Contato */}
                 <td className="px-4 py-3">
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {membro.email && (
-                      <div className="flex items-center gap-2 text-xs text-[#B0B0B0]">
-                        <Mail className="w-3 h-3" />
-                        <span className="truncate max-w-[200px]">{membro.email}</span>
-                      </div>
+                      <p className="text-xs text-gray-400 truncate max-w-[200px]" title={membro.email}>
+                        {membro.email}
+                      </p>
                     )}
                     {membro.telefone && (
-                      <div className="flex items-center gap-2 text-xs text-[#B0B0B0]">
-                        <Phone className="w-3 h-3" />
-                        <span>{membro.telefone}</span>
-                      </div>
+                      <p className="text-xs text-gray-400">{membro.telefone}</p>
                     )}
                   </div>
                 </td>
-
-                {/* Localização */}
-                <td className="px-4 py-3">
-                  {membro.endereco_cidade || membro.endereco_estado ? (
-                    <div className="flex items-center gap-2 text-xs text-[#B0B0B0]">
-                      <MapPin className="w-3 h-3" />
-                      <span>
-                        {membro.endereco_cidade && membro.endereco_estado
-                          ? `${membro.endereco_cidade} - ${membro.endereco_estado}`
-                          : membro.endereco_cidade || membro.endereco_estado}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-[#B0B0B0]">-</span>
+                <td className="px-4 py-3 text-gray-300 text-sm">
+                  {membro.endereco_cidade && membro.endereco_estado ? (
+                    `${membro.endereco_cidade} - ${membro.endereco_estado}`
+                  ) : membro.endereco_cidade || membro.endereco_estado || (
+                    <span className="text-gray-500">-</span>
                   )}
                 </td>
-
-                {/* Ações */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-2">
+                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-2">
                     <button
-                      onClick={() => onEdit(membro)}
-                      className="p-2 bg-[#D32F2F] hover:bg-[#B71C1C] text-white rounded transition"
-                      title="Editar membro"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/manage-members/${membro.id}`);
+                      }}
+                      className="p-1.5 hover:bg-gray-700 rounded transition text-gray-400 hover:text-white"
+                      title="Ver detalhes"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(membro);
+                      }}
+                      className="p-1.5 hover:bg-gray-700 rounded transition text-gray-400 hover:text-white"
+                      title="Editar"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => onToggleAdmin(membro)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleAdmin(membro);
+                      }}
                       disabled={membro.user_id === currentUserId && membro.is_admin}
-                      className={`p-2 rounded transition ${
+                      className={`p-1.5 rounded transition ${
                         membro.is_admin
-                          ? 'bg-[#D32F2F]/20 hover:bg-[#D32F2F]/30 text-[#D32F2F]'
-                          : 'bg-[#121212] hover:bg-[#1E1E1E] text-[#B0B0B0]'
+                          ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-500'
+                          : 'hover:bg-gray-700 text-gray-400 hover:text-white'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                       title={membro.is_admin ? 'Remover admin' : 'Tornar admin'}
                     >
@@ -212,13 +307,12 @@ export default function MembersTable({
                       )}
                     </button>
                     <button
-                      onClick={() => onToggleActive(membro)}
-                      className={`p-2 rounded transition ${
-                        membro.ativo
-                          ? 'bg-[#121212] hover:bg-[#1E1E1E] text-[#B0B0B0]'
-                          : 'bg-green-600/20 hover:bg-green-600/30 text-green-500'
-                      }`}
-                      title={membro.ativo ? 'Desativar membro' : 'Ativar membro'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(membro.id);
+                      }}
+                      className="p-1.5 hover:bg-red-600 rounded transition text-gray-400 hover:text-white"
+                      title={membro.ativo ? 'Desativar' : 'Ativar'}
                     >
                       {membro.ativo ? (
                         <UserX className="w-4 h-4" />
@@ -229,11 +323,10 @@ export default function MembersTable({
                   </div>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
-
