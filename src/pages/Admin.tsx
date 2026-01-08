@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Users, DollarSign, Bike, Shield, Bell, BarChart3, FileText, ChevronRight, TrendingUp, AlertCircle } from 'lucide-react';
+import { Calendar, Users, DollarSign, Bike, Shield, Bell, BarChart3, FileText, ChevronRight, AlertCircle, Wallet, Tag } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
 import DashboardLayout from '../components/DashboardLayout';
+import StatCard from '../components/dashboard/StatCard';
+
+interface FinancialSummary {
+  saldoAtual: number;
+  totalEntradas: number;
+  totalSaidas: number;
+}
+
+interface ProximoEvento {
+  nome: string;
+  data_evento: string;
+}
 
 export default function Admin() {
   const { isAdmin, loading } = useAdmin();
@@ -11,8 +23,17 @@ export default function Admin() {
   const [stats, setStats] = useState({
     membrosAtivos: 0,
     eventosFuturos: 0,
-    mensalidadesPendentes: 0
+    mensalidadesPendentes: 0,
+    membrosNovos: 0, // Membros adicionados no último mês
   });
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary>({
+    saldoAtual: 0,
+    totalEntradas: 0,
+    totalSaidas: 0,
+  });
+  const [proximoEvento, setProximoEvento] = useState<ProximoEvento | null>(null);
+  const [enquetesAtivas, setEnquetesAtivas] = useState(0);
+  const [comunicadosNaoLidos, setComunicadosNaoLidos] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
@@ -35,6 +56,15 @@ export default function Admin() {
         .select('*', { count: 'exact', head: true })
         .eq('ativo', true);
 
+      // Contar membros novos (último mês)
+      const umMesAtras = new Date();
+      umMesAtras.setMonth(umMesAtras.getMonth() - 1);
+      const { count: membrosNovosCount } = await supabase
+        .from('membros')
+        .select('*', { count: 'exact', head: true })
+        .eq('ativo', true)
+        .gte('created_at', umMesAtras.toISOString());
+
       // Contar eventos futuros
       const hoje = new Date().toISOString().split('T')[0];
       const { count: eventosCount } = await supabase
@@ -43,16 +73,77 @@ export default function Admin() {
         .eq('status', 'Ativo')
         .gte('data_evento', hoje);
 
+      // Buscar próximo evento
+      const { data: proximoEventoData } = await supabase
+        .from('eventos')
+        .select('nome, data_evento')
+        .eq('status', 'Ativo')
+        .gte('data_evento', hoje)
+        .order('data_evento', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (proximoEventoData) {
+        setProximoEvento(proximoEventoData);
+      }
+
       // Contar mensalidades pendentes (não pagas)
       const { count: mensalidadesCount } = await supabase
         .from('mensalidades')
         .select('*', { count: 'exact', head: true })
         .neq('status', 'Pago');
 
+      // Buscar resumo financeiro
+      const { data: fluxoCaixaData } = await supabase
+        .from('fluxo_caixa')
+        .select('tipo, valor');
+
+      if (fluxoCaixaData) {
+        const totalEntradas = fluxoCaixaData
+          .filter(l => l.tipo === 'entrada')
+          .reduce((acc, l) => acc + Number(l.valor), 0);
+        
+        const totalSaidas = fluxoCaixaData
+          .filter(l => l.tipo === 'saida')
+          .reduce((acc, l) => acc + Number(l.valor), 0);
+
+        setFinancialSummary({
+          saldoAtual: totalEntradas - totalSaidas,
+          totalEntradas,
+          totalSaidas,
+        });
+      }
+
+      // Contar enquetes ativas
+      const { count: enquetesCount } = await supabase
+        .from('enquetes')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Ativa');
+
+      setEnquetesAtivas(enquetesCount || 0);
+
+      // Contar comunicados não lidos (buscar todos os comunicados e verificar leituras)
+      const { data: comunicadosData } = await supabase
+        .from('comunicados')
+        .select('id')
+        .order('created_at', { ascending: false });
+
+      if (comunicadosData && comunicadosData.length > 0) {
+        // Buscar leituras de todos os membros para calcular não lidos
+        const { data: leiturasData } = await supabase
+          .from('comunicados_leitura')
+          .select('comunicado_id');
+
+        const idsLidos = new Set(leiturasData?.map(l => l.comunicado_id) || []);
+        const naoLidos = comunicadosData.filter(c => !idsLidos.has(c.id));
+        setComunicadosNaoLidos(naoLidos.length);
+      }
+
       setStats({
         membrosAtivos: membrosCount || 0,
         eventosFuturos: eventosCount || 0,
-        mensalidadesPendentes: mensalidadesCount || 0
+        mensalidadesPendentes: mensalidadesCount || 0,
+        membrosNovos: membrosNovosCount || 0,
       });
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
@@ -80,9 +171,22 @@ export default function Admin() {
     return null;
   }
 
+  const formatarData = (dataString: string) => {
+    const [ano, mes, dia] = dataString.split('T')[0].split('-');
+    const data = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
+
+  const formatarMoeda = (valor: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(valor);
+  };
+
   return (
     <DashboardLayout>
-      <div className="container mx-auto max-w-6xl">
+      <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-6 md:mb-8">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
@@ -91,374 +195,311 @@ export default function Admin() {
               Painel Administrativo
             </h1>
           </div>
-          <p className="text-gray-400 text-sm md:text-lg">
+          <p className="text-zinc-400 text-sm md:text-base">
             Gerencie integrantes, eventos e mensalidades do clube
           </p>
         </div>
 
         {/* KPIs - Estatísticas Rápidas no Topo */}
         <div className="mb-6 md:mb-8">
-          <h2 className="text-white text-lg md:text-2xl font-oswald uppercase font-bold mb-4 md:mb-6">
+          <h2 className="text-white text-lg md:text-xl font-oswald uppercase font-bold mb-4">
             Estatísticas Rápidas
           </h2>
           
-          {/* Mobile: Grid 2x2 */}
-          <div className="grid grid-cols-2 gap-3 md:hidden">
-            <div className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Users className="w-5 h-5 text-brand-red" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-white text-2xl font-bold font-oswald mb-0.5">
-                  {loadingStats ? '...' : stats.membrosAtivos}
-                </div>
-                <div className="text-gray-400 text-xs uppercase truncate">Integrantes Ativos</div>
-              </div>
-            </div>
+          {/* Grid de Estatísticas */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+            <StatCard
+              label="Integrantes Ativos"
+              value={stats.membrosAtivos}
+              icon={Users}
+              trend={stats.membrosNovos > 0 ? {
+                value: stats.membrosNovos,
+                label: 'novos no último mês',
+                positive: true
+              } : undefined}
+              loading={loadingStats}
+            />
             
-            <div className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Calendar className="w-5 h-5 text-brand-red" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-white text-2xl font-bold font-oswald mb-0.5">
-                  {loadingStats ? '...' : stats.eventosFuturos}
-                </div>
-                <div className="text-gray-400 text-xs uppercase truncate">Eventos Futuros</div>
-              </div>
-            </div>
+            <StatCard
+              label="Eventos Futuros"
+              value={stats.eventosFuturos}
+              icon={Calendar}
+              loading={loadingStats}
+            />
             
-            <div className="bg-brand-gray rounded-lg border border-brand-red/50 p-4 flex items-center gap-3 col-span-2">
-              <div className="w-10 h-10 bg-brand-red/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-brand-red" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-brand-red text-2xl font-bold font-oswald mb-0.5">
-                  {loadingStats ? '...' : stats.mensalidadesPendentes}
-                </div>
-                <div className="text-gray-400 text-xs uppercase">Mensalidades Pendentes</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop: Cards Horizontais */}
-          <div className="hidden md:grid md:grid-cols-3 gap-4 lg:gap-6">
-            {/* KPI: Integrantes Ativos */}
-            <div className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-all group">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
-                  <Users className="w-6 h-6 text-brand-red" />
-                </div>
-                <TrendingUp className="w-5 h-5 text-gray-600" />
-              </div>
-              <div className="text-white text-3xl lg:text-4xl font-bold font-oswald mb-2">
-                {loadingStats ? '...' : stats.membrosAtivos}
-              </div>
-              <div className="text-gray-400 text-sm uppercase">Integrantes Ativos</div>
-            </div>
-
-            {/* KPI: Eventos Futuros */}
-            <div className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-all group">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
-                  <Calendar className="w-6 h-6 text-brand-red" />
-                </div>
-                <TrendingUp className="w-5 h-5 text-gray-600" />
-              </div>
-              <div className="text-white text-3xl lg:text-4xl font-bold font-oswald mb-2">
-                {loadingStats ? '...' : stats.eventosFuturos}
-              </div>
-              <div className="text-gray-400 text-sm uppercase">Eventos Futuros</div>
-            </div>
-
-            {/* KPI: Mensalidades Pendentes - Destaque Especial */}
-            <div className="bg-brand-gray rounded-lg border-2 border-brand-red/50 p-6 hover:border-brand-red transition-all group relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-brand-red/10 rounded-full -mr-10 -mt-10"></div>
-              <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="w-12 h-12 bg-brand-red/30 rounded-lg flex items-center justify-center group-hover:bg-brand-red/40 transition">
-                  <AlertCircle className="w-6 h-6 text-brand-red" />
-                </div>
-                <AlertCircle className="w-5 h-5 text-brand-red" />
-              </div>
-              <div className="text-brand-red text-3xl lg:text-4xl font-bold font-oswald mb-2 relative z-10">
-                {loadingStats ? '...' : stats.mensalidadesPendentes}
-              </div>
-              <div className="text-gray-400 text-sm uppercase relative z-10">Mensalidades Pendentes</div>
-            </div>
+            <StatCard
+              label="Mensalidades Pendentes"
+              value={stats.mensalidadesPendentes}
+              icon={AlertCircle}
+              alert={stats.mensalidadesPendentes > 0}
+              loading={loadingStats}
+            />
           </div>
         </div>
 
         {/* Grupos de Ação */}
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-5 md:space-y-6">
           {/* Grupo Gestão */}
           <div>
-            <h3 className="text-white text-base md:text-xl font-oswald uppercase font-bold mb-4 md:mb-6 flex items-center gap-2">
+            <h3 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-3 md:mb-4 flex items-center gap-2">
               <Shield className="w-5 h-5 text-brand-red" />
               Gestão
             </h3>
             
-            {/* Mobile: List Tiles */}
-            <div className="space-y-2 md:hidden">
+            {/* Grid de Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <Link 
                 to="/manage-members"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
               >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Users className="w-6 h-6 text-brand-red" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Users className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Integrantes
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Visualize e edite informações dos integrantes
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-
-              <Link 
-                to="/manage-cargos"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
-              >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-6 h-6 text-brand-red" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Cargos
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Crie e gerencie os cargos do clube
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-            </div>
-
-            {/* Desktop: Grid */}
-            <div className="hidden md:grid md:grid-cols-2 gap-4 lg:gap-6">
-              <Link 
-                to="/manage-members"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
-              >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <Users className="w-7 h-7 text-brand-red" />
-                </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Integrantes
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Visualize e edite informações dos integrantes
                 </p>
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
 
               <Link 
                 to="/manage-cargos"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
               >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <Shield className="w-7 h-7 text-brand-red" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Shield className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Cargos
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Crie e gerencie os cargos do clube
                 </p>
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
             </div>
           </div>
 
           {/* Grupo Financeiro */}
           <div>
-            <h3 className="text-white text-base md:text-xl font-oswald uppercase font-bold mb-4 md:mb-6 flex items-center gap-2">
+            <h3 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-3 md:mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-brand-red" />
               Financeiro
             </h3>
             
-            {/* Mobile: List Tiles */}
-            <div className="space-y-2 md:hidden">
+            {/* Grid de Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
               <Link 
                 to="/manage-payments"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
               >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <DollarSign className="w-6 h-6 text-brand-red" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <DollarSign className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Mensalidades
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Controle de pagamentos mensais dos integrantes
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-            </div>
-
-            {/* Desktop: Grid */}
-            <div className="hidden md:grid md:grid-cols-2 gap-4 lg:gap-6">
-              <Link 
-                to="/manage-payments"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
-              >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <DollarSign className="w-7 h-7 text-brand-red" />
-                </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Mensalidades
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Controle de pagamentos mensais dos integrantes
                 </p>
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
+              </Link>
+
+              <Link 
+                to="/controle-caixa"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Wallet className="w-6 h-6 text-brand-red" />
+                  </div>
+                </div>
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
+                  Controle de Caixa
+                </h4>
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
+                  Gerencie entradas e saídas do caixa do clube
+                </p>
+                {financialSummary.saldoAtual !== 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs text-zinc-500 uppercase mb-0.5">Saldo Atual</div>
+                    <div className={`text-sm font-bold ${financialSummary.saldoAtual >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatarMoeda(financialSummary.saldoAtual)}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
+              </Link>
+
+              <Link 
+                to="/manage-categorias-caixa"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Tag className="w-6 h-6 text-brand-red" />
+                  </div>
+                </div>
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
+                  Categorias do Caixa
+                </h4>
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
+                  Gerencie categorias de entradas e saídas
+                </p>
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
             </div>
           </div>
 
           {/* Grupo Comunicação */}
           <div>
-            <h3 className="text-white text-base md:text-xl font-oswald uppercase font-bold mb-4 md:mb-6 flex items-center gap-2">
+            <h3 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-3 md:mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-brand-red" />
               Comunicação
             </h3>
             
-            {/* Mobile: List Tiles */}
-            <div className="space-y-2 md:hidden">
+            {/* Grid de Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               <Link 
                 to="/manage-events"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group relative"
               >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Bike className="w-6 h-6 text-brand-red" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Bike className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Eventos
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Edite e visualize eventos criados
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-
-              <Link 
-                to="/manage-comunicados"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
-              >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Bell className="w-6 h-6 text-brand-red" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Comunicados
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Administre e acompanhe leituras dos comunicados
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-
-              <Link 
-                to="/manage-documentos"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
-              >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-6 h-6 text-brand-red" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Documentos
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Administre e acompanhe acessos aos documentos
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-
-              <Link 
-                to="/manage-polls"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-4 flex items-center gap-4 hover:border-brand-red/50 transition-all active:scale-[0.98]"
-              >
-                <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <BarChart3 className="w-6 h-6 text-brand-red" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-oswald uppercase font-bold mb-0.5">
-                    Gerenciar Enquetes
-                  </h4>
-                  <p className="text-gray-400 text-xs truncate">
-                    Visualize resultados e gerencie enquetes
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
-              </Link>
-            </div>
-
-            {/* Desktop: Grid */}
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              <Link 
-                to="/manage-events"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
-              >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <Bike className="w-7 h-7 text-brand-red" />
-                </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Eventos
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Edite e visualize eventos criados
                 </p>
+                {proximoEvento && (
+                  <div className="mb-2">
+                    <div className="text-xs text-zinc-500 uppercase mb-0.5">Próximo Evento</div>
+                    <div className="text-sm font-semibold text-white truncate">{proximoEvento.nome}</div>
+                    <div className="text-xs text-zinc-500">{formatarData(proximoEvento.data_evento)}</div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
 
               <Link 
                 to="/manage-comunicados"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group relative"
               >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <Bell className="w-7 h-7 text-brand-red" />
+                {comunicadosNaoLidos > 0 && (
+                  <div className="absolute top-3 right-3">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Bell className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Comunicados
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Administre e acompanhe leituras dos comunicados
                 </p>
+                {comunicadosNaoLidos > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs text-red-400 font-semibold">
+                      {comunicadosNaoLidos} não lido{comunicadosNaoLidos > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
 
               <Link 
                 to="/manage-documentos"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
               >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <FileText className="w-7 h-7 text-brand-red" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <FileText className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Documentos
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Administre e acompanhe acessos aos documentos
                 </p>
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
 
               <Link 
                 to="/manage-polls"
-                className="bg-brand-gray rounded-lg border border-gray-800 p-6 hover:border-brand-red/50 transition-all hover:scale-[1.02] group"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group relative"
               >
-                <div className="w-14 h-14 bg-brand-red/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand-red/30 transition">
-                  <BarChart3 className="w-7 h-7 text-brand-red" />
+                {enquetesAtivas > 0 && (
+                  <div className="absolute top-3 right-3">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
+                      {enquetesAtivas > 9 ? '9+' : enquetesAtivas}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <BarChart3 className="w-6 h-6 text-brand-red" />
+                  </div>
                 </div>
-                <h4 className="text-white text-lg font-oswald uppercase font-bold mb-2">
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
                   Gerenciar Enquetes
                 </h4>
-                <p className="text-gray-400 text-sm">
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
                   Visualize resultados e gerencie enquetes
                 </p>
+                {enquetesAtivas > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs text-green-400 font-semibold">
+                      {enquetesAtivas} ativa{enquetesAtivas > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
               </Link>
             </div>
           </div>

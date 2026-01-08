@@ -454,11 +454,11 @@ export default function ManageEvents() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          to="/dashboard"
+          to="/admin"
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar ao Dashboard
+          Voltar para Painel Administrativo
         </Link>
         
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

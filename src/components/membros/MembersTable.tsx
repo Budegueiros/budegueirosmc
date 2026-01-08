@@ -130,6 +130,7 @@ export default function MembersTable({
       <table className="w-full text-left text-sm">
         <thead className="bg-gray-800 border-b border-gray-700">
           <tr>
+            <th className="px-4 py-3 text-gray-300 font-medium w-12 text-center">#</th>
             <th className="w-10 px-4 py-3">
               <input
                 type="checkbox"
@@ -186,7 +187,7 @@ export default function MembersTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
-          {sortedMembros.map((membro) => {
+          {sortedMembros.map((membro, index) => {
             const isSelected = selectedIds.includes(membro.id);
 
             return (
@@ -195,6 +196,9 @@ export default function MembersTable({
                 onClick={() => handleRowClick(membro.id)}
                 className={`hover:bg-gray-800/30 transition cursor-pointer ${isSelected ? 'bg-gray-800/50' : ''} ${!membro.ativo ? 'opacity-60' : ''}`}
               >
+                <td className="px-4 py-3 text-gray-400 text-center text-sm">
+                  {index + 1}
+                </td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"

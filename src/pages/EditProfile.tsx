@@ -190,11 +190,11 @@ export default function EditProfile() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            to="/dashboard"
+            to="/admin"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar ao Dashboard
+            Voltar para Painel Administrativo
           </Link>
           
           <div className="flex items-center gap-3 mb-2">
@@ -403,7 +403,7 @@ export default function EditProfile() {
             </button>
 
             <Link
-              to="/dashboard"
+              to="/admin"
               className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-oswald uppercase font-bold py-3 px-6 rounded-lg transition"
             >
               Cancelar

@@ -119,6 +119,7 @@ export default function EnquetesTable({
       <table className="w-full text-left text-sm">
         <thead className="bg-gray-800 border-b border-gray-700">
           <tr>
+            <th className="px-4 py-2 text-gray-300 font-medium w-12 text-center">#</th>
             <th className="w-10 px-4 py-2">
               <input
                 type="checkbox"
@@ -166,7 +167,7 @@ export default function EnquetesTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
-          {sortedEnquetes.map((enquete) => {
+          {sortedEnquetes.map((enquete, index) => {
             const isSelected = selectedIds.includes(enquete.id);
 
             return (
@@ -175,6 +176,9 @@ export default function EnquetesTable({
                 onClick={() => onRowClick?.(enquete.id)}
                 className={`hover:bg-gray-800/30 transition cursor-pointer ${isSelected ? 'bg-gray-800/50' : ''}`}
               >
+                <td className="px-4 py-2 text-gray-400 text-center text-sm">
+                  {index + 1}
+                </td>
                 <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
