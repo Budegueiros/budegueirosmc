@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Lock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -10,30 +10,133 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [validatingToken, setValidatingToken] = useState(true);
+  const [tokenValid, setTokenValid] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
+    let subscription: any;
+    let mounted = true;
+
     // Verificar se há um token de recuperação na URL
     const checkRecoveryToken = async () => {
       try {
-        // O Supabase automaticamente processa o token do hash
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const hash = window.location.hash;
         
-        if (error || !session) {
-          setError('Link de recuperação inválido ou expirado.');
+        // Verificar se há erro no hash da URL (token expirado, inválido, etc)
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const errorParam = hashParams.get('error');
+        const errorCode = hashParams.get('error_code');
+        const errorDescription = hashParams.get('error_description');
+        const type = hashParams.get('type');
+        const accessToken = hashParams.get('access_token');
+
+        if (errorParam) {
+          console.error('Erro no link de recuperação:', { errorParam, errorCode, errorDescription });
+          
+          if (errorCode === 'token_expired') {
+            setError('Este link de recuperação expirou. Solicite um novo link.');
+          } else {
+            setError(errorDescription?.replace(/\+/g, ' ') || 'Link de recuperação inválido.');
+          }
+          
           setValidatingToken(false);
+          setTokenValid(false);
           return;
         }
 
-        setValidatingToken(false);
+        // Se temos type=recovery mas nenhuma sessão ainda, forçar o Supabase a processar o hash
+        if (type === 'recovery' && accessToken) {
+          const refreshToken = hashParams.get('refresh_token');
+          
+          if (refreshToken) {
+            // Tentar setar a sessão manualmente usando os tokens do hash
+            try {
+              const { data, error: sessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              });
+              
+              if (data.session && mounted) {
+                setTokenValid(true);
+                setValidatingToken(false);
+                if (timeoutRef.current) {
+                  clearTimeout(timeoutRef.current);
+                }
+                return;
+              }
+              
+              if (sessionError) {
+                console.error('Erro ao setar sessão:', sessionError);
+              }
+            } catch (err) {
+              console.error('Erro ao setar sessão:', err);
+            }
+          }
+          
+          // Aguardar um pouco para o processamento automático
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // Verificar sessão atual
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (session?.user && mounted) {
+          setTokenValid(true);
+          setValidatingToken(false);
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+          return;
+        }
+
+        // Escutar mudanças de autenticação
+        subscription = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'PASSWORD_RECOVERY' || (session?.user && mounted)) {
+            setTokenValid(true);
+            setValidatingToken(false);
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+            }
+          }
+        });
+
+        // Timeout de segurança (10 segundos)
+        timeoutRef.current = setTimeout(() => {
+          if (mounted && !tokenValid) {
+            setError('Tempo limite excedido. O link pode ter expirado.');
+            setValidatingToken(false);
+            setTokenValid(false);
+          }
+        }, 10000);
+
+        // Se não há hash na URL, verificar se já temos uma sessão válida
+        if (!hash && !session) {
+          setError('Link de recuperação inválido ou expirado.');
+          setValidatingToken(false);
+          setTokenValid(false);
+        }
+
       } catch (err) {
+        console.error('Erro ao validar token:', err);
         setError('Erro ao validar o link de recuperação.');
         setValidatingToken(false);
+        setTokenValid(false);
       }
     };
 
     checkRecoveryToken();
-  }, []);
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [tokenValid]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +184,30 @@ export default function ResetPassword() {
           <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
             Validando link de recuperação...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tokenValid && !error) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-4 pt-20">
+        <div className="max-w-md w-full text-center">
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-8">
+            <AlertCircle className="w-16 h-16 text-brand-red mx-auto mb-4" />
+            <h2 className="text-white font-oswald text-2xl uppercase font-bold mb-2">
+              Link Inválido
+            </h2>
+            <p className="text-gray-300 text-sm mb-6">
+              O link de recuperação é inválido ou expirou. Por favor, solicite um novo link.
+            </p>
+            <a 
+              href="/forgot-password" 
+              className="inline-block bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
+            >
+              Solicitar Novo Link
+            </a>
+          </div>
         </div>
       </div>
     );

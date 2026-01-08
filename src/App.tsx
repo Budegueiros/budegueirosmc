@@ -66,7 +66,9 @@ function AppContent() {
     '/manage-documentos'
   ];
   
-  const shouldHideHeader = hideHeaderRoutes.some(route => location.pathname.startsWith(route));
+  const shouldHideHeader = hideHeaderRoutes.some(route => 
+    location.pathname.startsWith(route) || location.pathname.match(/^\/manage-members\/[^/]+$/)
+  );
 
   return (
     <div className="min-h-screen bg-black text-white">

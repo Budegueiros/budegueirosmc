@@ -1,11 +1,4 @@
-// ============================================================================
-// Componente MembersFilterBar
-// ============================================================================
-// Descrição: Barra de filtros para busca e filtragem de membros
-// Data: 2025-01-XX
-// ============================================================================
-
-import { Search, Filter, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
@@ -25,27 +18,24 @@ interface Cargo {
   nome: string;
 }
 
-/**
- * Componente de barra de filtros para membros
- * 
- * @param filters - Estado atual dos filtros
- * @param onFiltersChange - Callback quando os filtros mudam
- * 
- * @example
- * ```tsx
- * <MembersFilterBar 
- *   filters={filters} 
- *   onFiltersChange={setFilters} 
- * />
- * ```
- */
 export default function MembersFilterBar({ filters, onFiltersChange }: MembersFilterBarProps) {
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loadingCargos, setLoadingCargos] = useState(true);
+  const [searchValue, setSearchValue] = useState(filters.search);
 
   useEffect(() => {
     carregarCargos();
   }, []);
+
+  // Debounce para busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFiltersChange({ ...filters, search: searchValue });
+    }, 300);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchValue]);
 
   const carregarCargos = async () => {
     try {
@@ -64,10 +54,6 @@ export default function MembersFilterBar({ filters, onFiltersChange }: MembersFi
     }
   };
 
-  const handleSearchChange = (value: string) => {
-    onFiltersChange({ ...filters, search: value });
-  };
-
   const handleCargoChange = (cargoId: string) => {
     onFiltersChange({ 
       ...filters, 
@@ -79,7 +65,10 @@ export default function MembersFilterBar({ filters, onFiltersChange }: MembersFi
     onFiltersChange({ ...filters, status });
   };
 
-  const clearFilters = () => {
+  const hasActiveFilters = filters.search || filters.cargoId !== null || filters.status !== 'all';
+
+  const limparFiltros = () => {
+    setSearchValue('');
     onFiltersChange({
       search: '',
       cargoId: null,
@@ -87,66 +76,58 @@ export default function MembersFilterBar({ filters, onFiltersChange }: MembersFi
     });
   };
 
-  const hasActiveFilters = filters.search !== '' || filters.cargoId !== null || filters.status !== 'all';
-
   return (
-    <div className="bg-[#1E1E1E] border border-[#D32F2F]/30 rounded-lg p-4 mb-6">
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Busca */}
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B0B0B0] w-5 h-5" />
+    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-6">
+      <div className="flex flex-wrap gap-4 items-center">
+        {/* Input de Busca */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
-            type="text"
+            type="search"
             placeholder="Buscar por nome, email ou carteira..."
-            value={filters.search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full bg-[#121212] border border-[#D32F2F]/30 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-[#B0B0B0] focus:outline-none focus:border-[#D32F2F] transition"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 text-white rounded-md px-4 py-2 pl-10 focus:outline-none focus:border-gray-600 transition"
           />
         </div>
 
-        {/* Filtro por Cargo */}
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B0B0B0] w-4 h-4 pointer-events-none" />
-          <select
-            value={filters.cargoId || 'all'}
-            onChange={(e) => handleCargoChange(e.target.value)}
-            disabled={loadingCargos}
-            className="w-full md:w-48 bg-[#121212] border border-[#D32F2F]/30 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D32F2F] transition appearance-none cursor-pointer"
-          >
-            <option value="all">Todos os Cargos</option>
-            {cargos.map((cargo) => (
-              <option key={cargo.id} value={cargo.id}>
-                {cargo.nome}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Select de Cargo */}
+        <select
+          value={filters.cargoId || 'all'}
+          onChange={(e) => handleCargoChange(e.target.value)}
+          disabled={loadingCargos}
+          className="bg-gray-900 border border-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:border-gray-600 transition min-w-[150px]"
+        >
+          <option value="all">Todos os Cargos</option>
+          {cargos.map((cargo) => (
+            <option key={cargo.id} value={cargo.id}>
+              {cargo.nome}
+            </option>
+          ))}
+        </select>
 
-        {/* Filtro por Status */}
-        <div className="relative">
-          <select
-            value={filters.status}
-            onChange={(e) => handleStatusChange(e.target.value as 'all' | 'ativo' | 'inativo')}
-            className="w-full md:w-40 bg-[#121212] border border-[#D32F2F]/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#D32F2F] transition appearance-none cursor-pointer"
-          >
-            <option value="all">Todos</option>
-            <option value="ativo">Ativos</option>
-            <option value="inativo">Inativos</option>
-          </select>
-        </div>
+        {/* Select de Status */}
+        <select
+          value={filters.status}
+          onChange={(e) => handleStatusChange(e.target.value as 'all' | 'ativo' | 'inativo')}
+          className="bg-gray-900 border border-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:border-gray-600 transition min-w-[120px]"
+        >
+          <option value="all">Todos</option>
+          <option value="ativo">Ativos</option>
+          <option value="inativo">Inativos</option>
+        </select>
 
         {/* Botão Limpar Filtros */}
         {hasActiveFilters && (
           <button
-            onClick={clearFilters}
-            className="flex items-center gap-2 bg-[#121212] hover:bg-[#1E1E1E] border border-[#D32F2F]/30 hover:border-[#D32F2F] text-[#B0B0B0] hover:text-white px-4 py-2.5 rounded-lg transition font-oswald uppercase text-sm whitespace-nowrap"
+            onClick={limparFiltros}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition px-4 py-2 rounded-md hover:bg-gray-700/50"
           >
             <X className="w-4 h-4" />
-            Limpar
+            Limpar Filtros
           </button>
         )}
       </div>
     </div>
   );
 }
-
