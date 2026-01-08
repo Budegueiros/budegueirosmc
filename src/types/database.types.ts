@@ -293,3 +293,86 @@ export interface DocumentoComAutor extends Documento {
   ja_acessado: boolean;
 }
 
+/**
+ * Tipo de fluxo de caixa (entrada ou saída)
+ */
+export type TipoFluxoCaixa = 'entrada' | 'saida';
+
+/**
+ * Categoria de lançamento no fluxo de caixa
+ * Categorias de Entrada: Mensalidade, Doação, Venda, Evento
+ * Categorias de Saída: Combustível, Sede, Eventos, Outros
+ */
+export type CategoriaFluxoCaixa = 
+  // Categorias de Entrada
+  | 'Mensalidade'
+  | 'Doação'
+  | 'Venda'
+  | 'Evento'
+  // Categorias de Saída
+  | 'Combustível'
+  | 'Sede'
+  | 'Eventos'
+  | 'Outros';
+
+/**
+ * Interface para fluxo de caixa
+ */
+export interface FluxoCaixa {
+  id: string;
+  tipo: TipoFluxoCaixa;
+  descricao: string;
+  categoria: CategoriaFluxoCaixa;
+  valor: number;
+  data: string;
+  anexo_url: string | null;
+  membro_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Interface estendida: FluxoCaixa com informações do membro
+ */
+export interface FluxoCaixaComMembro extends FluxoCaixa {
+  membros: {
+    nome_guerra: string;
+    nome_completo: string;
+  };
+}
+
+/**
+ * Helper para verificar se um valor é um tipo de fluxo válido
+ */
+export function isTipoFluxoCaixa(value: string): value is TipoFluxoCaixa {
+  return ['entrada', 'saida'].includes(value);
+}
+
+/**
+ * Helper para verificar se um valor é uma categoria válida
+ */
+export function isCategoriaFluxoCaixa(value: string): value is CategoriaFluxoCaixa {
+  return [
+    'Mensalidade', 'Doação', 'Venda', 'Evento',
+    'Combustível', 'Sede', 'Eventos', 'Outros'
+  ].includes(value);
+}
+
+/**
+ * Categorias disponíveis por tipo de fluxo
+ */
+export const CATEGORIAS_ENTRADA: CategoriaFluxoCaixa[] = [
+  'Mensalidade',
+  'Doação',
+  'Venda',
+  'Evento',
+  'Outros'
+];
+
+export const CATEGORIAS_SAIDA: CategoriaFluxoCaixa[] = [
+  'Combustível',
+  'Sede',
+  'Eventos',
+  'Outros'
+];
+

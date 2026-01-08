@@ -34,6 +34,8 @@ import ManageCargos from './pages/ManageCargos';
 import ManagePolls from './pages/ManagePolls';
 import Documentos from './pages/Documentos';
 import ManageDocumentos from './pages/ManageDocumentos';
+import ControleCaixa from './pages/ControleCaixa';
+import ManageCategoriasCaixa from './pages/ManageCategoriasCaixa';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 
@@ -63,7 +65,8 @@ function AppContent() {
     '/manage-cargos',
     '/manage-polls',
     '/documentos',
-    '/manage-documentos'
+    '/manage-documentos',
+    '/controle-caixa'
   ];
   
   const shouldHideHeader = hideHeaderRoutes.some(route => 
@@ -220,14 +223,22 @@ function AppContent() {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
-                path="/manage-cargos" 
-                element={
-                  <ProtectedRoute>
-                    <ManageCargos />
-                  </ProtectedRoute>
-                } 
-              />
+                  <Route 
+                    path="/manage-cargos" 
+                    element={
+                      <ProtectedRoute>
+                        <ManageCargos />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/manage-categorias-caixa" 
+                    element={
+                      <ProtectedRoute>
+                        <ManageCategoriasCaixa />
+                      </ProtectedRoute>
+                    } 
+                  />
               <Route 
                 path="/manage-polls" 
                 element={
@@ -249,6 +260,14 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <ManageDocumentos />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/controle-caixa" 
+                element={
+                  <ProtectedRoute>
+                    <ControleCaixa />
                   </ProtectedRoute>
                 } 
               />

@@ -775,3 +775,258 @@ export function exportarEnquetesParaPDF(enquetes: Enquete[], titulo: string = 'R
     }, 250);
   }
 }
+
+interface FluxoCaixaExport {
+  id: string;
+  tipo: 'entrada' | 'saida';
+  descricao: string;
+  categoria: string;
+  valor: number;
+  data: string;
+  anexo_url: string | null;
+  membros: {
+    nome_guerra: string;
+    nome_completo: string;
+  };
+}
+
+/**
+ * Exporta fluxo de caixa para CSV
+ */
+export function exportarFluxoCaixaParaCSV(lancamentos: FluxoCaixaExport[], nomeArquivo: string = 'fluxo_caixa') {
+  const formatarData = (data: string) => {
+    return new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const formatarValor = (valor: number) => {
+    return valor.toFixed(2).replace('.', ',');
+  };
+
+  // Cabeçalhos
+  const headers = [
+    'Data',
+    'Tipo',
+    'Descrição',
+    'Categoria',
+    'Valor',
+    'Membro (Nome de Guerra)',
+    'Membro (Nome Completo)',
+    'Comprovante'
+  ];
+
+  // Dados
+  const rows = lancamentos.map(l => [
+    formatarData(l.data),
+    l.tipo === 'entrada' ? 'Entrada' : 'Saída',
+    l.descricao,
+    l.categoria,
+    formatarValor(l.valor),
+    l.membros.nome_guerra,
+    l.membros.nome_completo,
+    l.anexo_url ? 'Sim' : 'Não'
+  ]);
+
+  // Combinar cabeçalhos e dados
+  const csvContent = [
+    headers.join(';'),
+    ...rows.map(row => row.join(';'))
+  ].join('\n');
+
+  // Adicionar BOM para Excel reconhecer UTF-8
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${nomeArquivo}_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
+ * Exporta fluxo de caixa para PDF (usando window.print com HTML formatado)
+ */
+export function exportarFluxoCaixaParaPDF(lancamentos: FluxoCaixaExport[], titulo: string = 'Relatório de Fluxo de Caixa') {
+  const formatarData = (data: string) => {
+    return new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const formatarValor = (valor: number) => {
+    return valor.toFixed(2).replace('.', ',');
+  };
+
+  // Calcular totais
+  const totalEntradas = lancamentos
+    .filter(l => l.tipo === 'entrada')
+    .reduce((acc, l) => acc + l.valor, 0);
+
+  const totalSaidas = lancamentos
+    .filter(l => l.tipo === 'saida')
+    .reduce((acc, l) => acc + l.valor, 0);
+
+  const saldo = totalEntradas - totalSaidas;
+
+  // Calcular período (ordenar uma vez apenas)
+  let periodoStr = '-';
+  if (lancamentos.length > 0) {
+    const lancamentosOrdenados = [...lancamentos].sort((a, b) => a.data.localeCompare(b.data));
+    const dataInicio = formatarData(lancamentosOrdenados[0].data);
+    const dataFim = formatarData(lancamentosOrdenados[lancamentosOrdenados.length - 1].data);
+    periodoStr = `${dataInicio} a ${dataFim}`;
+  }
+
+  // Criar HTML para impressão
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${titulo}</title>
+        <style>
+          @media print {
+            @page {
+              margin: 1cm;
+            }
+          }
+          body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            margin: 20px;
+          }
+          h1 {
+            color: #333;
+            margin-bottom: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+          .header {
+            margin-bottom: 20px;
+          }
+          .info {
+            margin-bottom: 10px;
+          }
+          .entrada {
+            color: #16a34a;
+            font-weight: bold;
+          }
+          .saida {
+            color: #dc2626;
+            font-weight: bold;
+          }
+          .totais {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+          }
+          .totais h3 {
+            margin-top: 0;
+          }
+          .total-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+          }
+          .total-line:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 10px;
+            padding-top: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${titulo}</h1>
+          <div class="info">
+            <p><strong>Data de geração:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+            <p><strong>Total de registros:</strong> ${lancamentos.length}</p>
+            <p><strong>Período:</strong> ${periodoStr}</p>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Descrição</th>
+              <th>Categoria</th>
+              <th>Valor</th>
+              <th>Membro</th>
+              <th>Comprovante</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lancamentos.map(l => `
+              <tr>
+                <td>${formatarData(l.data)}</td>
+                <td class="${l.tipo}">${l.tipo === 'entrada' ? 'Entrada' : 'Saída'}</td>
+                <td>${l.descricao}</td>
+                <td>${l.categoria}</td>
+                <td class="${l.tipo}">R$ ${formatarValor(l.valor)}</td>
+                <td>${l.membros.nome_guerra}</td>
+                <td>${l.anexo_url ? 'Sim' : 'Não'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="totais">
+          <h3>Resumo Financeiro</h3>
+          <div class="total-line">
+            <span>Total de Entradas:</span>
+            <span class="entrada">R$ ${formatarValor(totalEntradas)}</span>
+          </div>
+          <div class="total-line">
+            <span>Total de Saídas:</span>
+            <span class="saida">R$ ${formatarValor(totalSaidas)}</span>
+          </div>
+          <div class="total-line">
+            <span>Saldo:</span>
+            <span class="${saldo >= 0 ? 'entrada' : 'saida'}">R$ ${formatarValor(saldo)}</span>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  // Criar nova janela para impressão
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
+}
