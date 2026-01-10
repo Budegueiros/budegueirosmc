@@ -1,7 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://qrksozrkfldqqiibyhsv.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFya3NvenJrZmxkcXFpaWJ5aHN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5MTY1MDAsImV4cCI6MjA4MjQ5MjUwMH0.Q1ffBoKmnEKJA_XGU_0dddZ0MafnGzhJVG6S7f2dKow';
+// Carregar variáveis de ambiente
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Validar que as variáveis de ambiente estão configuradas
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Variáveis de ambiente do Supabase não configuradas. ' +
+    'Por favor, configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env'
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

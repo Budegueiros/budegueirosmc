@@ -1,0 +1,141 @@
+/**
+ * Serviço para operações relacionadas a eventos
+ * Abstrai o acesso ao Supabase para a entidade de eventos
+ */
+import { supabase } from '../lib/supabase';
+import { Evento } from '../types/database.types';
+
+export const eventoService = {
+  /**
+   * Busca o próximo evento ativo
+   */
+  async buscarProximoEvento(): Promise<Evento | null> {
+    const { data, error } = await supabase
+      .from('eventos')
+      .select('*')
+      .eq('status', 'Ativo')
+      .gte('data_evento', new Date().toISOString().split('T')[0])
+      .order('data_evento', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Erro ao buscar próximo evento: ${error.message}`);
+    }
+
+    return data as Evento | null;
+  },
+
+  /**
+   * Conta o número de confirmações de presença para um evento
+   */
+  async contarConfirmados(eventoId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('confirmacoes_presenca')
+      .select('*', { count: 'exact', head: true })
+      .eq('evento_id', eventoId)
+      .eq('status', 'Confirmado');
+
+    if (error) {
+      throw new Error(`Erro ao contar confirmados: ${error.message}`);
+    }
+
+    return count || 0;
+  },
+
+  /**
+   * Verifica se um membro já confirmou presença em um evento
+   */
+  async verificarConfirmacao(membroId: string, eventoId: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from('confirmacoes_presenca')
+      .select('id')
+      .eq('evento_id', eventoId)
+      .eq('membro_id', membroId)
+      .eq('status', 'Confirmado')
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Erro ao verificar confirmação: ${error.message}`);
+    }
+
+    return data?.id || null;
+  },
+
+  /**
+   * Confirma ou cancela presença de um membro em um evento
+   */
+  async toggleConfirmacaoPresenca(
+    membroId: string,
+    eventoId: string,
+    confirmacaoId: string | null
+  ): Promise<{ id: string; action: 'created' | 'deleted' }> {
+    if (confirmacaoId) {
+      // Cancelar confirmação existente
+      const { error } = await supabase
+        .from('confirmacoes_presenca')
+        .delete()
+        .eq('id', confirmacaoId);
+
+      if (error) {
+        throw new Error(`Erro ao cancelar confirmação: ${error.message}`);
+      }
+
+      return { id: confirmacaoId, action: 'deleted' };
+    } else {
+      // Criar nova confirmação
+      const { data, error } = await supabase
+        .from('confirmacoes_presenca')
+        .insert({
+          evento_id: eventoId,
+          membro_id: membroId,
+          status: 'Confirmado',
+          data_confirmacao: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        throw new Error(`Erro ao confirmar presença: ${error.message}`);
+      }
+
+      return { id: data.id, action: 'created' };
+    }
+  },
+
+  /**
+   * Calcula o total de KM rodados por um membro no ano atual
+   * Otimizado usando join ao invés de queries N+1
+   */
+  async calcularKmAnual(membroId: string): Promise<number> {
+    const anoAtual = new Date().getFullYear();
+    const inicioAno = new Date(anoAtual, 0, 1).toISOString().split('T')[0];
+    const fimAno = new Date(anoAtual, 11, 31).toISOString().split('T')[0];
+
+    // Buscar participações com join no evento (evita N+1)
+    const { data, error } = await supabase
+      .from('participacoes_eventos')
+      .select(`
+        evento:eventos!inner (
+          distancia_km,
+          data_evento
+        )
+      `)
+      .eq('membro_id', membroId)
+      .gte('evento.data_evento', inicioAno)
+      .lte('evento.data_evento', fimAno);
+
+    if (error) {
+      throw new Error(`Erro ao calcular KM anual: ${error.message}`);
+    }
+
+    // Somar as distâncias
+    const totalKm = (data || []).reduce((acc, p) => {
+      const distancia = (p.evento as { distancia_km: number | null })?.distancia_km || 0;
+      return acc + (typeof distancia === 'number' && !isNaN(distancia) ? distancia : 0);
+    }, 0);
+
+    // Arredondar para 2 casas decimais
+    return Math.round(totalKm * 100) / 100;
+  },
+};

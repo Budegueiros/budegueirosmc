@@ -14,6 +14,17 @@ import RegistrarLancamentoModal from '../components/caixa/RegistrarSaidaModal';
 import AnexoPreviewModal from '../components/caixa/AnexoPreviewModal';
 import BulkActionsToolbar from '../components/caixa/BulkActionsToolbar';
 import { exportarFluxoCaixaParaCSV, exportarFluxoCaixaParaPDF } from '../utils/exportHelpers';
+import { groupTransactionsByDate } from '../utils/dateHelpers';
+
+// Componentes Mobile
+import CaixaHeader from '../components/caixa/mobile/CaixaHeader';
+import SearchBar from '../components/caixa/mobile/SearchBar';
+import CaixaSummary from '../components/caixa/mobile/CaixaSummary';
+import QuickFilters from '../components/caixa/mobile/QuickFilters';
+import DateSectionHeader from '../components/caixa/mobile/DateSectionHeader';
+import TransactionCard from '../components/caixa/mobile/TransactionCard';
+import CaixaFAB from '../components/caixa/mobile/CaixaFAB';
+import EmptyState from '../components/caixa/mobile/EmptyState';
 
 export default function ControleCaixa() {
   const { isAdmin, loading: adminLoading } = useAdmin();
@@ -244,6 +255,49 @@ export default function ControleCaixa() {
     }, 100);
   };
 
+  // Agrupar transações por data para mobile
+  const sectionedTransactions = useMemo(() => {
+    return groupTransactionsByDate(filteredLancamentos);
+  }, [filteredLancamentos]);
+
+  // Contadores para filtros rápidos
+  const filterCounts = useMemo(() => {
+    return {
+      entradas: fluxoCaixa.filter(l => l.tipo === 'entrada').length,
+      saidas: fluxoCaixa.filter(l => l.tipo === 'saida').length,
+    };
+  }, [fluxoCaixa]);
+
+  // Período atual para exibição
+  const currentPeriod = useMemo(() => {
+    const hoje = new Date();
+    return hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }, []);
+
+  const handleMobileFilterChange = (key: string, value: string) => {
+    if (key === 'type') {
+      setFilters({
+        ...filters,
+        tipo: value === 'todas' ? 'todos' : value,
+      });
+    }
+  };
+
+  const handleMobileSearch = (query: string) => {
+    setFilters({ ...filters, search: query });
+  };
+
+  const handleMobileReportPress = () => {
+    toastSuccess('Funcionalidade de relatório será implementada em breve.');
+  };
+
+  const handleMobileViewTransaction = (id: string) => {
+    const transaction = filteredLancamentos.find(t => t.id === id);
+    if (transaction && transaction.anexo_url) {
+      handleViewAnexo(transaction.anexo_url, transaction.descricao);
+    }
+  };
+
   if (adminLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center pt-20">
@@ -261,8 +315,83 @@ export default function ControleCaixa() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-900 p-6">
+  // Versão Mobile
+  const mobileView = (
+    <div className="lg:hidden min-h-screen bg-gray-900 pb-24">
+      <CaixaHeader onReportPress={handleMobileReportPress} />
+
+      <SearchBar
+        onSearch={handleMobileSearch}
+        placeholder="Buscar transação..."
+        value={filters.search}
+      />
+
+      <CaixaSummary
+        balance={metrics.saldoAtual}
+        entradas={metrics.totalEntradas}
+        saidas={metrics.totalSaidas}
+        pendentes={0}
+        period={currentPeriod}
+        counts={filterCounts}
+      />
+
+      <QuickFilters
+        filters={{ type: filters.tipo, category: filters.categoria }}
+        counts={filterCounts}
+        onFilterChange={handleMobileFilterChange}
+      />
+
+      {error ? (
+        <div className="mx-4 mt-4 bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4">
+          Erro ao carregar: {error}
+        </div>
+      ) : sectionedTransactions.length === 0 ? (
+        <EmptyState onClearFilters={() => {
+          setFilters({
+            search: '',
+            dataInicio: '',
+            dataFim: '',
+            categoria: 'todas',
+            tipo: 'todos',
+            apenasPendentes: false
+          });
+        }} />
+      ) : (
+        <div className="py-3">
+          {sectionedTransactions.map((section, sectionIndex) => (
+            <div key={sectionIndex}>
+              <DateSectionHeader label={section.title} date={section.date} />
+              {section.data.map((transaction) => (
+                <TransactionCard
+                  key={transaction.id}
+                  transaction={transaction}
+                  onView={handleMobileViewTransaction}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onViewAnexo={handleViewAnexo}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <CaixaFAB
+        onAddIncome={() => {
+          setModalTipo('entrada');
+          setShowModal(true);
+        }}
+        onAddExpense={() => {
+          setModalTipo('saida');
+          setShowModal(true);
+        }}
+      />
+    </div>
+  );
+
+  // Versão Desktop
+  const desktopView = (
+    <div className="hidden lg:block min-h-screen bg-gray-900 p-6">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -376,8 +505,15 @@ export default function ControleCaixa() {
           />
         </div>
       )}
+    </div>
+  );
 
-      {/* Modal de Registro/Edição de Lançamento */}
+  return (
+    <>
+      {mobileView}
+      {desktopView}
+      
+      {/* Modal de Registro/Edição de Lançamento - Compartilhado */}
       {membroId && (
         <RegistrarLancamentoModal
           isOpen={showModal}
@@ -392,14 +528,14 @@ export default function ControleCaixa() {
         />
       )}
 
-      {/* Modal de Preview de Anexo */}
+      {/* Modal de Preview de Anexo - Compartilhado */}
       <AnexoPreviewModal
         isOpen={showAnexoModal}
         onClose={() => setShowAnexoModal(false)}
         anexoUrl={anexoUrl}
         fileName={anexoFileName}
       />
-    </div>
+    </>
   );
 }
 

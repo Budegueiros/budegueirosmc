@@ -94,6 +94,10 @@ export interface MembroCargo {
  */
 export interface MembroComCargos extends Membro {
   cargos: Cargo[];
+  conjuge?: {
+    nome_completo: string;
+    nome_guerra: string;
+  } | null;
 }
 
 /**
@@ -381,18 +385,6 @@ export const CATEGORIAS_SAIDA: CategoriaFluxoCaixa[] = [
   'Eventos',
   'Outros'
 ];
-
-/**
- * Interface para histórico de quilometragem anual
- */
-export interface KmAnual {
-  id: string;
-  member_id: string;
-  ano: number;
-  km_total: number;
-  created_at: string;
-  updated_at: string;
-}
 
 /**
  * Helper para verificar se um valor é um tipo sanguíneo válido
