@@ -14,6 +14,20 @@ import Pagination from '../components/mensalidades/Pagination';
 import EditMemberModal from '../components/membros/EditMemberModal';
 import { exportarMembrosParaCSV, exportarMembrosParaPDF } from '../utils/membersExportHelpers';
 
+// Componentes Mobile
+import MobileHeader from '../components/membros/mobile/MobileHeader';
+import SearchBar from '../components/membros/mobile/SearchBar';
+import StatsCarousel from '../components/membros/mobile/StatsCarousel';
+import QuickFilters from '../components/membros/mobile/QuickFilters';
+import MemberCard from '../components/membros/mobile/MemberCard';
+import FilterDrawer, { FilterState as MobileFilterState } from '../components/membros/mobile/FilterDrawer';
+import ActionSheet from '../components/membros/mobile/ActionSheet';
+import FAB from '../components/membros/mobile/FAB';
+import EmptyState from '../components/membros/mobile/EmptyState';
+import LoadingSkeleton from '../components/membros/mobile/LoadingSkeleton';
+import InfiniteScrollTrigger from '../components/membros/mobile/InfiniteScrollTrigger';
+import { useMembersMobile } from '../hooks/useMembersMobile';
+
 interface MembroWithCargos extends Membro {
   cargos_ativos?: Array<{
     id: string;
@@ -41,6 +55,52 @@ export default function ManageMembers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+
+  // Estados para versão mobile
+  const [mobileFilters, setMobileFilters] = useState<MobileFilterState>({
+    status: 'todos',
+    cargo: '',
+    cidade: '',
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedMemberForActions, setSelectedMemberForActions] = useState<MembroWithCargos | null>(null);
+  const [cargos, setCargos] = useState<Array<{ id: string; nome: string }>>([]);
+
+  // Hook mobile
+  const {
+    members: mobileMembers,
+    stats: mobileStats,
+    loading: mobileLoading,
+    refetch: mobileRefetch,
+    hasMore: mobileHasMore,
+    loadMore: mobileLoadMore,
+  } = useMembersMobile({
+    searchQuery,
+    filters: mobileFilters,
+  });
+
+  // Carregar cargos para filtros
+  useEffect(() => {
+    const carregarCargos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cargos')
+          .select('id, nome')
+          .eq('ativo', true)
+          .order('nivel', { ascending: true });
+
+        if (error) throw error;
+        setCargos(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar cargos:', error);
+      }
+    };
+    if (isAdmin) {
+      carregarCargos();
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     // Redirecionar se não for admin
@@ -255,8 +315,139 @@ export default function ManageMembers() {
     return null;
   }
 
+  // Handlers mobile
+  const handleMobileView = (memberId: string) => {
+    navigate(`/manage-members/${memberId}`);
+  };
+
+  const handleMobileEdit = (memberId: string) => {
+    const member = mobileMembers.find((m) => m.id === memberId);
+    if (member) {
+      setSelectedMember(member);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleMobileMoreActions = (memberId: string) => {
+    const member = mobileMembers.find((m) => m.id === memberId);
+    if (member) {
+      setSelectedMemberForActions(member);
+      setActionSheetVisible(true);
+    }
+  };
+
+  const handleMobileRemove = async (memberId: string) => {
+    const member = mobileMembers.find((m) => m.id === memberId);
+    if (member) {
+      await handleToggleAtivo(member);
+      mobileRefetch();
+    }
+  };
+
+  const handleMobileStatPress = (filter: 'todos' | 'brasionado' | 'prospect' | 'inativo') => {
+    setMobileFilters({ ...mobileFilters, status: filter });
+  };
+
+  const handleMobileFilterChange = (key: 'status' | 'cargo', value: string) => {
+    setMobileFilters({ ...mobileFilters, [key]: value });
+  };
+
+  const handleMobileFilterApply = (newFilters: MobileFilterState) => {
+    setMobileFilters(newFilters);
+  };
+
+  const handleClearMobileFilters = () => {
+    setSearchQuery('');
+    setMobileFilters({
+      status: 'todos',
+      cargo: '',
+      cidade: '',
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
+    <>
+      {/* Versão Mobile */}
+      <div className="lg:hidden min-h-screen bg-gray-900 pb-24">
+        <MobileHeader title="Gerenciar Integrantes" />
+
+        <SearchBar
+          onSearch={setSearchQuery}
+          onFilterPress={() => setFilterDrawerVisible(true)}
+        />
+
+        <StatsCarousel stats={mobileStats} onStatPress={handleMobileStatPress} />
+
+        <QuickFilters
+          filters={mobileFilters}
+          activeFilters={mobileFilters}
+          onFilterChange={handleMobileFilterChange}
+          stats={mobileStats}
+        />
+
+        {mobileLoading ? (
+          <LoadingSkeleton />
+        ) : mobileMembers.length === 0 ? (
+          <EmptyState onClearFilters={handleClearMobileFilters} />
+        ) : (
+          <div className="py-3">
+            {mobileMembers.map((member, index) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                index={index}
+                onView={handleMobileView}
+                onEdit={handleMobileEdit}
+                onMoreActions={handleMobileMoreActions}
+              />
+            ))}
+            <InfiniteScrollTrigger
+              onLoadMore={mobileLoadMore}
+              hasMore={mobileHasMore}
+              loading={mobileLoading}
+            />
+          </div>
+        )}
+
+        <FAB to="/invite-member" />
+
+        <FilterDrawer
+          visible={filterDrawerVisible}
+          onClose={() => setFilterDrawerVisible(false)}
+          onApply={handleMobileFilterApply}
+          initialFilters={mobileFilters}
+          cargos={cargos}
+        />
+
+        {selectedMemberForActions && (
+          <ActionSheet
+            visible={actionSheetVisible}
+            onClose={() => {
+              setActionSheetVisible(false);
+              setSelectedMemberForActions(null);
+            }}
+            memberId={selectedMemberForActions.id}
+            memberName={selectedMemberForActions.nome_guerra}
+            onRemove={handleMobileRemove}
+          />
+        )}
+
+        <EditMemberModal
+          membro={selectedMember}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedMember(null);
+          }}
+          onSuccess={() => {
+            carregarDados();
+            mobileRefetch();
+          }}
+        />
+      </div>
+
+      {/* Versão Desktop */}
+      <div className="hidden lg:block min-h-screen bg-gray-900 p-6">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -342,6 +533,7 @@ export default function ManageMembers() {
         onClose={handleModalClose}
         onSuccess={handleModalSuccess}
       />
-    </div>
+      </div>
+    </>
   );
 }

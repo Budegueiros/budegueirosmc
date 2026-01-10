@@ -14,6 +14,16 @@ import Pagination from '../components/mensalidades/Pagination';
 import { calcularStatus } from '../utils/mensalidadesHelpers';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportHelpers';
 
+// Componentes Mobile
+import MensalidadesHeader from '../components/mensalidades/mobile/MensalidadesHeader';
+import SearchBar from '../components/mensalidades/mobile/SearchBar';
+import FinancialSummary from '../components/mensalidades/mobile/FinancialSummary';
+import MensalidadeFilters from '../components/mensalidades/mobile/MensalidadeFilters';
+import BulkActionsBar from '../components/mensalidades/mobile/BulkActionsBar';
+import PaymentCard from '../components/mensalidades/mobile/PaymentCard';
+import PaymentActionSheet from '../components/mensalidades/mobile/PaymentActionSheet';
+import MonthYearPicker from '../components/mensalidades/mobile/MonthYearPicker';
+
 interface NewMensalidade {
   membro_id: string;
   mes_referencia: string;
@@ -48,6 +58,12 @@ export default function ManagePayments() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   
+  // Estados Mobile
+  const [isMobile, setIsMobile] = useState(false);
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  
   const [newMensalidade, setNewMensalidade] = useState<NewMensalidade>({
     membro_id: '',
     mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
@@ -76,6 +92,17 @@ export default function ManagePayments() {
       carregarMembros();
     }
   }, [isAdmin]);
+
+  // Detectar tamanho da tela
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const carregarMembros = async () => {
     try {
@@ -125,6 +152,199 @@ export default function ManagePayments() {
       setIsDrawerOpen(true);
     }
   };
+
+  // Handlers Mobile
+  const handleToggleSelect = (paymentId: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(paymentId)) {
+        return prev.filter(id => id !== paymentId);
+      } else {
+        return [...prev, paymentId];
+      }
+    });
+  };
+
+  const handleBulkMarkAsPaid = async () => {
+    if (selectedIds.length === 0) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('mensalidades')
+        .update({ 
+          status: 'Pago',
+          data_pagamento: new Date().toISOString().split('T')[0]
+        })
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      toastSuccess(`${selectedIds.length} mensalidade(s) marcada(s) como paga(s)!`);
+      setSelectedIds([]);
+      refetch();
+    } catch (error) {
+      console.error('Erro ao marcar como pago:', error);
+      toastError('Erro ao marcar mensalidades como pagas.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleViewPayment = (id: string) => {
+    handleRowClick(id);
+  };
+
+  const handleEditPayment = (id: string) => {
+    handleEditMensalidade(id);
+  };
+
+  const handleMoreActions = (id: string) => {
+    const payment = mensalidades.find(p => p.id === id);
+    setSelectedPayment(payment);
+    setActionSheetVisible(true);
+  };
+
+  const handleMarkAsPaid = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('mensalidades')
+        .update({ 
+          status: 'Pago',
+          data_pagamento: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toastSuccess('Mensalidade marcada como paga!');
+      refetch();
+    } catch (error) {
+      console.error('Erro ao marcar como pago:', error);
+      toastError('Erro ao marcar como pago.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMarkAsUnpaid = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('mensalidades')
+        .update({ 
+          status: 'Aberto',
+          data_pagamento: null
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toastSuccess('Mensalidade marcada como não paga!');
+      refetch();
+    } catch (error) {
+      console.error('Erro ao marcar como não pago:', error);
+      toastError('Erro ao marcar como não pago.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendReminder = async (id: string) => {
+    toastInfo('Função de envio de lembretes será implementada em breve.');
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    await handleDeleteMensalidade(id);
+  };
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters({ ...filters, [key]: value });
+    setSelectedIds([]);
+  };
+
+  const handlePeriodoSelect = (periodo: string) => {
+    setFilters({ ...filters, periodo });
+  };
+
+  // Obter mês e ano atual para o resumo
+  const getCurrentPeriod = () => {
+    const periodo = filters.periodo || new Date().toISOString().slice(0, 7) + '-01';
+    const date = new Date(periodo + 'T00:00:00');
+    return {
+      month: date.toLocaleDateString('pt-BR', { month: 'long' }),
+      year: date.getFullYear(),
+      periodo,
+    };
+  };
+
+  const currentPeriod = getCurrentPeriod();
+
+  // Calcular estatísticas para mobile
+  const mobileStats = useMemo(() => {
+    const periodoAtual = filters.periodo || new Date().toISOString().slice(0, 7) + '-01';
+    const mensalidadesFiltradas = filteredMensalidades.filter(m => 
+      !filters.periodo || m.mes_referencia === periodoAtual
+    );
+
+    const arrecadado = mensalidadesFiltradas
+      .filter(m => {
+        const status = calcularStatus(m);
+        const statusOriginal = (m.status?.trim() || '').toLowerCase();
+        return status === 'Pago' || statusOriginal === 'pago' || !!m.data_pagamento;
+      })
+      .reduce((acc, m) => acc + m.valor, 0);
+
+    const pendente = mensalidadesFiltradas
+      .filter(m => {
+        const status = calcularStatus(m);
+        const statusOriginal = m.status?.trim() || '';
+        return (status === 'Aberto' || status === 'Pendente' || 
+                statusOriginal === 'Aberto' || statusOriginal === 'Pendente') &&
+               new Date(m.data_vencimento) >= new Date();
+      })
+      .reduce((acc, m) => acc + m.valor, 0);
+
+    const atrasado = mensalidadesFiltradas
+      .filter(m => {
+        const status = calcularStatus(m);
+        return status === 'Atrasado';
+      })
+      .reduce((acc, m) => acc + m.valor, 0);
+
+    const pagoCount = mensalidadesFiltradas.filter(m => {
+      const status = calcularStatus(m);
+      const statusOriginal = (m.status?.trim() || '').toLowerCase();
+      return status === 'Pago' || statusOriginal === 'pago' || !!m.data_pagamento;
+    }).length;
+
+    return {
+      arrecadado,
+      pendente,
+      atrasado,
+      pagoCount,
+      totalCount: mensalidadesFiltradas.length,
+    };
+  }, [filteredMensalidades, filters.periodo]);
+
+  // Contadores para filtros mobile
+  const filterCounts = useMemo(() => {
+    return {
+      pago: filteredMensalidades.filter(m => {
+        const status = calcularStatus(m);
+        const statusOriginal = (m.status?.trim() || '').toLowerCase();
+        return status === 'Pago' || statusOriginal === 'pago' || !!m.data_pagamento;
+      }).length,
+      aberto: filteredMensalidades.filter(m => {
+        const status = calcularStatus(m);
+        return status === 'Aberto' || status === 'Pendente';
+      }).length,
+      atrasado: filteredMensalidades.filter(m => {
+        const status = calcularStatus(m);
+        return status === 'Atrasado';
+      }).length,
+    };
+  }, [filteredMensalidades]);
 
   // Calcular métricas
   const metrics = useMemo(() => {
@@ -422,6 +642,118 @@ export default function ManagePayments() {
     return null;
   }
 
+  // Versão Mobile
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gray-900 pb-24">
+        <MensalidadesHeader
+          onReportPress={() => {
+            // Navegar para relatório ou abrir modal
+            toastInfo('Funcionalidade de relatório será implementada em breve.');
+          }}
+        />
+
+        <SearchBar
+          onSearch={(query) => setFilters({ ...filters, search: query })}
+          placeholder="Buscar membro..."
+        />
+
+        <FinancialSummary
+          stats={mobileStats}
+          currentMonth={currentPeriod.month}
+          currentYear={currentPeriod.year}
+        />
+
+        <MensalidadeFilters
+          filters={{ status: filters.status, periodo: filters.periodo }}
+          counts={filterCounts}
+          onFilterChange={handleFilterChange}
+        />
+
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          onMarkAsPaid={handleBulkMarkAsPaid}
+          onClear={() => setSelectedIds([])}
+        />
+
+        {error ? (
+          <div className="mx-4 mt-4 bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4">
+            Erro ao carregar: {error}
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        ) : filteredMensalidades.length === 0 ? (
+          <div className="mx-4 mt-4 bg-gray-800/50 border border-gray-700 rounded-lg p-12 text-center">
+            <p className="text-gray-400 text-base mb-2">Nenhuma mensalidade encontrada</p>
+            <p className="text-gray-500 text-sm">Tente ajustar os filtros de busca</p>
+          </div>
+        ) : (
+          <div className="px-4 py-4 space-y-3">
+            {filteredMensalidades.map((payment) => (
+              <PaymentCard
+                key={payment.id}
+                payment={payment}
+                isSelected={selectedIds.includes(payment.id)}
+                onToggleSelect={() => handleToggleSelect(payment.id)}
+                onView={handleViewPayment}
+                onEdit={handleEditPayment}
+                onMoreActions={handleMoreActions}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* FAB para nova mensalidade */}
+        <Link
+          to="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setShowNewForm(true);
+          }}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition"
+        >
+          <Plus className="w-6 h-6" />
+        </Link>
+
+        {/* Action Sheet */}
+        <PaymentActionSheet
+          visible={actionSheetVisible}
+          onClose={() => {
+            setActionSheetVisible(false);
+            setSelectedPayment(null);
+          }}
+          payment={selectedPayment}
+          onMarkAsPaid={handleMarkAsPaid}
+          onMarkAsUnpaid={handleMarkAsUnpaid}
+          onSendReminder={handleSendReminder}
+          onDelete={handleDeletePayment}
+        />
+
+        {/* Month Year Picker */}
+        <MonthYearPicker
+          visible={showMonthPicker}
+          onClose={() => setShowMonthPicker(false)}
+          onSelect={handlePeriodoSelect}
+          initialPeriodo={filters.periodo}
+        />
+
+        {/* Drawer de Detalhes */}
+        <MensalidadeDrawer
+          mensalidade={drawerMensalidade}
+          isOpen={isDrawerOpen}
+          onClose={() => {
+            setIsDrawerOpen(false);
+            setDrawerMensalidade(null);
+          }}
+          onRefresh={refetch}
+        />
+      </div>
+    );
+  }
+
+  // Versão Desktop (mantém código original)
   return (
     <div className="min-h-screen bg-gray-900 p-6">
         {/* Header */}

@@ -77,6 +77,8 @@ export default function ManageEvents() {
   const [deleteNome, setDeleteNome] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [participacoesEventoId, setParticipacoesEventoId] = useState<string | null>(null);
+  const [participacoesModalOpen, setParticipacoesModalOpen] = useState(false);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -514,6 +516,10 @@ export default function ManageEvents() {
         setSelectedIds={setSelectedIds}
         onDelete={handleDeleteEvento}
         onEdit={handleEditEvento}
+        onManageParticipacoes={(eventoId) => {
+          setParticipacoesEventoId(eventoId);
+          setParticipacoesModalOpen(true);
+        }}
       />
 
       {/* Paginação */}
@@ -859,6 +865,351 @@ export default function ManageEvents() {
           </div>
         </div>
       )}
+
+      {/* Modal de Gerenciar Participações */}
+      <ManageParticipacoesModal
+        isOpen={participacoesModalOpen}
+        eventoId={participacoesEventoId}
+        onClose={() => {
+          setParticipacoesModalOpen(false);
+          setParticipacoesEventoId(null);
+        }}
+        onSave={() => {
+          setParticipacoesModalOpen(false);
+          setParticipacoesEventoId(null);
+          carregarEventos();
+        }}
+      />
+    </div>
+  );
+}
+
+// Componente Modal para Gerenciar Participações
+interface ManageParticipacoesModalProps {
+  isOpen: boolean;
+  eventoId: string | null;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+function ManageParticipacoesModal({ isOpen, eventoId, onClose, onSave }: ManageParticipacoesModalProps) {
+  const { user } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [evento, setEvento] = useState<Evento | null>(null);
+  const [membros, setMembros] = useState<Array<{ id: string; nome_guerra: string; nome_completo: string }>>([]);
+  const [participacoesConfirmadas, setParticipacoesConfirmadas] = useState<Set<string>>(new Set());
+  const [confirmacoesPresenca, setConfirmacoesPresenca] = useState<Set<string>>(new Set());
+  const [adminMembroId, setAdminMembroId] = useState<string | null>(null);
+  const [searchMembro, setSearchMembro] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen && eventoId) {
+      carregarDados();
+    }
+  }, [isOpen, eventoId]);
+
+  const carregarDados = async () => {
+    if (!eventoId || !user) return;
+
+    setLoading(true);
+    try {
+      // Buscar dados do evento
+      const { data: eventoData, error: eventoError } = await supabase
+        .from('eventos')
+        .select('*')
+        .eq('id', eventoId)
+        .single();
+
+      if (eventoError) throw eventoError;
+      setEvento(eventoData);
+
+      // Buscar membro admin atual
+      const { data: adminData } = await supabase
+        .from('membros')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (adminData) {
+        setAdminMembroId(adminData.id);
+      }
+
+      // Buscar todos os membros ativos
+      const { data: membrosData, error: membrosError } = await supabase
+        .from('membros')
+        .select('id, nome_guerra, nome_completo')
+        .eq('ativo', true)
+        .order('nome_guerra', { ascending: true });
+
+      if (membrosError) throw membrosError;
+      setMembros(membrosData || []);
+
+      // Buscar confirmações de presença (para mostrar quem confirmou)
+      const { data: confirmacoesData } = await supabase
+        .from('confirmacoes_presenca')
+        .select('membro_id')
+        .eq('evento_id', eventoId)
+        .eq('status', 'Confirmado');
+
+      const confirmacoesSet = new Set((confirmacoesData || []).map(c => c.membro_id));
+      setConfirmacoesPresenca(confirmacoesSet);
+
+      // Buscar participações já confirmadas pelo admin
+      const { data: participacoesData } = await supabase
+        .from('participacoes_eventos')
+        .select('membro_id')
+        .eq('evento_id', eventoId);
+
+      const participacoesSet = new Set((participacoesData || []).map(p => p.membro_id));
+      setParticipacoesConfirmadas(participacoesSet);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toastError('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleParticipacao = (membroId: string) => {
+    setParticipacoesConfirmadas(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(membroId)) {
+        newSet.delete(membroId);
+      } else {
+        newSet.add(membroId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSalvarParticipacoes = async () => {
+    if (!eventoId || !adminMembroId) {
+      toastError('Erro ao identificar admin');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Buscar participações atuais
+      const { data: participacoesAtuais } = await supabase
+        .from('participacoes_eventos')
+        .select('membro_id')
+        .eq('evento_id', eventoId);
+
+      const idsAtuais = new Set((participacoesAtuais || []).map(p => p.membro_id));
+      const idsNovos = new Set(participacoesConfirmadas);
+
+      // Identificar o que precisa ser adicionado
+      const paraAdicionar = Array.from(idsNovos).filter(id => !idsAtuais.has(id));
+      
+      // Identificar o que precisa ser removido
+      const paraRemover = Array.from(idsAtuais).filter(id => !idsNovos.has(id));
+
+      // Remover participações
+      if (paraRemover.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('participacoes_eventos')
+          .delete()
+          .eq('evento_id', eventoId)
+          .in('membro_id', paraRemover);
+
+        if (deleteError) throw deleteError;
+      }
+
+      // Adicionar novas participações
+      if (paraAdicionar.length > 0) {
+        const novasParticipacoes = paraAdicionar.map(membroId => ({
+          evento_id: eventoId,
+          membro_id: membroId,
+          confirmado_por: adminMembroId
+        }));
+
+        const { error: insertError } = await supabase
+          .from('participacoes_eventos')
+          .insert(novasParticipacoes);
+
+        if (insertError) throw insertError;
+      }
+
+      toastSuccess('Participações atualizadas com sucesso!');
+      onSave();
+    } catch (error) {
+      console.error('Erro ao salvar participações:', error);
+      toastError('Erro ao salvar participações');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen || !eventoId) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-white text-xl font-bold">Gerenciar Participações</h3>
+            {evento && (
+              <p className="text-gray-400 text-sm mt-1">{evento.nome} - {new Date(evento.data_evento).toLocaleDateString('pt-BR')}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition"
+            disabled={saving}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 p-4 bg-blue-950/30 border border-blue-800/30 rounded-lg">
+              <p className="text-blue-300 text-sm">
+                <strong>Instrução:</strong> Marque os membros que realmente participaram deste evento. 
+                O cálculo de KM anual será baseado nestas participações confirmadas.
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Buscar membro..."
+                  value={searchMembro}
+                  onChange={(e) => setSearchMembro(e.target.value)}
+                  className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-gray-400 text-xs">
+                  {participacoesConfirmadas.size} de {membros.length} membros selecionados
+                </p>
+                {confirmacoesPresenca.size > 0 && (
+                  <button
+                    onClick={() => {
+                      // Selecionar todos que confirmaram presença
+                      setParticipacoesConfirmadas(new Set(Array.from(confirmacoesPresenca)));
+                    }}
+                    className="text-blue-400 hover:text-blue-300 text-xs underline"
+                  >
+                    Selecionar todos que confirmaram presença
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto border border-gray-700 rounded-lg mb-4">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-800/50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-gray-300 font-medium w-12"></th>
+                    <th className="px-4 py-3 text-left text-gray-300 font-medium">Nome de Guerra</th>
+                    <th className="px-4 py-3 text-left text-gray-300 font-medium">Nome Completo</th>
+                    <th className="px-4 py-3 text-center text-gray-300 font-medium w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {membros
+                    .filter(membro => {
+                      if (!searchMembro) return true;
+                      const search = searchMembro.toLowerCase();
+                      return membro.nome_guerra.toLowerCase().includes(search) ||
+                             membro.nome_completo.toLowerCase().includes(search);
+                    })
+                    .length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                          {searchMembro ? 'Nenhum membro encontrado' : 'Nenhum membro disponível'}
+                        </td>
+                      </tr>
+                    ) : (
+                      membros
+                        .filter(membro => {
+                          if (!searchMembro) return true;
+                          const search = searchMembro.toLowerCase();
+                          return membro.nome_guerra.toLowerCase().includes(search) ||
+                                 membro.nome_completo.toLowerCase().includes(search);
+                        })
+                        .map((membro) => {
+                          const isParticipando = participacoesConfirmadas.has(membro.id);
+                          const confirmouPresenca = confirmacoesPresenca.has(membro.id);
+
+                          return (
+                            <tr
+                              key={membro.id}
+                              className={`hover:bg-gray-800/30 transition ${isParticipando ? 'bg-blue-950/20' : ''}`}
+                            >
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isParticipando}
+                                  onChange={() => handleToggleParticipacao(membro.id)}
+                                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-white font-medium">{membro.nome_guerra}</td>
+                              <td className="px-4 py-3 text-gray-300">{membro.nome_completo}</td>
+                              <td className="px-4 py-3 text-center">
+                                {confirmouPresenca && (
+                                  <span className="inline-block px-2 py-1 bg-green-950/50 text-green-400 rounded text-xs">
+                                    Confirmou
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                    )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={onClose}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarParticipacoes}
+                disabled={saving}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Salvar Participações
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
