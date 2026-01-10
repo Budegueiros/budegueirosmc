@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, ArrowLeft, Plus, Loader2, Download, FileDown, X, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2, Download, FileDown, X, Save, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
@@ -96,7 +96,7 @@ export default function ManageEvents() {
   const [actionSheetEvento, setActionSheetEvento] = useState<string | null>(null);
   
   // Hook para buscar eventos com participantes
-  const { eventosComConfirmados, loading: eventosLoading, refresh: refreshEventos } = useEvents(user?.id);
+  const { eventosComConfirmados, refresh: refreshEventos } = useEvents(user?.id);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -328,29 +328,40 @@ export default function ManageEvents() {
   };
 
   const handleEditEvento = (eventoId: string) => {
-    const evento = eventos.find(e => e.id === eventoId);
-    if (!evento) return;
+    // Procurar em eventos primeiro, depois em eventosComConfirmados para mobile
+    const eventoCompleto = eventos.find(e => e.id === eventoId) || 
+      eventosComConfirmados.find(e => e.id === eventoId);
+    
+    if (!eventoCompleto) {
+      console.error('Evento não encontrado:', eventoId);
+      return;
+    }
+
+    // Garantir que temos todas as propriedades necessárias
+    const evento = 'descricao' in eventoCompleto 
+      ? eventoCompleto 
+      : eventos.find(e => e.id === eventoId) || eventoCompleto;
 
     setEditingId(evento.id);
     setEditingData({
       nome: evento.nome,
-      descricao: evento.descricao || '',
+      descricao: ('descricao' in evento ? evento.descricao : null) || '',
       data_evento: evento.data_evento,
       hora_saida: evento.hora_saida || '',
       local_saida: evento.local_saida,
       local_destino: evento.local_destino || '',
       cidade: evento.cidade,
       estado: evento.estado,
-      distancia_km: evento.distancia_km?.toString() || '',
+      distancia_km: ('distancia_km' in evento ? evento.distancia_km : null)?.toString() || '',
       tipo_evento: evento.tipo_evento,
       status: evento.status,
       vagas_limitadas: evento.vagas_limitadas,
       max_participantes: evento.max_participantes?.toString() || '',
-      observacoes: evento.observacoes || '',
-      evento_principal: evento.evento_principal,
+      observacoes: ('observacoes' in evento ? evento.observacoes : null) || '',
+      evento_principal: ('evento_principal' in evento ? evento.evento_principal : false),
     });
     setSelectedFile(null);
-    setPreviewUrl(evento.foto_capa_url);
+    setPreviewUrl(('foto_capa_url' in evento ? evento.foto_capa_url : null) || null);
     setGaleriaFiles([]);
     setGaleriaPreviews([]);
   };
@@ -696,11 +707,14 @@ export default function ManageEvents() {
             onEdit={() => {
               if (actionSheetEvento) {
                 handleEditEvento(actionSheetEvento);
+                setActionSheetEvento(null); // Fechar ActionSheet após ação
               }
             }}
             onDelete={() => {
               if (actionSheetEvento) {
-                const evento = eventos.find(e => e.id === actionSheetEvento);
+                // Procurar em ambos os arrays
+                const evento = eventos.find(e => e.id === actionSheetEvento) || 
+                              eventosComConfirmados.find(e => e.id === actionSheetEvento);
                 if (evento) {
                   handleDeleteEvento(actionSheetEvento, evento.nome);
                 }
@@ -710,6 +724,7 @@ export default function ManageEvents() {
               if (actionSheetEvento) {
                 setParticipacoesEventoId(actionSheetEvento);
                 setParticipacoesModalOpen(true);
+                setActionSheetEvento(null); // Fechar ActionSheet após ação
               }
             }}
           />
@@ -797,16 +812,18 @@ export default function ManageEvents() {
           onPageChange={setCurrentPage}
         />
       )}
+      </div>
 
+      {/* Modais Compartilhados (Mobile e Desktop) */}
       {/* Modal de Edição */}
       {editingId && editingData && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white text-xl font-bold">Editar Evento</h3>
               <button
                 onClick={handleCancelEdit}
-                className="text-gray-400 hover:text-white transition"
+                className="text-gray-400 hover:text-white transition min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1101,7 +1118,7 @@ export default function ManageEvents() {
 
       {/* Modal de Confirmação - Excluir Evento */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full">
             <h3 className="text-white text-xl font-bold mb-4">
               Confirmar Exclusão
@@ -1146,7 +1163,6 @@ export default function ManageEvents() {
           refreshEventos();
         }}
       />
-      </div>
     </>
   );
 }

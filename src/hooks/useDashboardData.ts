@@ -95,7 +95,8 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
       }
     } catch (err) {
       const appError = handleSupabaseError(err);
-      setError(appError.message);
+      // Evitar atualizar error se já está definido para evitar loop
+      setError((prevError) => prevError || appError.message);
       logError(appError, { userId });
       console.error('Erro ao carregar dados do Dashboard:', err);
     } finally {
