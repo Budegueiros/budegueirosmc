@@ -11,6 +11,16 @@ import EventsFilterBar from '../components/eventos/EventsFilterBar';
 import EventsTable from '../components/eventos/EventsTable';
 import Pagination from '../components/mensalidades/Pagination';
 import { exportarEventosParaCSV, exportarEventosParaPDF } from '../utils/exportHelpers';
+// Mobile Components
+import EventosHeader from '../components/eventos/mobile/EventosHeader';
+import EventosSummary from '../components/eventos/mobile/EventosSummary';
+import SearchBar from '../components/eventos/mobile/SearchBar';
+import EventosFilters from '../components/eventos/mobile/EventosFilters';
+import EventSectionHeader from '../components/eventos/mobile/EventSectionHeader';
+import EventCard from '../components/eventos/mobile/EventCard';
+import FAB from '../components/eventos/mobile/FAB';
+import ActionSheet from '../components/eventos/mobile/ActionSheet';
+import { useEvents } from '../hooks/useEvents';
 
 interface Evento {
   id: string;
@@ -79,6 +89,14 @@ export default function ManageEvents() {
   const itemsPerPage = 20;
   const [participacoesEventoId, setParticipacoesEventoId] = useState<string | null>(null);
   const [participacoesModalOpen, setParticipacoesModalOpen] = useState(false);
+  // Mobile states
+  const [mobileSearch, setMobileSearch] = useState('');
+  const [mobileStatusFilter, setMobileStatusFilter] = useState('todos');
+  const [mobileTipoFilter, setMobileTipoFilter] = useState('todos');
+  const [actionSheetEvento, setActionSheetEvento] = useState<string | null>(null);
+  
+  // Hook para buscar eventos com participantes
+  const { eventosComConfirmados, loading: eventosLoading, refresh: refreshEventos } = useEvents(user?.id);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -89,7 +107,9 @@ export default function ManageEvents() {
   useEffect(() => {
     if (isAdmin) {
       carregarEventos();
+      refreshEventos(); // Atualizar eventos com participantes
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   const carregarEventos = async () => {
@@ -159,16 +179,153 @@ export default function ManageEvents() {
       });
 
     const proximoEvento = eventosFuturos.length > 0 
-      ? eventosFuturos[0].nome 
+      ? eventosFuturos[0] 
       : null;
 
     return {
       totalEventos: eventos.length,
       eventosAtivos: eventosAtivos.length,
       eventosFinalizados: eventosFinalizados.length,
-      proximoEvento
+      proximoEvento: proximoEvento?.nome || null,
+      proximoEventoData: proximoEvento?.data_evento || null,
+      proximoEventoHora: proximoEvento?.hora_saida || null
     };
   }, [eventos]);
+
+  // Filtrar eventos mobile
+  const mobileFilteredEventos = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    return eventosComConfirmados.filter(e => {
+      const matchSearch = 
+        !mobileSearch ||
+        e.nome.toLowerCase().includes(mobileSearch.toLowerCase()) ||
+        e.cidade.toLowerCase().includes(mobileSearch.toLowerCase()) ||
+        e.tipo_evento.toLowerCase().includes(mobileSearch.toLowerCase());
+      
+      const matchStatus = mobileStatusFilter === 'todos' || e.status === mobileStatusFilter;
+      const matchTipo = mobileTipoFilter === 'todos' || e.tipo_evento === mobileTipoFilter;
+      
+      return matchSearch && matchStatus && matchTipo;
+    }).map(e => {
+      const dataEvento = new Date(e.data_evento + 'T00:00:00');
+      dataEvento.setHours(0, 0, 0, 0);
+      return {
+        ...e,
+        isFuturo: dataEvento >= hoje
+      };
+    });
+  }, [eventosComConfirmados, mobileSearch, mobileStatusFilter, mobileTipoFilter]);
+
+  // Separar eventos por categoria (próximos vs passados)
+  const eventosProximos = useMemo(() => 
+    mobileFilteredEventos
+      .filter(e => e.isFuturo && e.status === 'Ativo')
+      .sort((a, b) => {
+        const dataA = new Date(a.data_evento + 'T00:00:00').getTime();
+        const dataB = new Date(b.data_evento + 'T00:00:00').getTime();
+        return dataA - dataB;
+      }),
+    [mobileFilteredEventos]
+  );
+
+  const eventosPassados = useMemo(() => 
+    mobileFilteredEventos
+      .filter(e => !e.isFuturo || e.status === 'Finalizado')
+      .sort((a, b) => {
+        const dataA = new Date(a.data_evento + 'T00:00:00').getTime();
+        const dataB = new Date(b.data_evento + 'T00:00:00').getTime();
+        return dataB - dataA; // Mais recentes primeiro
+      }),
+    [mobileFilteredEventos]
+  );
+
+  // Contar eventos por tipo para filtros
+  const eventosCounts = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
+    const eventosFiltrados = eventosComConfirmados.filter(e => {
+      const matchSearch = 
+        !mobileSearch ||
+        e.nome.toLowerCase().includes(mobileSearch.toLowerCase()) ||
+        e.cidade.toLowerCase().includes(mobileSearch.toLowerCase()) ||
+        e.tipo_evento.toLowerCase().includes(mobileSearch.toLowerCase());
+      
+      const matchStatus = mobileStatusFilter === 'todos' || e.status === mobileStatusFilter;
+      return matchSearch && matchStatus;
+    });
+
+    return {
+      todos: eventosFiltrados.length,
+      roles: eventosFiltrados.filter(e => e.tipo_evento === 'Role').length,
+      encontros: eventosFiltrados.filter(e => e.tipo_evento === 'Encontro').length
+    };
+  }, [eventosComConfirmados, mobileSearch, mobileStatusFilter]);
+
+  // Função para confirmar presença
+  const handleConfirmarPresenca = async (eventoId: string) => {
+    if (!user) return;
+
+    try {
+      // Buscar membro
+      const { data: membroData } = await supabase
+        .from('membros')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!membroData) {
+        toastError('Erro ao identificar membro');
+        return;
+      }
+
+      // Verificar se já confirmou
+      const { data: confirmacaoExistente } = await supabase
+        .from('confirmacoes_presenca')
+        .select('id, status')
+        .eq('evento_id', eventoId)
+        .eq('membro_id', membroData.id)
+        .single();
+
+      if (confirmacaoExistente) {
+        // Atualizar status
+        const novoStatus = confirmacaoExistente.status === 'Confirmado' 
+          ? 'Cancelado' 
+          : 'Confirmado';
+
+        const { error } = await supabase
+          .from('confirmacoes_presenca')
+          .update({ status: novoStatus })
+          .eq('id', confirmacaoExistente.id);
+
+        if (error) throw error;
+
+        toastSuccess(novoStatus === 'Confirmado' 
+          ? 'Presença confirmada!' 
+          : 'Presença cancelada.');
+      } else {
+        // Criar confirmação
+        const { error } = await supabase
+          .from('confirmacoes_presenca')
+          .insert({
+            evento_id: eventoId,
+            membro_id: membroData.id,
+            status: 'Confirmado'
+          });
+
+        if (error) throw error;
+        toastSuccess('Presença confirmada!');
+      }
+
+      await refreshEventos();
+      await carregarEventos(); // Atualizar lista completa
+    } catch (error) {
+      console.error('Erro ao confirmar presença:', error);
+      toastError('Erro ao confirmar presença');
+    }
+  };
 
   const handleEditEvento = (eventoId: string) => {
     const evento = eventos.find(e => e.id === eventoId);
@@ -382,6 +539,7 @@ export default function ManageEvents() {
       }
 
       await carregarEventos();
+      await refreshEventos();
       setEditingId(null);
       setEditingData(null);
       setSelectedFile(null);
@@ -423,6 +581,7 @@ export default function ManageEvents() {
       if (error) throw error;
 
       setEventos(eventos.filter(e => e.id !== deleteId));
+      await refreshEventos();
       setDeleteId(null);
       setDeleteNome('');
       toastSuccess('Evento deletado com sucesso!');
@@ -452,7 +611,113 @@ export default function ManageEvents() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
+    <>
+      {/* Versão Mobile */}
+      <div className="lg:hidden min-h-screen bg-gray-900 pb-24">
+        <EventosHeader />
+
+        <EventosSummary metrics={metrics} />
+
+        <SearchBar
+          value={mobileSearch}
+          onChange={setMobileSearch}
+        />
+
+        <EventosFilters
+          statusFilter={mobileStatusFilter}
+          tipoFilter={mobileTipoFilter}
+          onStatusChange={setMobileStatusFilter}
+          onTipoChange={setMobileTipoFilter}
+          eventosCounts={eventosCounts}
+        />
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        ) : mobileFilteredEventos.length === 0 ? (
+          <div className="mx-4 mt-8 bg-gray-800/50 border border-gray-700 rounded-lg p-12 text-center">
+            <p className="text-gray-400 text-lg mb-2">Nenhum evento encontrado</p>
+            <p className="text-gray-500 text-sm">Tente ajustar os filtros de busca</p>
+          </div>
+        ) : (
+          <div className="py-3">
+            {/* Próximos Eventos */}
+            {eventosProximos.length > 0 && (
+              <>
+                <EventSectionHeader icon="📅" title="Próximos Eventos" />
+                {eventosProximos.map((evento, index) => (
+                  <EventCard
+                    key={evento.id}
+                    evento={evento}
+                    confirmados={evento.confirmados}
+                    totalMembros={evento.totalMembros}
+                    usuarioConfirmou={evento.usuarioConfirmou}
+                    onConfirmar={() => handleConfirmarPresenca(evento.id)}
+                    onVer={() => handleEditEvento(evento.id)}
+                    onMore={() => setActionSheetEvento(evento.id)}
+                    index={index}
+                  />
+                ))}
+              </>
+            )}
+
+            {/* Eventos Passados */}
+            {eventosPassados.length > 0 && (
+              <>
+                <EventSectionHeader icon="📂" title="Eventos Passados" />
+                {eventosPassados.map((evento, index) => (
+                  <EventCard
+                    key={evento.id}
+                    evento={evento}
+                    confirmados={evento.confirmados}
+                    totalMembros={evento.totalMembros}
+                    usuarioConfirmou={evento.usuarioConfirmou}
+                    onVer={() => handleEditEvento(evento.id)}
+                    onMore={() => setActionSheetEvento(evento.id)}
+                    onRelatorio={() => {
+                      // Implementar relatório se necessário
+                    }}
+                    index={index}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        <FAB to="/create-event" />
+
+        {/* Action Sheet */}
+        {actionSheetEvento && (
+          <ActionSheet
+            visible={!!actionSheetEvento}
+            onClose={() => setActionSheetEvento(null)}
+            onEdit={() => {
+              if (actionSheetEvento) {
+                handleEditEvento(actionSheetEvento);
+              }
+            }}
+            onDelete={() => {
+              if (actionSheetEvento) {
+                const evento = eventos.find(e => e.id === actionSheetEvento);
+                if (evento) {
+                  handleDeleteEvento(actionSheetEvento, evento.nome);
+                }
+              }
+            }}
+            onManageParticipacoes={() => {
+              if (actionSheetEvento) {
+                setParticipacoesEventoId(actionSheetEvento);
+                setParticipacoesModalOpen(true);
+              }
+            }}
+          />
+        )}
+      </div>
+
+      {/* Versão Desktop */}
+      <div className="hidden lg:block min-h-screen bg-gray-900 p-6">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -878,9 +1143,11 @@ export default function ManageEvents() {
           setParticipacoesModalOpen(false);
           setParticipacoesEventoId(null);
           carregarEventos();
+          refreshEventos();
         }}
       />
-    </div>
+      </div>
+    </>
   );
 }
 
