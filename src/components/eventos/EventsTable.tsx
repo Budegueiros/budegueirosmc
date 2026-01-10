@@ -21,6 +21,7 @@ interface EventsTableProps {
   setSelectedIds: (ids: string[] | ((prev: string[]) => string[])) => void;
   onDelete: (id: string, nome: string) => void;
   onEdit: (id: string) => void;
+  onManageParticipacoes?: (id: string) => void;
 }
 
 type SortField = 'nome' | 'data' | 'tipo' | null;
@@ -31,7 +32,8 @@ export default function EventsTable({
   selectedIds,
   setSelectedIds,
   onDelete,
-  onEdit
+  onEdit,
+  onManageParticipacoes
 }: EventsTableProps) {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -216,6 +218,7 @@ export default function EventsTable({
                     eventoId={evento.id}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onManageParticipacoes={onManageParticipacoes}
                     eventoNome={evento.nome}
                   />
                 </td>

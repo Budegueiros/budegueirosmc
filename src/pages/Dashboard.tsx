@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, MapPin, User, Loader2, Users, Shield } from 'lucide-react';
+import { Calendar, MapPin, User, Loader2, Users, Shield, Droplet, Gauge } from 'lucide-react';
 import { GiFullMotorcycleHelmet } from 'react-icons/gi';
 import { FaMoneyBillAlt } from "react-icons/fa";
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
-import { StatusMembroEnum } from '../types/database.types';
+import { StatusMembroEnum, TipoSanguineo } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface MembroData {
@@ -20,6 +20,7 @@ interface MembroData {
   endereco_cidade?: string;
   endereco_estado?: string;
   padrinho_id?: string | null;
+  tipo_sanguineo?: TipoSanguineo | null;
   conjuge?: {
     nome_completo: string;
     nome_guerra: string;
@@ -75,6 +76,7 @@ export default function Dashboard() {
   const [confirmados, setConfirmados] = useState(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
   const [confirmandoPresenca, setConfirmandoPresenca] = useState(false);
+  const [kmAnual, setKmAnual] = useState<number>(0);
 
   useEffect(() => {
     carregarDados();
@@ -206,6 +208,65 @@ export default function Dashboard() {
           setTodasMensalidades(mensalidadesData);
         } else if (mensalidadesError) {
           console.error('Erro ao buscar mensalidades:', mensalidadesError);
+        }
+
+        // Calcular KM anual baseado em participações confirmadas pelo admin
+        const anoAtual = new Date().getFullYear();
+        const inicioAno = new Date(anoAtual, 0, 1).toISOString().split('T')[0];
+        const fimAno = new Date(anoAtual, 11, 31).toISOString().split('T')[0];
+
+        // Buscar participações confirmadas pelo admin do membro
+        const { data: participacoes } = await supabase
+          .from('participacoes_eventos')
+          .select('evento_id')
+          .eq('membro_id', membroData.id);
+
+        if (participacoes && participacoes.length > 0) {
+          // Buscar eventos correspondentes que estão no ano atual
+          const eventoIds = participacoes.map(p => p.evento_id);
+          const { data: eventos } = await supabase
+            .from('eventos')
+            .select('distancia_km, data_evento')
+            .in('id', eventoIds)
+            .gte('data_evento', inicioAno)
+            .lte('data_evento', fimAno);
+
+          if (eventos) {
+            const totalKm = eventos.reduce((acc: number, evento: any) => {
+              const distancia = evento.distancia_km || 0;
+              return acc + (typeof distancia === 'number' && !isNaN(distancia) ? distancia : 0);
+            }, 0);
+            setKmAnual(Math.round(totalKm * 100) / 100); // Arredondar para 2 casas decimais
+
+            // Atualizar ou criar registro na tabela km_anual
+            const { data: kmAnualExistente } = await supabase
+              .from('km_anual')
+              .select('id')
+              .eq('member_id', membroData.id)
+              .eq('ano', anoAtual)
+              .maybeSingle();
+
+            if (kmAnualExistente) {
+              // Atualizar registro existente
+              await supabase
+                .from('km_anual')
+                .update({ km_total: totalKm })
+                .eq('id', kmAnualExistente.id);
+            } else {
+              // Criar novo registro
+              await supabase
+                .from('km_anual')
+                .insert({
+                  member_id: membroData.id,
+                  ano: anoAtual,
+                  km_total: totalKm
+                });
+            }
+          } else {
+            setKmAnual(0);
+          }
+        } else {
+          setKmAnual(0);
         }
       }
     } catch (error) {
@@ -397,6 +458,17 @@ export default function Dashboard() {
                         </p>
                       </div>
                     )}
+                    {membro.tipo_sanguineo && (
+                      <div>
+                        <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
+                          <Droplet className="w-4 h-4" />
+                          <span className="uppercase">Tipo Sanguíneo</span>
+                        </div>
+                        <p className="text-[#FF6B6B] font-semibold text-sm lg:text-base font-mono">
+                          {membro.tipo_sanguineo}
+                        </p>
+                      </div>
+                    )}
                     {membro.padrinho && membro.padrinho.nome_guerra && (
                       <div>
                         <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
@@ -406,7 +478,7 @@ export default function Dashboard() {
                         <p className="text-white font-semibold text-sm lg:text-base">{membro.padrinho.nome_guerra}</p>
                       </div>
                     )}
-                    <div className={membro.conjuge || (membro.padrinho && membro.padrinho.nome_guerra) ? '' : 'lg:col-span-2'}>
+                    <div className={membro.conjuge || membro.tipo_sanguineo || (membro.padrinho && membro.padrinho.nome_guerra) ? '' : 'lg:col-span-2'}>
                       <div className="flex items-center gap-2 text-gray-500 text-xs lg:text-sm mb-1">
                         <Shield className="w-4 h-4" />
                         <span className="uppercase">Nº Integrante</span>
@@ -637,6 +709,25 @@ export default function Dashboard() {
                     ))}
                   </div>
 
+                  {/* KM Rodados no Ano */}
+                  <div className="bg-[#0A0A10] rounded-lg border border-gray-800 p-4 mb-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-[#4CAF50]/20 p-2 rounded-lg">
+                          <Gauge className="w-5 h-5 text-[#4CAF50]" />
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs uppercase font-oswald mb-1">
+                            KM RODADOS EM {new Date().getFullYear()}
+                          </p>
+                          <p className="text-[#4CAF50] font-oswald text-2xl font-bold">
+                            {kmAnual.toLocaleString('pt-BR')} <span className="text-base text-gray-400">km</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Botão Adicionar Nova Moto */}
                   <Link
                     to="/add-moto"
@@ -647,15 +738,45 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 p-8 text-center h-full flex flex-col items-center justify-center">
-                <GiFullMotorcycleHelmet className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-                <p className="text-gray-500 text-sm mb-4">Nenhuma moto cadastrada</p>
-                <Link
-                  to="/add-moto"
-                  className="bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
-                >
-                  Cadastrar Moto
-                </Link>
+              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden h-full flex flex-col">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-brand-red/20 to-transparent border-b border-gray-800 px-5 py-4">
+                  <h3 className="text-white font-oswald text-base uppercase font-bold flex items-center gap-2">
+                    <GiFullMotorcycleHelmet className="w-5 h-5 text-brand-red" />
+                    MINHA MÁQUINA
+                  </h3>
+                </div>
+
+                <div className="p-5 flex-1 flex flex-col items-center justify-center">
+                  <GiFullMotorcycleHelmet className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+                  <p className="text-gray-500 text-sm mb-6">Nenhuma moto cadastrada</p>
+
+                  {/* KM Rodados no Ano - mesmo quando não há motos */}
+                  <div className="bg-[#0A0A10] rounded-lg border border-gray-800 p-4 mb-6 w-full">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-[#4CAF50]/20 p-2 rounded-lg">
+                          <Gauge className="w-5 h-5 text-[#4CAF50]" />
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs uppercase font-oswald mb-1">
+                            KM RODADOS EM {new Date().getFullYear()}
+                          </p>
+                          <p className="text-[#4CAF50] font-oswald text-2xl font-bold">
+                            {kmAnual.toLocaleString('pt-BR')} <span className="text-base text-gray-400">km</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/add-moto"
+                    className="block w-full bg-[#661A1A] hover:bg-[#771A1A] border border-[#CC3333] text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition text-center"
+                  >
+                    + CADASTRAR NOVA MOTO
+                  </Link>
+                </div>
               </div>
             )}
           </div>

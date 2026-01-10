@@ -23,6 +23,11 @@ export type TipoCargoEnum =
   | 'Honorario';
 
 /**
+ * Tipos sanguíneos válidos
+ */
+export type TipoSanguineo = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+
+/**
  * Interface base para membros
  */
 export interface Membro {
@@ -39,6 +44,7 @@ export interface Membro {
   endereco_cidade: string | null;
   endereco_estado: string | null;
   foto_url: string | null;
+  tipo_sanguineo: TipoSanguineo | null;
   ativo: boolean;
   is_admin: boolean;
   created_at: string;
@@ -375,4 +381,59 @@ export const CATEGORIAS_SAIDA: CategoriaFluxoCaixa[] = [
   'Eventos',
   'Outros'
 ];
+
+/**
+ * Interface para histórico de quilometragem anual
+ */
+export interface KmAnual {
+  id: string;
+  member_id: string;
+  ano: number;
+  km_total: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Helper para verificar se um valor é um tipo sanguíneo válido
+ */
+export function isTipoSanguineo(value: string | null | undefined): value is TipoSanguineo {
+  if (!value) return false;
+  return ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(value);
+}
+
+/**
+ * Opções de tipo sanguíneo para formulários
+ */
+export const TIPOS_SANGUINEOS: TipoSanguineo[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+/**
+ * Interface para participações confirmadas pelo admin em eventos
+ */
+export interface ParticipacaoEvento {
+  id: string;
+  evento_id: string;
+  membro_id: string;
+  confirmado_por: string | null;
+  data_confirmacao: string;
+  observacao: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Interface estendida com informações do membro e evento
+ */
+export interface ParticipacaoEventoCompleta extends ParticipacaoEvento {
+  membro: {
+    nome_guerra: string;
+    nome_completo: string;
+    foto_url: string | null;
+  };
+  evento: {
+    nome: string;
+    data_evento: string;
+    distancia_km: number | null;
+  };
+}
 
