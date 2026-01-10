@@ -24,16 +24,25 @@ export default function ActionSheet({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 z-50 animate-fadeIn"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       />
 
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 rounded-t-2xl z-50 animate-slideUp pb-safe">
+      <div 
+        className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 rounded-t-2xl z-50 animate-slideUp pb-safe"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
           <h3 className="text-base font-semibold text-white">Ações</h3>
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-700 rounded-lg transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="p-2 hover:bg-gray-700 rounded-lg transition min-h-[44px] min-w-[44px]"
             aria-label="Fechar"
           >
             <X className="w-5 h-5 text-gray-400" />
@@ -43,11 +52,12 @@ export default function ActionSheet({
         <div className="py-2">
           {onEdit && (
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onEdit();
-                onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-700 transition"
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-700 active:bg-gray-600 transition min-h-[44px]"
             >
               <div className="p-2 bg-gray-700 rounded-lg">
                 <Edit2 className="w-5 h-5 text-white" />
@@ -58,11 +68,12 @@ export default function ActionSheet({
 
           {onManageParticipacoes && (
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onManageParticipacoes();
-                onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-700 transition"
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-700 active:bg-gray-600 transition min-h-[44px]"
             >
               <div className="p-2 bg-blue-600 rounded-lg">
                 <Users className="w-5 h-5 text-white" />
@@ -73,11 +84,12 @@ export default function ActionSheet({
 
           {onRelatorio && (
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onRelatorio();
-                onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-700 transition"
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-700 active:bg-gray-600 transition min-h-[44px]"
             >
               <div className="p-2 bg-blue-600 rounded-lg">
                 <FileText className="w-5 h-5 text-white" />
@@ -88,11 +100,12 @@ export default function ActionSheet({
 
           {onDelete && (
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onDelete();
-                onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-red-600/20 transition border-t border-gray-700 mt-2"
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-red-600/20 active:bg-red-600/30 transition border-t border-gray-700 mt-2 min-h-[44px]"
             >
               <div className="p-2 bg-red-600 rounded-lg">
                 <Trash2 className="w-5 h-5 text-white" />

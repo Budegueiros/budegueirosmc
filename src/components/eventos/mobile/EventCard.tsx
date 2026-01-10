@@ -251,8 +251,11 @@ export default function EventCard({
 
         {onVer && (
           <button
-            onClick={onVer}
-            className="flex-1 flex items-center justify-center gap-2 h-11 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold text-sm transition active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              onVer();
+            }}
+            className="flex-1 flex items-center justify-center gap-2 h-11 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold text-sm transition active:scale-95 min-h-[44px]"
           >
             <Eye className="w-4 h-4" />
             <span>Ver</span>
