@@ -20,7 +20,18 @@ export default function Login() {
       await signIn(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
+      // Usar a mensagem de erro traduzida do AuthContext
+      const errorMessage = err.message || 'Erro ao fazer login. Verifique suas credenciais e tente novamente.';
+      setError(errorMessage);
+      
+      // Log do erro completo para debug (apenas em desenvolvimento)
+      if (import.meta.env.DEV) {
+        console.error('Erro de autenticação:', {
+          message: err.message,
+          status: err.status,
+          originalError: err.originalError,
+        });
+      }
     } finally {
       setLoading(false);
     }
