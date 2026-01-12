@@ -4,9 +4,10 @@ import { DocumentoComAutor } from '../types/database.types';
 interface DocumentoCardProps {
   documento: DocumentoComAutor;
   onMarcarComoAcessado: (id: string) => void;
+  onVisualizar?: (documento: DocumentoComAutor) => void;
 }
 
-export default function DocumentoCard({ documento, onMarcarComoAcessado }: DocumentoCardProps) {
+export default function DocumentoCard({ documento, onMarcarComoAcessado, onVisualizar }: DocumentoCardProps) {
   const getDestinatarioLabel = () => {
     if (documento.tipo_destinatario === 'geral') return 'GERAL';
     if (documento.tipo_destinatario === 'cargo') {
@@ -36,6 +37,12 @@ export default function DocumentoCard({ documento, onMarcarComoAcessado }: Docum
     window.open(documento.arquivo_url, '_blank');
     if (!documento.ja_acessado) {
       onMarcarComoAcessado(documento.id);
+    }
+  };
+
+  const handleVisualizar = () => {
+    if (onVisualizar) {
+      onVisualizar(documento);
     }
   };
 
@@ -101,6 +108,14 @@ export default function DocumentoCard({ documento, onMarcarComoAcessado }: Docum
                   className="flex items-center gap-2 text-white hover:text-white text-xs sm:text-sm font-semibold bg-brand-red/20 hover:bg-brand-red/30 border-2 border-brand-red/50 hover:border-brand-red px-3 sm:px-4 py-2 rounded-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 focus:ring-offset-zinc-800 shadow-lg hover:shadow-brand-red/20 justify-center"
                 >
                   <Eye size={16} /> <span className="whitespace-nowrap">Marcar como acessado</span>
+                </button>
+              )}
+              {onVisualizar && (
+                <button
+                  onClick={handleVisualizar}
+                  className="flex items-center gap-2 text-white hover:text-white text-xs sm:text-sm font-semibold bg-brand-red/20 hover:bg-brand-red/30 border-2 border-brand-red/50 hover:border-brand-red px-3 sm:px-4 py-2 rounded-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 focus:ring-offset-zinc-800 shadow-lg hover:shadow-brand-red/20 justify-center"
+                >
+                  <Eye size={16} /> <span className="whitespace-nowrap">Visualizar</span>
                 </button>
               )}
               <button
