@@ -17,10 +17,14 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { motoService } from '../services/motoService';
+import { mensalidadeService } from '../services/mensalidadeService';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
 import { Membro, STATUS_STYLES } from '../types/database.types';
+import { handleSupabaseError } from '../utils/errorHandler';
 import BentoCard from '../components/membros/BentoCard';
 import EditMemberGeneralModal from '../components/membros/EditMemberGeneralModal';
 import MotoModal from '../components/membros/MotoModal';
@@ -130,82 +134,53 @@ export default function ManageMemberDetail() {
     
     setLoading(true);
     try {
-      // Carregar membro
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
-        .select(`
-          *,
-          membro_cargos (
-            id,
-            ativo,
-            cargos (
-              id,
-              nome,
-              tipo_cargo
-            )
-          )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (membroError) {
-        console.error('Erro ao buscar membro:', membroError);
-        throw membroError;
-      }
+      // Carregar membro usando service
+      const membroComCargos = await membroService.buscarPorId(id);
       
-      if (!membroData) {
+      if (!membroComCargos) {
         console.error('Membro não encontrado com ID:', id);
         toastError('Membro não encontrado');
         navigate('/manage-members');
         return;
       }
       
-      // Extrair apenas os campos do membro, removendo membro_cargos que é uma relação
+      // Extrair apenas os campos do membro
       const membroLimpo: Membro = {
-        id: membroData.id,
-        user_id: membroData.user_id,
-        nome_completo: membroData.nome_completo,
-        nome_guerra: membroData.nome_guerra,
-        padrinho_id: membroData.padrinho_id,
-        status_membro: membroData.status_membro,
-        numero_carteira: membroData.numero_carteira,
-        data_inicio: membroData.data_inicio,
-        telefone: membroData.telefone,
-        email: membroData.email,
-        endereco_cidade: membroData.endereco_cidade,
-        endereco_estado: membroData.endereco_estado,
-        foto_url: membroData.foto_url,
-        ativo: membroData.ativo,
-        is_admin: membroData.is_admin,
-        created_at: membroData.created_at,
-        updated_at: membroData.updated_at,
-        padrinho: membroData.padrinho || null
+        id: membroComCargos.id,
+        user_id: membroComCargos.user_id,
+        nome_completo: membroComCargos.nome_completo,
+        nome_guerra: membroComCargos.nome_guerra,
+        padrinho_id: membroComCargos.padrinho_id,
+        status_membro: membroComCargos.status_membro,
+        numero_carteira: membroComCargos.numero_carteira,
+        data_inicio: membroComCargos.data_inicio,
+        telefone: membroComCargos.telefone,
+        email: membroComCargos.email,
+        endereco_cidade: membroComCargos.endereco_cidade,
+        endereco_estado: membroComCargos.endereco_estado,
+        foto_url: membroComCargos.foto_url,
+        tipo_sanguineo: membroComCargos.tipo_sanguineo,
+        ativo: membroComCargos.ativo,
+        is_admin: membroComCargos.is_admin,
+        created_at: membroComCargos.created_at,
+        updated_at: membroComCargos.updated_at,
+        padrinho: membroComCargos.padrinho || null
       };
       
       setMembro(membroLimpo);
 
       // Carregar cargos atuais
-      const cargosAtuaisIds = (membroData.membro_cargos || [])
-        .filter((mc: any) => mc && mc.cargos && mc.ativo)
-        .map((mc: any) => mc.cargos.id) || [];
+      const cargosAtuaisIds = membroComCargos.cargos.map((c) => c.id);
       setCargosSelecionados(cargosAtuaisIds);
 
-      // Carregar motos
+      // Carregar motos usando service
       try {
-        const { data: motosData, error: motosError } = await supabase
-          .from('motos')
-          .select('*')
-          .eq('membro_id', id)
-          .order('created_at', { ascending: false });
-
-        if (motosError) {
-          console.error('Erro ao carregar motos:', motosError);
-          toastError(`Erro ao carregar motos: ${motosError.message}`);
-        } else {
-          setMotos(motosData || []);
-        }
-      } catch (error: any) {
-        console.error('Erro ao carregar motos:', error);
+        const motosData = await motoService.buscarPorMembroId(id);
+        setMotos(motosData);
+      } catch (error) {
+        const appError = handleSupabaseError(error);
+        console.error('Erro ao carregar motos:', appError);
+        toastError(`Erro ao carregar motos: ${appError.message}`);
         setMotos([]);
       }
 
@@ -267,22 +242,14 @@ export default function ManageMemberDetail() {
       if (padrinhosError) throw padrinhosError;
       setPadrinhosDisponiveis(padrinhosData || []);
 
-      // Carregar mensalidades
+      // Carregar mensalidades usando service
       try {
-        const { data: mensalidadesData, error: mensalidadesError } = await supabase
-          .from('mensalidades')
-          .select('*')
-          .eq('membro_id', id)
-          .order('mes_referencia', { ascending: false })
-          .limit(12); // Últimas 12 mensalidades
-
-        if (mensalidadesError) {
-          console.error('Erro ao carregar mensalidades:', mensalidadesError);
-        } else {
-          setMensalidades(mensalidadesData || []);
-        }
-      } catch (error: any) {
-        console.error('Erro ao carregar mensalidades:', error);
+        const mensalidadesData = await mensalidadeService.buscarPorMembroId(id);
+        // Limitar às últimas 12
+        setMensalidades(mensalidadesData.slice(0, 12));
+      } catch (error) {
+        const appError = handleSupabaseError(error);
+        console.error('Erro ao carregar mensalidades:', appError);
         setMensalidades([]);
       }
 

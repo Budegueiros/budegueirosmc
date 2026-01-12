@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Bell, Filter, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { comunicadoService } from '../services/comunicadoService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ComunicadoCard from '../components/ComunicadoCard';
 import { ComunicadoComAutor } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
+import { handleSupabaseError } from '../utils/errorHandler';
 
 type FiltroTipo = 'todos' | 'nao-lidos' | 'importantes';
 
@@ -29,50 +31,17 @@ export default function Comunicados() {
     setLoading(true);
     try {
       // Buscar membro
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
-        .select('id, is_admin')
-        .eq('user_id', user.id)
-        .single();
-
-      if (membroError) throw membroError;
+      const membroData = await membroService.buscarPorUserId(user.id);
       if (!membroData) return;
 
       setMembroId(membroData.id);
 
-      // Buscar comunicados com informações do autor e status de leitura
-      const { data: comunicadosData, error: comunicadosError } = await supabase
-        .from('comunicados')
-        .select(`
-          *,
-          autor:membros!comunicados_membro_id_autor_fkey (
-            nome_guerra,
-            foto_url
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (comunicadosError) throw comunicadosError;
-
-      // Buscar leituras do membro
-      const { data: leiturasData } = await supabase
-        .from('comunicados_leitura')
-        .select('comunicado_id')
-        .eq('membro_id', membroData.id);
-
-      const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
-
-      // Mapear comunicados com status de leitura
-      const comunicadosComLeitura: ComunicadoComAutor[] =
-        comunicadosData?.map((c: any) => ({
-          ...c,
-          autor: c.autor || { nome_guerra: 'Desconhecido', foto_url: null },
-          ja_lido: idsLidos.has(c.id)
-        })) || [];
-
+      // Buscar comunicados com status de leitura
+      const comunicadosComLeitura = await comunicadoService.buscarComStatusLeitura(membroData.id);
       setComunicados(comunicadosComLeitura);
     } catch (error) {
-      console.error('Erro ao carregar comunicados:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar comunicados:', appError);
       toastError('Erro ao carregar comunicados.');
     } finally {
       setLoading(false);
@@ -83,22 +52,15 @@ export default function Comunicados() {
     if (!membroId) return;
 
     try {
-      const { error } = await supabase.from('comunicados_leitura').insert({
-        comunicado_id: comunicadoId,
-        membro_id: membroId
-      });
-
-      if (error) throw error;
+      await comunicadoService.marcarComoLido(comunicadoId, membroId);
 
       // Atualizar estado local
       setComunicados((prev) =>
         prev.map((c) => (c.id === comunicadoId ? { ...c, ja_lido: true } : c))
       );
-    } catch (error: any) {
-      // Ignorar erro de duplicata (já foi marcado como lido)
-      if (error?.code !== '23505') {
-        console.error('Erro ao marcar como lido:', error);
-      }
+    } catch (error) {
+      // Erro já foi tratado no service (ignora duplicatas)
+      console.error('Erro ao marcar como lido:', error);
     }
   };
 

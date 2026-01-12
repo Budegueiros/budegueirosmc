@@ -123,3 +123,31 @@ export function logError(error: AppError, context?: Record<string, unknown>): vo
     console.error('Error:', error, context);
   }
 }
+
+/**
+ * Retorna uma mensagem amigável para o usuário baseada no erro
+ */
+export function getFriendlyErrorMessage(error: unknown): string {
+  if (error instanceof AppError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    // Mensagens comuns do Supabase
+    if (error.message.includes('network') || error.message.includes('fetch')) {
+      return 'Erro de conexão. Verifique sua internet e tente novamente.';
+    }
+
+    if (error.message.includes('timeout')) {
+      return 'A requisição demorou muito. Tente novamente.';
+    }
+
+    if (error.message.includes('permission') || error.message.includes('denied')) {
+      return 'Você não tem permissão para realizar esta operação.';
+    }
+
+    return error.message || 'Ocorreu um erro inesperado. Tente novamente.';
+  }
+
+  return 'Ocorreu um erro inesperado. Tente novamente.';
+}

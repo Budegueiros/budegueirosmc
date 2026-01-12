@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Loader2, Download, FileDown, RefreshCw } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
 import { useFluxoCaixa } from '../hooks/useFluxoCaixa';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { caixaService } from '../services/caixaService';
 import { FluxoCaixaComMembro } from '../types/database.types';
 import CaixaMetricsCards from '../components/caixa/CaixaMetricsCards';
 import CaixaTable from '../components/caixa/CaixaTable';
@@ -62,15 +63,9 @@ export default function ControleCaixa() {
       if (!user) return;
       
       try {
-        const { data, error: membroError } = await supabase
-          .from('membros')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (membroError) throw membroError;
-        if (data) {
-          setMembroId(data.id);
+        const membroIdData = await membroService.buscarIdPorUserId(user.id);
+        if (membroIdData) {
+          setMembroId(membroIdData);
         }
       } catch (error) {
         console.error('Erro ao carregar membro:', error);
@@ -86,17 +81,8 @@ export default function ControleCaixa() {
   useEffect(() => {
     const carregarCategorias = async () => {
       try {
-        const { data, error } = await supabase
-          .from('categorias_fluxo_caixa')
-          .select('nome, tipo')
-          .eq('ativo', true)
-          .order('tipo')
-          .order('ordem');
-
-        if (error) throw error;
-        if (data) {
-          setCategorias(data);
-        }
+        const categoriasData = await caixaService.buscarCategorias();
+        setCategorias(categoriasData);
       } catch (error) {
         console.error('Erro ao carregar categorias:', error);
       }
@@ -165,7 +151,7 @@ export default function ControleCaixa() {
     };
   }, [fluxoCaixa]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) {
       return;
     }
@@ -178,9 +164,9 @@ export default function ControleCaixa() {
     } else {
       toastError('Erro ao excluir lançamento.');
     }
-  };
+  }, [deleteLancamento, toastSuccess, toastError, refetch]);
 
-  const handleDeleteMultiple = async () => {
+  const handleDeleteMultiple = useCallback(async () => {
     if (selectedIds.length === 0) return;
 
     const count = selectedIds.length;
@@ -214,30 +200,30 @@ export default function ControleCaixa() {
       console.error('Erro ao excluir lançamentos:', error);
       toastError('Erro ao excluir lançamentos. Tente novamente.');
     }
-  };
+  }, [selectedIds, deleteLancamento, toastSuccess, toastError, refetch]);
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     setSelectedIds([]);
-  };
+  }, []);
 
-  const handleModalSuccess = () => {
+  const handleModalSuccess = useCallback(() => {
     refetch();
     setLancamentoEdit(null);
-  };
+  }, [refetch]);
 
-  const handleEdit = (lancamento: FluxoCaixaComMembro) => {
+  const handleEdit = useCallback((lancamento: FluxoCaixaComMembro) => {
     setLancamentoEdit(lancamento);
     setModalTipo(lancamento.tipo);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleViewAnexo = (url: string, fileName?: string) => {
+  const handleViewAnexo = useCallback((url: string, fileName?: string) => {
     setAnexoUrl(url);
     setAnexoFileName(fileName || 'Comprovante');
     setShowAnexoModal(true);
-  };
+  }, []);
 
-  const handlePendentesClick = () => {
+  const handlePendentesClick = useCallback(() => {
     setFilters({
       search: '',
       dataInicio: '',
@@ -253,7 +239,7 @@ export default function ControleCaixa() {
         tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
-  };
+  }, []);
 
   // Agrupar transações por data para mobile
   const sectionedTransactions = useMemo(() => {
@@ -289,13 +275,6 @@ export default function ControleCaixa() {
 
   const handleMobileReportPress = () => {
     toastSuccess('Funcionalidade de relatório será implementada em breve.');
-  };
-
-  const handleMobileViewTransaction = (id: string) => {
-    const transaction = filteredLancamentos.find(t => t.id === id);
-    if (transaction && transaction.anexo_url) {
-      handleViewAnexo(transaction.anexo_url, transaction.descricao);
-    }
   };
 
   if (adminLoading || loading) {
@@ -365,7 +344,6 @@ export default function ControleCaixa() {
                 <TransactionCard
                   key={transaction.id}
                   transaction={transaction}
-                  onView={handleMobileViewTransaction}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onViewAnexo={handleViewAnexo}

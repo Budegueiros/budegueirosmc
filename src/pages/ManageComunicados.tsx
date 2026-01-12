@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ArrowLeft, Plus, Loader2, Download, FileDown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { comunicadoService } from '../services/comunicadoService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { handleSupabaseError } from '../utils/errorHandler';
 import CreateComunicadoForm from '../components/CreateComunicadoForm';
 import ComunicadosTable from '../components/comunicados/ComunicadosTable';
 import ComunicadosMetricsCards from '../components/comunicados/ComunicadosMetricsCards';
@@ -59,152 +61,30 @@ export default function ManageComunicados() {
     if (user) {
       carregarDados();
     }
-  }, [user]);
+  }, [user, carregarDados]);
 
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
     try {
       // Buscar membro
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      const membroIdData = await membroService.buscarIdPorUserId(user.id);
+      if (!membroIdData) return;
 
-      if (membroError) throw membroError;
-      if (!membroData) return;
+      setMembroId(membroIdData);
 
-      setMembroId(membroData.id);
-
-      // Buscar todos os comunicados com autor
-      const { data: comunicadosData, error: comunicadosError } = await supabase
-        .from('comunicados')
-        .select(`
-          *,
-          autor:membros!comunicados_membro_id_autor_fkey (
-            nome_guerra,
-            foto_url
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (comunicadosError) throw comunicadosError;
-
-      // Para cada comunicado, buscar estatísticas de leitura
-      const comunicadosComStats = await Promise.all(
-        (comunicadosData || []).map(async (comunicado: any) => {
-          const { data: todasLeituras } = await supabase
-            .from('comunicados_leitura')
-            .select('membro_id, lido_em')
-            .eq('comunicado_id', comunicado.id);
-
-          const totalLeituras = todasLeituras?.length || 0;
-
-          const membrosIds = [...new Set(todasLeituras?.map((l: any) => l.membro_id) || [])];
-          let membrosData: any[] = [];
-          
-          if (membrosIds.length > 0) {
-            const { data: membros } = await supabase
-              .from('membros')
-              .select('id, nome_guerra, foto_url')
-              .in('id', membrosIds);
-            membrosData = membros || [];
-          }
-
-          const membrosMap = new Map(membrosData.map((m: any) => [m.id, m]));
-
-          const leiturasComMembros = (todasLeituras || []).map((leitura: any) => {
-            const membro = membrosMap.get(leitura.membro_id);
-            return {
-              lido_em: leitura.lido_em,
-              membro: membro || { nome_guerra: 'Membro removido', foto_url: null }
-            };
-          });
-
-          // Calcular total de destinatários
-          let totalDestinatarios = 0;
-          let destinatariosData: any[] = [];
-          
-          if (comunicado.tipo_destinatario === 'geral') {
-            const { data: membrosGeral, count } = await supabase
-              .from('membros')
-              .select('id, nome_guerra, foto_url', { count: 'exact' })
-              .eq('ativo', true);
-            totalDestinatarios = count || 0;
-            destinatariosData = membrosGeral || [];
-          } else if (comunicado.tipo_destinatario === 'cargo') {
-            const { data: cargoData } = await supabase
-              .from('cargos')
-              .select('id')
-              .eq('nome', comunicado.valor_destinatario)
-              .eq('ativo', true)
-              .single();
-
-            if (cargoData) {
-              const { data: membrosCargo, count } = await supabase
-                .from('membro_cargos')
-                .select(`
-                  membro_id,
-                  membros (
-                    id,
-                    nome_guerra,
-                    foto_url
-                  )
-                `, { count: 'exact' })
-                .eq('ativo', true)
-                .eq('cargo_id', cargoData.id);
-              
-              totalDestinatarios = count || 0;
-              destinatariosData = (membrosCargo || [])
-                .map((mc: any) => mc.membros)
-                .filter((m: any) => m && m.id);
-            }
-          } else if (comunicado.tipo_destinatario === 'membro') {
-            const { data: membroEspecifico } = await supabase
-              .from('membros')
-              .select('id, nome_guerra, foto_url')
-              .eq('nome_guerra', comunicado.valor_destinatario)
-              .eq('ativo', true)
-              .single();
-            totalDestinatarios = 1;
-            if (membroEspecifico) {
-              destinatariosData = [membroEspecifico];
-            }
-          }
-
-          // Identificar quem não leu
-          const idsQueLeram = new Set((todasLeituras || []).map((l: any) => l.membro_id));
-          const naoLeu = destinatariosData.filter((m: any) => !idsQueLeram.has(m.id));
-
-          const percentualLeitura = totalDestinatarios > 0 
-            ? Math.round((totalLeituras / totalDestinatarios) * 100) 
-            : 0;
-
-          return {
-            ...comunicado,
-            autor: comunicado.autor || { nome_guerra: 'Desconhecido', foto_url: null },
-            total_destinatarios: totalDestinatarios,
-            total_lidos: totalLeituras,
-            percentual_leitura: percentualLeitura,
-            leituras: leiturasComMembros,
-            nao_leu: naoLeu.map((m: any) => ({
-              nome_guerra: m.nome_guerra,
-              foto_url: m.foto_url
-            }))
-          };
-        })
-      );
-
-      setComunicados(comunicadosComStats);
+      // Buscar comunicados com estatísticas (otimizado)
+      const comunicadosComStats = await comunicadoService.buscarComEstatisticas();
+      setComunicados(comunicadosComStats as ComunicadoComEstatisticas[]);
     } catch (error) {
-      console.error('Erro ao carregar comunicados:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar comunicados:', appError);
       toastError('Erro ao carregar comunicados.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toastError]);
 
   // Filtrar comunicados
   const filteredComunicados = useMemo(() => {

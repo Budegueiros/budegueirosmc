@@ -15,6 +15,11 @@ export interface MensalidadeData {
   data_vencimento: string;
   status: 'Pendente' | 'Pago' | 'Atrasado' | 'Aberto';
   created_at: string;
+  membros?: {
+    nome_completo: string;
+    nome_guerra: string;
+    numero_carteira: string;
+  };
 }
 
 export const mensalidadeService = {
@@ -33,6 +38,43 @@ export const mensalidadeService = {
     }
 
     return (data || []) as MensalidadeData[];
+  },
+
+  /**
+   * Busca todas as mensalidades com informações dos membros
+   */
+  async buscarTodas(): Promise<MensalidadeData[]> {
+    const { data, error } = await supabase
+      .from('mensalidades')
+      .select(`
+        *,
+        membros!inner (
+          nome_completo,
+          nome_guerra,
+          numero_carteira
+        )
+      `)
+      .order('data_vencimento', { ascending: false });
+
+    if (error) {
+      throw new Error(`Erro ao buscar mensalidades: ${error.message}`);
+    }
+
+    return (data || []) as MensalidadeData[];
+  },
+
+  /**
+   * Deleta uma mensalidade
+   */
+  async deletar(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('mensalidades')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Erro ao deletar mensalidade: ${error.message}`);
+    }
   },
 
   /**

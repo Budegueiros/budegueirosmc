@@ -1,10 +1,9 @@
-import { Eye, Edit2, Trash2, Paperclip } from 'lucide-react';
+import { Edit2, Trash2, Paperclip } from 'lucide-react';
 import { FluxoCaixaComMembro } from '../../../types/database.types';
 import CategoriaBadge from '../CategoriaBadge';
 
 interface TransactionCardProps {
   transaction: FluxoCaixaComMembro;
-  onView?: (id: string) => void;
   onEdit?: (transaction: FluxoCaixaComMembro) => void;
   onDelete?: (id: string) => void;
   onViewAnexo?: (url: string, fileName?: string) => void;
@@ -12,7 +11,6 @@ interface TransactionCardProps {
 
 export default function TransactionCard({
   transaction,
-  onView,
   onEdit,
   onDelete,
   onViewAnexo,
@@ -111,16 +109,6 @@ export default function TransactionCard({
 
       {/* Ações */}
       <div className="flex gap-2 pt-3 border-t border-gray-700">
-        {onView && (
-          <button
-            onClick={() => onView(transaction.id)}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition min-h-[44px]"
-          >
-            <Eye className="w-5 h-5 text-white" />
-            <span className="text-xs font-semibold text-white">Ver</span>
-          </button>
-        )}
-
         {onEdit && (
           <button
             onClick={() => onEdit(transaction)}
@@ -131,11 +119,20 @@ export default function TransactionCard({
           </button>
         )}
 
-        {transaction.anexo_url && onViewAnexo && (
+        {onViewAnexo && (
           <button
-            onClick={() => onViewAnexo(transaction.anexo_url!, transaction.descricao)}
-            className="flex items-center justify-center w-12 py-2.5 px-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition min-h-[44px]"
-            title="Ver anexo"
+            onClick={() => {
+              if (transaction.anexo_url) {
+                onViewAnexo(transaction.anexo_url, transaction.descricao);
+              }
+            }}
+            className={`flex items-center justify-center w-12 py-2.5 px-3 rounded-lg transition min-h-[44px] ${
+              transaction.anexo_url
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-gray-700/50 hover:bg-gray-600/50 opacity-50 cursor-not-allowed'
+            }`}
+            title={transaction.anexo_url ? 'Ver anexo' : 'Sem anexo'}
+            disabled={!transaction.anexo_url}
           >
             <Paperclip className="w-5 h-5 text-white" />
           </button>
