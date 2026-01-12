@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { translateAuthError } from '../utils/errorHandler';
 
 interface AuthContextType {
   user: User | null;
@@ -96,11 +97,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) throw error;
+    
+    if (error) {
+      // Traduzir mensagem de erro usando a função utilitária
+      const errorMessage = translateAuthError(error);
+      
+      // Criar um novo erro com a mensagem traduzida
+      const translatedError = new Error(errorMessage);
+      (translatedError as any).status = error.status;
+      (translatedError as any).originalError = error;
+      
+      // Log do erro em desenvolvimento para debug
+      if (import.meta.env.DEV) {
+        console.error('Erro de autenticação:', {
+          status: error.status,
+          message: error.message,
+          translatedMessage: errorMessage,
+        });
+      }
+      
+      throw translatedError;
+    }
+    
+    return data;
   };
 
   const signOut = async () => {

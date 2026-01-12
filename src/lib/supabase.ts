@@ -12,11 +12,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
     'Veja o arquivo .env.example para referência.';
   
   console.error('⚠️', errorMsg);
+  console.error('⚠️ Supabase URL:', supabaseUrl || 'NÃO CONFIGURADA');
+  console.error('⚠️ Supabase Key:', supabaseAnonKey ? 'CONFIGURADA (oculta)' : 'NÃO CONFIGURADA');
   
   // Em desenvolvimento, apenas avisar, mas não quebrar a aplicação
   // Em produção, lançar erro
   if (!import.meta.env.DEV) {
     throw new Error(errorMsg);
+  }
+} else {
+  // Log de confirmação (apenas em desenvolvimento)
+  if (import.meta.env.DEV) {
+    console.log('✅ Supabase configurado:', {
+      url: supabaseUrl,
+      keyConfigured: !!supabaseAnonKey,
+    });
   }
 }
 
@@ -39,3 +49,10 @@ export const supabase = createClient(
 supabase.auth.onAuthStateChange((event, session) => {
   // Auth state changes are handled by AuthContext
 });
+
+// Carregar utilitário de diagnóstico (apenas em desenvolvimento)
+if (import.meta.env.DEV) {
+  import('../utils/supabaseDiagnostics').catch(() => {
+    // Ignorar erro se o arquivo não existir
+  });
+}

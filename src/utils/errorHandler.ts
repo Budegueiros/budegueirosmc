@@ -20,13 +20,68 @@ export class AppError extends Error {
 }
 
 /**
+ * Traduz erros de autenticação do Supabase para português
+ */
+export function translateAuthError(error: any): string {
+  if (!error) return 'Erro desconhecido ao fazer login.';
+  
+  const status = error.status || error.statusCode;
+  const message = error.message || '';
+  
+  // Erros 401 - Não autorizado
+  if (status === 401) {
+    if (message.includes('Invalid login credentials') || 
+        message.includes('Invalid credentials') ||
+        message.includes('invalid_grant')) {
+      return 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.';
+    }
+    if (message.includes('Email not confirmed')) {
+      return 'Seu email ainda não foi confirmado. Verifique sua caixa de entrada e clique no link de confirmação.';
+    }
+    if (message.includes('User not found')) {
+      return 'Usuário não encontrado. Verifique se o email está correto.';
+    }
+    return 'Não foi possível fazer login. Verifique suas credenciais.';
+  }
+  
+  // Erros 400 - Requisição inválida
+  if (status === 400) {
+    if (message.includes('email')) {
+      return 'Formato de email inválido. Verifique e tente novamente.';
+    }
+    if (message.includes('password')) {
+      return 'A senha não pode estar vazia.';
+    }
+    return 'Dados inválidos. Verifique os campos e tente novamente.';
+  }
+  
+  // Erros 429 - Muitas requisições
+  if (status === 429) {
+    return 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
+  }
+  
+  // Erros 500 - Erro do servidor
+  if (status === 500 || status >= 500) {
+    return 'Erro no servidor. Tente novamente em alguns instantes.';
+  }
+  
+  // Erro de rede
+  if (message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch')) {
+    return 'Erro de conexão. Verifique sua internet e tente novamente.';
+  }
+  
+  // Mensagem padrão
+  return message || 'Erro ao fazer login. Tente novamente.';
+}
+
+/**
  * Trata erros vindos do Supabase e converte para AppError
  */
 export function handleSupabaseError(error: unknown): AppError {
   if (error instanceof Error) {
     // Verificar se é um erro do Supabase
     if ('code' in error && 'message' in error) {
-      const supabaseError = error as { code: string; message: string; details?: string };
+      const supabaseError = error as { code: string; message: string; details?: string; status?: number };
       
       // Mapear códigos comuns do Supabase para mensagens amigáveis
       const errorMessages: Record<string, string> = {
@@ -41,7 +96,7 @@ export function handleSupabaseError(error: unknown): AppError {
       return new AppError(
         friendlyMessage,
         supabaseError.code,
-        undefined,
+        supabaseError.status,
         error
       );
     }
