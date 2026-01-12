@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ArrowLeft, Plus, Loader2, Download, FileDown } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { membroService } from '../services/membroService';
 import { comunicadoService } from '../services/comunicadoService';
 import { useAuth } from '../contexts/AuthContext';
@@ -57,12 +58,6 @@ export default function ManageComunicados() {
     valor_destinatario: ''
   });
 
-  useEffect(() => {
-    if (user) {
-      carregarDados();
-    }
-  }, [user, carregarDados]);
-
   const carregarDados = useCallback(async () => {
     if (!user) return;
 
@@ -85,6 +80,12 @@ export default function ManageComunicados() {
       setLoading(false);
     }
   }, [user, toastError]);
+
+  useEffect(() => {
+    if (user) {
+      carregarDados();
+    }
+  }, [user, carregarDados]);
 
   // Filtrar comunicados
   const filteredComunicados = useMemo(() => {

@@ -45,12 +45,6 @@ export default function ManagePolls() {
     }
   }, [isAdmin, adminLoading, navigate]);
 
-  useEffect(() => {
-    if (isAdmin) {
-      carregarEnquetes();
-    }
-  }, [isAdmin, carregarEnquetes]);
-
   const carregarEnquetes = useCallback(async () => {
     setLoading(true);
     try {
@@ -65,6 +59,12 @@ export default function ManagePolls() {
       setLoading(false);
     }
   }, [activeTab, toastError]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      carregarEnquetes();
+    }
+  }, [isAdmin, carregarEnquetes]);
 
   // Filtrar enquetes
   const filteredEnquetes = useMemo(() => {

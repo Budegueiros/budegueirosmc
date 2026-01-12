@@ -5,6 +5,7 @@ import { documentoService } from '../services/documentoService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import DocumentoCard from '../components/DocumentoCard';
+import DocumentoPreviewModal from '../components/DocumentoPreviewModal';
 import { DocumentoComAutor } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
 import { handleSupabaseError } from '../utils/errorHandler';
@@ -18,6 +19,8 @@ export default function Documentos() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<FiltroTipo>('todos');
   const [membroId, setMembroId] = useState<string | null>(null);
+  const [documentoPreview, setDocumentoPreview] = useState<DocumentoComAutor | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const carregarDados = useCallback(async () => {
     if (!user) return;
@@ -70,6 +73,16 @@ export default function Documentos() {
       console.error('Erro ao marcar como acessado:', error);
     }
   }, [membroId]);
+
+  const handleVisualizar = useCallback((documento: DocumentoComAutor) => {
+    setDocumentoPreview(documento);
+    setIsPreviewOpen(true);
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setIsPreviewOpen(false);
+    setDocumentoPreview(null);
+  }, []);
 
   const documentosFiltrados = documentos.filter((d) => {
     if (filtro === 'nao-acessados') return !d.ja_acessado;
@@ -142,6 +155,7 @@ export default function Documentos() {
                 key={documento.id}
                 documento={documento}
                 onMarcarComoAcessado={handleMarcarComoAcessado}
+                onVisualizar={handleVisualizar}
               />
             ))
           ) : (
@@ -152,6 +166,14 @@ export default function Documentos() {
           )}
         </div>
       </div>
+
+      {/* Modal de Preview */}
+      <DocumentoPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={handleClosePreview}
+        documento={documentoPreview}
+        onMarcarComoAcessado={handleMarcarComoAcessado}
+      />
     </DashboardLayout>
   );
 }
