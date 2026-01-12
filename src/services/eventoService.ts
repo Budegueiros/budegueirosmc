@@ -138,4 +138,135 @@ export const eventoService = {
     // Arredondar para 2 casas decimais
     return Math.round(totalKm * 100) / 100;
   },
+
+  /**
+   * Busca todos os eventos
+   */
+  async buscarTodos(): Promise<Evento[]> {
+    const { data, error } = await supabase
+      .from('eventos')
+      .select('*')
+      .order('data_evento', { ascending: false });
+
+    if (error) {
+      throw new Error(`Erro ao buscar eventos: ${error.message}`);
+    }
+
+    return (data || []) as Evento[];
+  },
+
+  /**
+   * Busca um evento por ID
+   */
+  async buscarPorId(id: string): Promise<Evento | null> {
+    const { data, error } = await supabase
+      .from('eventos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new Error(`Erro ao buscar evento: ${error.message}`);
+    }
+
+    return data as Evento | null;
+  },
+
+  /**
+   * Cria um novo evento
+   */
+  async criar(evento: {
+    nome: string;
+    descricao?: string | null;
+    data_evento: string;
+    hora_saida?: string | null;
+    local_saida: string;
+    local_destino?: string | null;
+    cidade: string;
+    estado: string;
+    distancia_km?: number | null;
+    tipo_evento: string;
+    status: string;
+    vagas_limitadas: boolean;
+    max_participantes?: number | null;
+    foto_capa_url?: string | null;
+    observacoes?: string | null;
+    evento_principal: boolean;
+  }): Promise<Evento> {
+    const { data, error } = await supabase
+      .from('eventos')
+      .insert([evento])
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Erro ao criar evento: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Erro ao criar evento: nenhum dado retornado');
+    }
+
+    return data as Evento;
+  },
+
+  /**
+   * Atualiza um evento existente
+   */
+  async atualizar(id: string, dados: {
+    nome?: string;
+    descricao?: string | null;
+    data_evento?: string;
+    hora_saida?: string | null;
+    local_saida?: string;
+    local_destino?: string | null;
+    cidade?: string;
+    estado?: string;
+    distancia_km?: number | null;
+    tipo_evento?: string;
+    status?: string;
+    vagas_limitadas?: boolean;
+    max_participantes?: number | null;
+    foto_capa_url?: string | null;
+    observacoes?: string | null;
+    evento_principal?: boolean;
+  }): Promise<Evento> {
+    const { data, error } = await supabase
+      .from('eventos')
+      .update(dados)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Erro ao atualizar evento: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Erro ao atualizar evento: nenhum dado retornado');
+    }
+
+    return data as Evento;
+  },
+
+  /**
+   * Deleta um evento
+   */
+  async deletar(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('eventos')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Erro ao deletar evento: ${error.message}`);
+    }
+  },
+
+  /**
+   * Atualiza o status de um evento
+   */
+  async atualizarStatus(id: string, status: string): Promise<Evento> {
+    return this.atualizar(id, { status });
+  },
 };

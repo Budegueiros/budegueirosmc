@@ -51,11 +51,18 @@ export async function diagnoseProduction() {
     diagnostics.issues.push('VITE_SUPABASE_ANON_KEY não configurada');
   } else {
     console.log('✅ VITE_SUPABASE_ANON_KEY: Configurada');
+    console.log('   Comprimento:', supabaseAnonKey.length, 'caracteres');
+    console.log('   Formato JWT:', supabaseAnonKey.startsWith('eyJ') ? '✅ SIM' : '❌ NÃO');
     
     // Verificar comprimento da chave (chaves do Supabase são longas)
     if (supabaseAnonKey.length < 100) {
-      console.warn('⚠️ Chave API parece muito curta (pode estar incorreta)');
-      diagnostics.issues.push('Chave API pode estar incorreta');
+      console.error('❌ Chave API muito curta (deve ter 200+ caracteres)');
+      diagnostics.issues.push('Chave API muito curta - provavelmente incorreta');
+    } else if (!supabaseAnonKey.startsWith('eyJ')) {
+      console.error('❌ Chave API não está no formato JWT (deve começar com "eyJ")');
+      diagnostics.issues.push('Chave API em formato incorreto');
+    } else if (supabaseAnonKey.length < 200) {
+      console.warn('⚠️ Chave API pode estar incompleta (chaves do Supabase têm 200+ caracteres)');
     }
   }
   
@@ -78,9 +85,19 @@ export async function diagnoseProduction() {
     const { error: connectionError } = await supabase.from('_test_connection').select('*').limit(0);
     
     if (connectionError) {
-      if (connectionError.code === 'PGRST116' || connectionError.message.includes('JWT')) {
+      if (connectionError.code === 'PGRST116') {
         console.log('✅ Conexão com Supabase: OK');
         diagnostics.tests.connection = 'OK';
+      } else if (connectionError.message.includes('Invalid API key') || connectionError.message.includes('JWT')) {
+        console.error('❌ Erro de conexão: Invalid API key');
+        console.error('   A chave API configurada está INCORRETA ou INVÁLIDA');
+        console.error('\n   🔧 SOLUÇÃO:');
+        console.error('   1. Acesse Supabase Dashboard → Settings → API');
+        console.error('   2. Copie a chave "anon public"');
+        console.error('   3. Atualize VITE_SUPABASE_ANON_KEY no AWS Amplify');
+        console.error('   4. Faça um novo deploy');
+        diagnostics.issues.push('Chave API inválida - atualize no AWS Amplify');
+        diagnostics.tests.connection = 'INVALID_KEY';
       } else {
         console.error('❌ Erro de conexão:', connectionError.message);
         diagnostics.issues.push(`Erro de conexão: ${connectionError.message}`);

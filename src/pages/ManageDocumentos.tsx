@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileText, ArrowLeft, Plus, Loader2, Download, FileDown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { documentoService } from '../services/documentoService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { handleSupabaseError } from '../utils/errorHandler';
 import CreateDocumentoForm from '../components/CreateDocumentoForm';
 import DocumentosTable from '../components/documentos/DocumentosTable';
 import DocumentosMetricsCards from '../components/documentos/DocumentosMetricsCards';
@@ -57,152 +59,30 @@ export default function ManageDocumentos() {
     if (user) {
       carregarDados();
     }
-  }, [user]);
+  }, [user, carregarDados]);
 
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
     try {
       // Buscar membro
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      const membroIdData = await membroService.buscarIdPorUserId(user.id);
+      if (!membroIdData) return;
 
-      if (membroError) throw membroError;
-      if (!membroData) return;
+      setMembroId(membroIdData);
 
-      setMembroId(membroData.id);
-
-      // Buscar todos os documentos com autor
-      const { data: documentosData, error: documentosError } = await supabase
-        .from('documentos')
-        .select(`
-          *,
-          autor:membros!documentos_membro_id_autor_fkey (
-            nome_guerra,
-            foto_url
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (documentosError) throw documentosError;
-
-      // Para cada documento, buscar estatísticas de acesso
-      const documentosComStats = await Promise.all(
-        (documentosData || []).map(async (documento: any) => {
-          const { data: todosAcessos } = await supabase
-            .from('documentos_acesso')
-            .select('membro_id, acessado_em')
-            .eq('documento_id', documento.id);
-
-          const totalAcessos = todosAcessos?.length || 0;
-
-          const membrosIds = [...new Set(todosAcessos?.map((a: any) => a.membro_id) || [])];
-          let membrosData: any[] = [];
-          
-          if (membrosIds.length > 0) {
-            const { data: membros } = await supabase
-              .from('membros')
-              .select('id, nome_guerra, foto_url')
-              .in('id', membrosIds);
-            membrosData = membros || [];
-          }
-
-          const membrosMap = new Map(membrosData.map((m: any) => [m.id, m]));
-
-          const acessosComMembros = (todosAcessos || []).map((acesso: any) => {
-            const membro = membrosMap.get(acesso.membro_id);
-            return {
-              acessado_em: acesso.acessado_em,
-              membro: membro || { nome_guerra: 'Membro removido', foto_url: null }
-            };
-          });
-
-          // Calcular total de destinatários
-          let totalDestinatarios = 0;
-          let destinatariosData: any[] = [];
-          
-          if (documento.tipo_destinatario === 'geral') {
-            const { data: membrosGeral, count } = await supabase
-              .from('membros')
-              .select('id, nome_guerra, foto_url', { count: 'exact' })
-              .eq('ativo', true);
-            totalDestinatarios = count || 0;
-            destinatariosData = membrosGeral || [];
-          } else if (documento.tipo_destinatario === 'cargo') {
-            const { data: cargoData } = await supabase
-              .from('cargos')
-              .select('id')
-              .eq('nome', documento.valor_destinatario)
-              .eq('ativo', true)
-              .single();
-
-            if (cargoData) {
-              const { data: membrosCargo, count } = await supabase
-                .from('membro_cargos')
-                .select(`
-                  membro_id,
-                  membros (
-                    id,
-                    nome_guerra,
-                    foto_url
-                  )
-                `, { count: 'exact' })
-                .eq('ativo', true)
-                .eq('cargo_id', cargoData.id);
-              
-              totalDestinatarios = count || 0;
-              destinatariosData = (membrosCargo || [])
-                .map((mc: any) => mc.membros)
-                .filter((m: any) => m && m.id);
-            }
-          } else if (documento.tipo_destinatario === 'membro') {
-            const { data: membroEspecifico } = await supabase
-              .from('membros')
-              .select('id, nome_guerra, foto_url')
-              .eq('nome_guerra', documento.valor_destinatario)
-              .eq('ativo', true)
-              .single();
-            totalDestinatarios = 1;
-            if (membroEspecifico) {
-              destinatariosData = [membroEspecifico];
-            }
-          }
-
-          // Identificar quem não acessou
-          const idsQueAcessaram = new Set((todosAcessos || []).map((a: any) => a.membro_id));
-          const naoAcessou = destinatariosData.filter((m: any) => !idsQueAcessaram.has(m.id));
-
-          const percentualAcesso = totalDestinatarios > 0 
-            ? Math.round((totalAcessos / totalDestinatarios) * 100) 
-            : 0;
-
-          return {
-            ...documento,
-            autor: documento.autor || { nome_guerra: 'Desconhecido', foto_url: null },
-            total_destinatarios: totalDestinatarios,
-            total_acessos: totalAcessos,
-            percentual_acesso: percentualAcesso,
-            acessos: acessosComMembros,
-            nao_acessou: naoAcessou.map((m: any) => ({
-              nome_guerra: m.nome_guerra,
-              foto_url: m.foto_url
-            }))
-          };
-        })
-      );
-
-      setDocumentos(documentosComStats);
+      // Buscar documentos com estatísticas (otimizado)
+      const documentosComStats = await documentoService.buscarComEstatisticas();
+      setDocumentos(documentosComStats as DocumentoComEstatisticas[]);
     } catch (error) {
-      console.error('Erro ao carregar documentos:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar documentos:', appError);
       toastError('Erro ao carregar documentos.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toastError]);
 
   // Filtrar documentos
   const filteredDocumentos = useMemo(() => {

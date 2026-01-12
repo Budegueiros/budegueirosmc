@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3, ArrowLeft, Plus, Loader2, Download, FileDown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { pollService } from '../services/pollService';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
+import { handleSupabaseError } from '../utils/errorHandler';
 import EnquetesTable from '../components/enquetes/EnquetesTable';
 import EnquetesMetricsCards from '../components/enquetes/EnquetesMetricsCards';
 import Pagination from '../components/mensalidades/Pagination';
@@ -48,42 +49,22 @@ export default function ManagePolls() {
     if (isAdmin) {
       carregarEnquetes();
     }
-  }, [isAdmin, activeTab]);
+  }, [isAdmin, carregarEnquetes]);
 
-  const carregarEnquetes = async () => {
+  const carregarEnquetes = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('enquetes')
-        .select('*')
-        .eq('status', activeTab)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Para cada enquete, buscar estatísticas
-      const enquetesComStats = await Promise.all(
-        (data || []).map(async (enquete: Enquete) => {
-          const { count: totalVotos } = await supabase
-            .from('votos')
-            .select('*', { count: 'exact', head: true })
-            .eq('enquete_id', enquete.id);
-
-            return {
-              ...enquete,
-            total_votos: totalVotos || 0
-          };
-        })
-      );
-
-      setEnquetes(enquetesComStats);
+      // Buscar enquetes com estatísticas (otimizado)
+      const enquetesComStats = await pollService.buscarComEstatisticas(activeTab);
+      setEnquetes(enquetesComStats as Enquete[]);
     } catch (error) {
-      console.error('Erro ao carregar enquetes:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar enquetes:', appError);
       toastError('Erro ao carregar enquetes.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, toastError]);
 
   // Filtrar enquetes
   const filteredEnquetes = useMemo(() => {
@@ -129,58 +110,37 @@ export default function ManagePolls() {
     setToggleStatus(novoStatus);
   };
 
-  const executeToggleStatus = async () => {
+  const executeToggleStatus = useCallback(async () => {
     if (!showConfirmToggle || !toggleStatus) return;
 
     try {
-      const { error } = await supabase
-        .from('enquetes')
-        .update({ status: toggleStatus })
-        .eq('id', showConfirmToggle);
-
-      if (error) throw error;
+      await pollService.atualizarStatus(showConfirmToggle, toggleStatus);
 
       setShowConfirmToggle(null);
       setToggleStatus(null);
       await carregarEnquetes();
       toastSuccess(`Enquete ${toggleStatus === 'encerrada' ? 'encerrada' : 'reaberta'} com sucesso!`);
     } catch (error) {
-      console.error('Erro ao alterar status:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao alterar status:', appError);
       toastError('Erro ao alterar status da enquete.');
       setShowConfirmToggle(null);
       setToggleStatus(null);
     }
-  };
+  }, [showConfirmToggle, toggleStatus, carregarEnquetes, toastSuccess, toastError]);
 
-  const handleDeleteEnquete = async (enqueteId: string) => {
+  const handleDeleteEnquete = useCallback(async (enqueteId: string) => {
     try {
-      // Deletar votos primeiro
-      await supabase
-        .from('votos')
-        .delete()
-        .eq('enquete_id', enqueteId);
-
-      // Deletar opções
-      await supabase
-        .from('enquete_opcoes')
-        .delete()
-        .eq('enquete_id', enqueteId);
-
-      // Deletar enquete
-      const { error } = await supabase
-        .from('enquetes')
-        .delete()
-        .eq('id', enqueteId);
-
-      if (error) throw error;
+      await pollService.deletar(enqueteId);
 
       await carregarEnquetes();
       toastSuccess('Enquete excluída com sucesso!');
     } catch (error) {
-      console.error('Erro ao excluir enquete:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao excluir enquete:', appError);
       toastError('Erro ao excluir enquete.');
     }
-  };
+  }, [carregarEnquetes, toastSuccess, toastError]);
 
   const handleEditEnquete = (enqueteId: string) => {
     navigate(`/create-poll?edit=${enqueteId}`);

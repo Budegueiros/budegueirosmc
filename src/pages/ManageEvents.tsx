@@ -2,9 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Loader2, Download, FileDown, X, Save, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { eventoService } from '../services/eventoService';
+import { membroService } from '../services/membroService';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
+import { handleSupabaseError } from '../utils/errorHandler';
 import { compressImage, isValidImageFile } from '../utils/imageCompression';
 import EventsMetricsCards from '../components/eventos/EventsMetricsCards';
 import EventsFilterBar from '../components/eventos/EventsFilterBar';
@@ -115,15 +118,11 @@ export default function ManageEvents() {
   const carregarEventos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('eventos')
-        .select('*')
-        .order('data_evento', { ascending: false });
-
-      if (error) throw error;
-      setEventos(data || []);
+      const eventosData = await eventoService.buscarTodos();
+      setEventos(eventosData);
     } catch (error) {
-      console.error('Erro ao carregar eventos:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar eventos:', appError);
       toastError('Erro ao carregar eventos');
     } finally {
       setLoading(false);
@@ -270,59 +269,31 @@ export default function ManageEvents() {
 
     try {
       // Buscar membro
-      const { data: membroData } = await supabase
-        .from('membros')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!membroData) {
+      const membroId = await membroService.buscarIdPorUserId(user.id);
+      if (!membroId) {
         toastError('Erro ao identificar membro');
         return;
       }
 
       // Verificar se já confirmou
-      const { data: confirmacaoExistente } = await supabase
-        .from('confirmacoes_presenca')
-        .select('id, status')
-        .eq('evento_id', eventoId)
-        .eq('membro_id', membroData.id)
-        .single();
+      const confirmacaoId = await eventoService.verificarConfirmacao(membroId, eventoId);
 
-      if (confirmacaoExistente) {
-        // Atualizar status
-        const novoStatus = confirmacaoExistente.status === 'Confirmado' 
-          ? 'Cancelado' 
-          : 'Confirmado';
+      // Toggle confirmação usando service
+      const resultado = await eventoService.toggleConfirmacaoPresenca(
+        membroId,
+        eventoId,
+        confirmacaoId
+      );
 
-        const { error } = await supabase
-          .from('confirmacoes_presenca')
-          .update({ status: novoStatus })
-          .eq('id', confirmacaoExistente.id);
-
-        if (error) throw error;
-
-        toastSuccess(novoStatus === 'Confirmado' 
-          ? 'Presença confirmada!' 
-          : 'Presença cancelada.');
-      } else {
-        // Criar confirmação
-        const { error } = await supabase
-          .from('confirmacoes_presenca')
-          .insert({
-            evento_id: eventoId,
-            membro_id: membroData.id,
-            status: 'Confirmado'
-          });
-
-        if (error) throw error;
-        toastSuccess('Presença confirmada!');
-      }
+      toastSuccess(resultado.action === 'created' 
+        ? 'Presença confirmada!' 
+        : 'Presença cancelada.');
 
       await refreshEventos();
       await carregarEventos(); // Atualizar lista completa
     } catch (error) {
-      console.error('Erro ao confirmar presença:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao confirmar presença:', appError);
       toastError('Erro ao confirmar presença');
     }
   };
@@ -538,12 +509,7 @@ export default function ManageEvents() {
         updateData.foto_capa_url = foto_capa_url;
       }
 
-      const { error } = await supabase
-        .from('eventos')
-        .update(updateData)
-        .eq('id', eventoId);
-
-      if (error) throw error;
+      await eventoService.atualizar(eventoId, updateData);
 
       if (galeriaFiles.length > 0 && editingData.evento_principal) {
         await uploadFotosGaleria(eventoId);
@@ -584,12 +550,7 @@ export default function ManageEvents() {
     if (!deleteId) return;
 
     try {
-      const { error } = await supabase
-        .from('eventos')
-        .delete()
-        .eq('id', deleteId);
-
-      if (error) throw error;
+      await eventoService.deletar(deleteId);
 
       setEventos(eventos.filter(e => e.id !== deleteId));
       await refreshEventos();
@@ -597,7 +558,8 @@ export default function ManageEvents() {
       setDeleteNome('');
       toastSuccess('Evento deletado com sucesso!');
     } catch (error) {
-      console.error('Erro ao deletar evento:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao deletar evento:', appError);
       toastError('Erro ao deletar evento');
       setDeleteId(null);
       setDeleteNome('');

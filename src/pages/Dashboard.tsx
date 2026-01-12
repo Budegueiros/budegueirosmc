@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,17 +44,20 @@ export default function Dashboard() {
 
   // Tratar erros - usar ref para evitar mostrar o mesmo erro múltiplas vezes
   const errorRef = useRef<string | null>(null);
+  const toastError = useCallback((message: string) => {
+    toast.error(message);
+  }, [toast]);
+  
   useEffect(() => {
     if (error && error !== errorRef.current) {
       errorRef.current = error;
-      toast.error(error);
+      toastError(error);
       // Limpar erro após mostrar para evitar loop
       setTimeout(() => {
         errorRef.current = null;
       }, 100);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [error]); // Não incluir toast nas dependências para evitar loop infinito
+  }, [error, toastError]);
 
   // Tratar confirmação de presença com erro
   const handleConfirmarPresencaComErro = async () => {

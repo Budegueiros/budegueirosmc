@@ -7,13 +7,21 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Membro, Cargo, PadrinhoInfo } from '../types/database.types';
+import { Membro, Cargo, PadrinhoInfo, MembroComCargos } from '../types/database.types';
 
 /**
- * Interface estendida de Membro com cargos incluídos
+ * Interface para resposta do Supabase ao buscar membro com cargos
  */
-export interface MembroComCargos extends Membro {
-  cargos: Cargo[];
+interface MembroCargoJoin {
+  id: string;
+  data_atribuicao: string;
+  ativo: boolean;
+  observacao: string | null;
+  cargos: Cargo | null;
+}
+
+interface MembroFromSupabase extends Membro {
+  membro_cargos: MembroCargoJoin[];
 }
 
 const fetchPadrinhoInfo = async (padrinhoId: string | null): Promise<PadrinhoInfo | null> => {
@@ -181,11 +189,14 @@ export function useMembroAtual(userId: string | undefined) {
       const padrinhoInfo = await fetchPadrinhoInfo(data.padrinho_id || null);
 
       // Transformar dados para o formato esperado
+      const membroData = data as MembroFromSupabase;
       const membroComCargos: MembroComCargos = {
-        ...data,
-        cargos: data.membro_cargos
-          ?.filter((mc: any) => mc.cargos && mc.ativo)
-          .map((mc: any) => mc.cargos)
+        ...membroData,
+        cargos: membroData.membro_cargos
+          ?.filter((mc): mc is MembroCargoJoin & { cargos: Cargo } => 
+            mc.cargos !== null && mc.ativo
+          )
+          .map((mc) => mc.cargos)
           .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
         padrinho: padrinhoInfo
       };
@@ -261,17 +272,22 @@ export function useMembros(apenasAtivos: boolean = true) {
       if (fetchError) throw fetchError;
 
       // Transformar dados para o formato esperado (incluindo padrinho)
-      const membrosComCargos: MembroComCargos[] = await Promise.all((data || []).map(async (m: any) => {
-        const padrinhoInfo = await fetchPadrinhoInfo(m.padrinho_id || null);
-        return {
-          ...m,
-          cargos: m.membro_cargos
-            ?.filter((mc: any) => mc.cargos && mc.ativo)
-            .map((mc: any) => mc.cargos)
-            .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
-          padrinho: padrinhoInfo
-        };
-      }));
+      const membrosComCargos: MembroComCargos[] = await Promise.all(
+        (data || []).map(async (m) => {
+          const membroData = m as MembroFromSupabase;
+          const padrinhoInfo = await fetchPadrinhoInfo(membroData.padrinho_id || null);
+          return {
+            ...membroData,
+            cargos: membroData.membro_cargos
+              ?.filter((mc): mc is MembroCargoJoin & { cargos: Cargo } => 
+                mc.cargos !== null && mc.ativo
+              )
+              .map((mc) => mc.cargos)
+              .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
+            padrinho: padrinhoInfo
+          };
+        })
+      );
 
       setMembros(membrosComCargos);
     } catch (err) {
