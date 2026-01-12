@@ -113,11 +113,28 @@ export default function Sobre() {
         // Excluir Sargento de Armas e 1º Secretário da seção de oficiais
         return priority === 3 && !cargoNomes.includes('Sargento de Armas') && !cargoNomes.includes('1º Secretário') && !cargoNomes.includes('Primeiro Secretário');
     });
+    
+    // Coletar IDs de membros já exibidos nas seções anteriores para evitar duplicação
+    const membrosJaExibidos = new Set([
+        ...presidents.map(m => m.id),
+        ...vps.map(m => m.id),
+        ...sargentoArmas.map(m => m.id),
+        ...primeiroSecretario.map(m => m.id),
+        ...officers.map(m => m.id)
+    ]);
+    
     const fullMembers = sortedMembers.filter(m => {
         const priority = getRolePriority(m.cargos);
-        return priority > 3 && priority < 100 && m.status_membro !== 'Prospect';
+        // Excluir membros que já aparecem em outras seções e prospects
+        return priority > 3 && priority < 100 && m.status_membro !== 'Prospect' && !membrosJaExibidos.has(m.id);
     });
-    const prospects = sortedMembers.filter(m => m.status_membro === 'Prospect');
+    
+    // Adicionar fullMembers ao Set de membros já exibidos antes de filtrar prospects
+    fullMembers.forEach(m => membrosJaExibidos.add(m.id));
+    
+    const prospects = sortedMembers.filter(m => 
+        m.status_membro === 'Prospect' && !membrosJaExibidos.has(m.id)
+    );
 
     const MemberCard = ({ member, size = 'normal' }: { member: MembroComCargos, size?: 'large' | 'normal' }) => (
         <div className={`bg-[#1a1d23] border border-gray-800 rounded-lg overflow-hidden flex flex-col items-center p-4 md:p-6 hover:border-red-900/50 transition-all group w-full max-w-[200px] ${size === 'large' ? 'transform md:scale-105 border-red-900/30 shadow-[0_0_30px_rgba(220,38,38,0.1)] max-w-[280px]' : ''}`}>
