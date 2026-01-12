@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { validateBeforeSend } from '../utils/validation';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,7 +18,27 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      // Validar dados antes de enviar
+      const validation = validateBeforeSend(email, password);
+      
+      if (!validation.isValid) {
+        setError(validation.errors.join(' '));
+        setLoading(false);
+        return;
+      }
+      
+      // Log dos dados validados (apenas em desenvolvimento)
+      if (import.meta.env.DEV) {
+        console.log('✅ Dados validados antes do envio:', {
+          email: validation.data?.email,
+          passwordLength: validation.data?.password.length,
+          hasWarnings: validation.warnings.length > 0,
+          warnings: validation.warnings,
+        });
+      }
+      
+      // Enviar dados validados
+      await signIn(validation.data!.email, validation.data!.password);
       navigate('/dashboard');
     } catch (err: any) {
       // Usar a mensagem de erro traduzida do AuthContext

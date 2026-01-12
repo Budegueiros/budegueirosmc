@@ -21,12 +21,28 @@ if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(errorMsg);
   }
 } else {
-  // Log de confirmação (apenas em desenvolvimento)
+  // Log de confirmação
   if (import.meta.env.DEV) {
     console.log('✅ Supabase configurado:', {
       url: supabaseUrl,
       keyConfigured: !!supabaseAnonKey,
     });
+  } else {
+    // Em produção, log mínimo mas útil para debug
+    console.log('✅ Supabase configurado para produção');
+    
+    // Verificar se as variáveis parecem corretas
+    if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
+      console.log('   URL:', supabaseUrl);
+    } else {
+      console.error('   ⚠️ URL pode estar incorreta');
+    }
+    
+    if (supabaseAnonKey && supabaseAnonKey.length > 100) {
+      console.log('   Chave API: Configurada');
+    } else {
+      console.error('   ⚠️ Chave API pode estar incorreta');
+    }
   }
 }
 
@@ -50,9 +66,21 @@ supabase.auth.onAuthStateChange((event, session) => {
   // Auth state changes are handled by AuthContext
 });
 
-// Carregar utilitário de diagnóstico (apenas em desenvolvimento)
+// Carregar utilitários de diagnóstico e validação
+// Em produção, carregar apenas diagnóstico de produção
 if (import.meta.env.DEV) {
   import('../utils/supabaseDiagnostics').catch(() => {
+    // Ignorar erro se o arquivo não existir
+  });
+  import('../utils/validateConnectionData').catch(() => {
+    // Ignorar erro se o arquivo não existir
+  });
+  import('../utils/testConnectionData').catch(() => {
+    // Ignorar erro se o arquivo não existir
+  });
+} else {
+  // Em produção, carregar diagnóstico de produção
+  import('../utils/productionDiagnostics').catch(() => {
     // Ignorar erro se o arquivo não existir
   });
 }
