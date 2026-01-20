@@ -173,9 +173,9 @@ export default function Polls() {
               </p>
             </div>
           ) : (
-            enquetes.map((enquete) => {
-              const jaVotou = !!votosPorEnquete[enquete.id];
-              const opcoes = opcoesPorEnquete[enquete.id] || [];
+            enquetesComOpcoes.map((enquete) => {
+              const jaVotou = !!enquete.meuVoto;
+              const opcoes = enquete.opcoes || [];
 
               return (
                 <div key={enquete.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
