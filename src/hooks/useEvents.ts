@@ -18,6 +18,8 @@ interface Evento {
 
 interface EventoComConfirmados extends Evento {
   confirmados: number;
+  budegueiras: number;
+  visitantes: number;
   totalMembros: number;
   usuarioConfirmou: boolean;
 }
@@ -35,6 +37,8 @@ export function useEvents(userId?: string): UseEventsReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmadosMap, setConfirmadosMap] = useState<Record<string, number>>({});
+  const [budegueirasMap, setBudegueirasMap] = useState<Record<string, number>>({});
+  const [visitantesMap, setVisitantesMap] = useState<Record<string, number>>({});
   const [usuarioConfirmacoes, setUsuarioConfirmacoes] = useState<Set<string>>(new Set());
   const [totalMembros, setTotalMembros] = useState(0);
 
@@ -64,20 +68,26 @@ export function useEvents(userId?: string): UseEventsReturn {
       if (eventosData && eventosData.length > 0) {
         const eventIds = eventosData.map(e => e.id);
         const confirmados: Record<string, number> = {};
+        const budegueiras: Record<string, number> = {};
+        const visitantes: Record<string, number> = {};
 
         await Promise.all(
           eventIds.map(async (eventId) => {
-            const { count } = await supabase
+            const { data: confirmacoesData } = await supabase
               .from('confirmacoes_presenca')
-              .select('*', { count: 'exact', head: true })
+              .select('vai_com_budegueira, quantidade_visitantes')
               .eq('evento_id', eventId)
               .eq('status', 'Confirmado');
 
-            confirmados[eventId] = count || 0;
+            confirmados[eventId] = confirmacoesData?.length || 0;
+            budegueiras[eventId] = (confirmacoesData || []).filter(c => c.vai_com_budegueira).length;
+            visitantes[eventId] = (confirmacoesData || []).reduce((acc, c) => acc + (c.quantidade_visitantes || 0), 0);
           })
         );
 
         setConfirmadosMap(confirmados);
+        setBudegueirasMap(budegueiras);
+        setVisitantesMap(visitantes);
 
         // Buscar confirmações do usuário atual (se logado)
         if (userId) {
@@ -118,12 +128,14 @@ export function useEvents(userId?: string): UseEventsReturn {
     return eventos.map(evento => ({
       ...evento,
       confirmados: confirmadosMap[evento.id] || 0,
+      budegueiras: budegueirasMap[evento.id] || 0,
+      visitantes: visitantesMap[evento.id] || 0,
       totalMembros: evento.vagas_limitadas && evento.max_participantes 
         ? evento.max_participantes 
         : totalMembros,
       usuarioConfirmou: usuarioConfirmacoes.has(evento.id)
     }));
-  }, [eventos, confirmadosMap, totalMembros, usuarioConfirmacoes]);
+  }, [eventos, confirmadosMap, budegueirasMap, visitantesMap, totalMembros, usuarioConfirmacoes]);
 
   return {
     eventos,

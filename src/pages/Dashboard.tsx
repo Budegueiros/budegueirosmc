@@ -26,6 +26,8 @@ export default function Dashboard() {
     mensalidadesAtrasadas,
     kmAnual,
     confirmados,
+    budegueiras,
+    visitantes,
     confirmacaoId,
     loading,
     error,
@@ -139,6 +141,8 @@ export default function Dashboard() {
           <ProximoEventoCard
             evento={proximoEvento}
             confirmados={confirmados}
+            budegueiras={budegueiras}
+            visitantes={visitantes}
             membroId={membro.id}
             confirmacaoId={confirmacaoId}
             confirmandoPresenca={confirmandoPresenca}

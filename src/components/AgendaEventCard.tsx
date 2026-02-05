@@ -29,9 +29,20 @@ interface AgendaEventCardProps {
   isConfirmed?: boolean;
   isConfirming?: boolean;
   confirmadosCount?: number;
+  budegueirasCount?: number;
+  visitantesCount?: number;
 }
 
-export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, currentMember, onRSVP, isConfirmed = false, isConfirming = false, confirmadosCount = 0 }) => {
+export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({
+  event,
+  currentMember,
+  onRSVP,
+  isConfirmed = false,
+  isConfirming = false,
+  confirmadosCount = 0,
+  budegueirasCount = 0,
+  visitantesCount = 0,
+}) => {
   const eventDate = new Date(`${event.data_evento}T00:00:00`);
   const day = eventDate.getDate();
   const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
@@ -138,7 +149,11 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, current
           {currentMember && confirmadosCount > 0 && (
             <div className="flex items-center gap-2 text-gray-400 text-sm">
               <Users className="w-5 h-5" />
-              <span>{confirmadosCount} irmãos confirmados</span>
+              <span>
+                {confirmadosCount} {confirmadosCount === 1 ? 'irmão confirmado' : 'irmãos confirmados'}
+                {budegueirasCount > 0 && ` • ${budegueirasCount} ${budegueirasCount === 1 ? 'Budegueira' : 'Budegueiras'}`}
+                {visitantesCount > 0 && ` • ${visitantesCount} ${visitantesCount === 1 ? 'Visitante' : 'Visitantes'}`}
+              </span>
             </div>
           )}
 

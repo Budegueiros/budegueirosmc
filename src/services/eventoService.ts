@@ -29,10 +29,10 @@ export const eventoService = {
   /**
    * Conta o número de confirmações de presença para um evento
    */
-  async contarConfirmados(eventoId: string): Promise<number> {
-    const { count, error } = await supabase
+  async contarConfirmados(eventoId: string): Promise<{ confirmados: number; budegueiras: number; visitantes: number }> {
+    const { data, error } = await supabase
       .from('confirmacoes_presenca')
-      .select('*', { count: 'exact', head: true })
+      .select('vai_com_budegueira, quantidade_visitantes')
       .eq('evento_id', eventoId)
       .eq('status', 'Confirmado');
 
@@ -40,7 +40,11 @@ export const eventoService = {
       throw new Error(`Erro ao contar confirmados: ${error.message}`);
     }
 
-    return count || 0;
+    const confirmados = data?.length || 0;
+    const budegueiras = (data || []).filter((c) => c.vai_com_budegueira).length;
+    const visitantes = (data || []).reduce((acc, c) => acc + (c.quantidade_visitantes || 0), 0);
+
+    return { confirmados, budegueiras, visitantes };
   },
 
   /**
@@ -73,19 +77,28 @@ export const eventoService = {
       vaiComBudegueira?: boolean;
       quantidadeVisitantes?: number;
     }
-  ): Promise<{ id: string; action: 'created' | 'deleted' }> {
+  ): Promise<{ id: string; action: 'created' | 'deleted'; detalhes?: { vaiComBudegueira: boolean; quantidadeVisitantes: number } }> {
     if (confirmacaoId) {
       // Cancelar confirmação existente
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('confirmacoes_presenca')
         .delete()
-        .eq('id', confirmacaoId);
+        .eq('id', confirmacaoId)
+        .select('vai_com_budegueira, quantidade_visitantes')
+        .single();
 
       if (error) {
         throw new Error(`Erro ao cancelar confirmação: ${error.message}`);
       }
 
-      return { id: confirmacaoId, action: 'deleted' };
+      return {
+        id: confirmacaoId,
+        action: 'deleted',
+        detalhes: {
+          vaiComBudegueira: data?.vai_com_budegueira ?? false,
+          quantidadeVisitantes: data?.quantidade_visitantes ?? 0,
+        },
+      };
     } else {
       // Criar nova confirmação
       const { data, error } = await supabase
@@ -105,7 +118,14 @@ export const eventoService = {
         throw new Error(`Erro ao confirmar presença: ${error.message}`);
       }
 
-      return { id: data.id, action: 'created' };
+      return {
+        id: data.id,
+        action: 'created',
+        detalhes: {
+          vaiComBudegueira: detalhes?.vaiComBudegueira ?? false,
+          quantidadeVisitantes: detalhes?.quantidadeVisitantes ?? 0,
+        },
+      };
     }
   },
 

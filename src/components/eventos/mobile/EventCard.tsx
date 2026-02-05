@@ -20,6 +20,8 @@ interface Evento {
 interface EventCardProps {
   evento: Evento;
   confirmados?: number;
+  budegueiras?: number;
+  visitantes?: number;
   totalMembros?: number;
   usuarioConfirmou?: boolean;
   onConfirmar?: () => void;
@@ -76,6 +78,8 @@ const TIPO_CONFIG: Record<string, {
 export default function EventCard({
   evento,
   confirmados = 0,
+  budegueiras = 0,
+  visitantes = 0,
   totalMembros = 0,
   usuarioConfirmou = false,
   onConfirmar,
@@ -203,6 +207,13 @@ export default function EventCard({
                   {confirmados}/{totalMembros} ({percentualConfirmados}%)
                 </span>
               </div>
+              {(budegueiras > 0 || visitantes > 0) && (
+                <div className="text-xs text-gray-400">
+                  {budegueiras > 0 && `${budegueiras} ${budegueiras === 1 ? 'Budegueira' : 'Budegueiras'}`}
+                  {budegueiras > 0 && visitantes > 0 && ' • '}
+                  {visitantes > 0 && `${visitantes} ${visitantes === 1 ? 'Visitante' : 'Visitantes'}`}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -212,6 +223,8 @@ export default function EventCard({
             <span className="text-gray-400 w-5">👥</span>
             <span className="text-gray-300">
               {confirmados} presentes ({percentualConfirmados}%)
+              {budegueiras > 0 && ` • ${budegueiras} ${budegueiras === 1 ? 'Budegueira' : 'Budegueiras'}`}
+              {visitantes > 0 && ` • ${visitantes} ${visitantes === 1 ? 'Visitante' : 'Visitantes'}`}
             </span>
           </div>
         )}
