@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { translateAuthError } from '../utils/errorHandler';
+import { validateBeforeSend } from '../utils/validation';
 
 interface AuthContextType {
   user: User | null;
@@ -96,11 +98,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
+    // Validar dados antes de enviar (validação adicional de segurança)
+    const validation = validateBeforeSend(email, password);
+    
+    if (!validation.isValid) {
+      const validationError = new Error(validation.errors.join(' '));
+      (validationError as any).status = 400;
+      throw validationError;
+    }
+    
+    // Preparar payload no formato esperado pelo Supabase
+    const payload = {
+      email: validation.data!.email,
+      password: validation.data!.password,
+    };
+    
+    // Log do payload (sem senha completa) em desenvolvimento
+    if (import.meta.env.DEV) {
+      console.log('📤 Enviando dados de autenticação:', {
+        email: payload.email,
+        passwordLength: payload.password.length,
+        payloadFormat: 'signInWithPassword',
+      });
+    }
+    
+    const { data, error } = await supabase.auth.signInWithPassword(payload);
+    
+    if (error) {
+      // Traduzir mensagem de erro usando a função utilitária
+      const errorMessage = translateAuthError(error);
+      
+      // Criar um novo erro com a mensagem traduzida
+      const translatedError = new Error(errorMessage);
+      (translatedError as any).status = error.status;
+      (translatedError as any).originalError = error;
+      
+      // Log do erro em desenvolvimento para debug
+      if (import.meta.env.DEV) {
+        console.error('❌ Erro de autenticação:', {
+          status: error.status,
+          message: error.message,
+          translatedMessage: errorMessage,
+          email: payload.email,
+        });
+      }
+      
+      throw translatedError;
+    }
+    
+    // Log de sucesso em desenvolvimento
+    if (import.meta.env.DEV) {
+      console.log('✅ Autenticação bem-sucedida:', {
+        userId: data.user?.id,
+        email: data.user?.email,
+      });
+    }
+    
+    return data;
   };
 
   const signOut = async () => {

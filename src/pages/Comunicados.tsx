@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Bell, Filter, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { comunicadoService } from '../services/comunicadoService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ComunicadoCard from '../components/ComunicadoCard';
 import { ComunicadoComAutor } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
+import { handleSupabaseError } from '../utils/errorHandler';
 
 type FiltroTipo = 'todos' | 'nao-lidos' | 'importantes';
 
 export default function Comunicados() {
   const { user } = useAuth();
   const { error: toastError } = useToast();
-  const navigate = useNavigate();
   const [comunicados, setComunicados] = useState<ComunicadoComAutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<FiltroTipo>('todos');
@@ -30,51 +30,18 @@ export default function Comunicados() {
 
     setLoading(true);
     try {
-      // Buscar integrante
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
-        .select('id, is_admin')
-        .eq('user_id', user.id)
-        .single();
-
-      if (membroError) throw membroError;
+      // Buscar membro
+      const membroData = await membroService.buscarPorUserId(user.id);
       if (!membroData) return;
 
       setMembroId(membroData.id);
 
-      // Buscar comunicados com informações do autor e status de leitura
-      const { data: comunicadosData, error: comunicadosError } = await supabase
-        .from('comunicados')
-        .select(`
-          *,
-          autor:membros!comunicados_membro_id_autor_fkey (
-            nome_guerra,
-            foto_url
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (comunicadosError) throw comunicadosError;
-
-      // Buscar leituras do integrante
-      const { data: leiturasData } = await supabase
-        .from('comunicados_leitura')
-        .select('comunicado_id')
-        .eq('membro_id', membroData.id);
-
-      const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
-
-      // Mapear comunicados com status de leitura
-      const comunicadosComLeitura: ComunicadoComAutor[] =
-        comunicadosData?.map((c: any) => ({
-          ...c,
-          autor: c.autor || { nome_guerra: 'Desconhecido', foto_url: null },
-          ja_lido: idsLidos.has(c.id)
-        })) || [];
-
+      // Buscar comunicados com status de leitura
+      const comunicadosComLeitura = await comunicadoService.buscarComStatusLeitura(membroData.id);
       setComunicados(comunicadosComLeitura);
     } catch (error) {
-      console.error('Erro ao carregar comunicados:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar comunicados:', appError);
       toastError('Erro ao carregar comunicados.');
     } finally {
       setLoading(false);
@@ -85,22 +52,15 @@ export default function Comunicados() {
     if (!membroId) return;
 
     try {
-      const { error } = await supabase.from('comunicados_leitura').insert({
-        comunicado_id: comunicadoId,
-        membro_id: membroId
-      });
-
-      if (error) throw error;
+      await comunicadoService.marcarComoLido(comunicadoId, membroId);
 
       // Atualizar estado local
       setComunicados((prev) =>
         prev.map((c) => (c.id === comunicadoId ? { ...c, ja_lido: true } : c))
       );
-    } catch (error: any) {
-      // Ignorar erro de duplicata (já foi marcado como lido)
-      if (error?.code !== '23505') {
-        console.error('Erro ao marcar como lido:', error);
-      }
+    } catch (error) {
+      // Erro já foi tratado no service (ignora duplicatas)
+      console.error('Erro ao marcar como lido:', error);
     }
   };
 
@@ -134,10 +94,10 @@ export default function Comunicados() {
         </div>
 
         {/* Filtros */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           <button
             onClick={() => setFiltro('todos')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors ${
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors flex-shrink-0 ${
               filtro === 'todos'
                 ? 'bg-brand-red border-brand-red text-white'
                 : 'bg-zinc-800 border-gray-700 text-gray-400 hover:text-white'
@@ -147,7 +107,7 @@ export default function Comunicados() {
           </button>
           <button
             onClick={() => setFiltro('nao-lidos')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors ${
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors flex-shrink-0 ${
               filtro === 'nao-lidos'
                 ? 'bg-brand-red border-brand-red text-white'
                 : 'bg-zinc-800 border-gray-700 text-gray-400 hover:text-white'
@@ -157,7 +117,7 @@ export default function Comunicados() {
           </button>
           <button
             onClick={() => setFiltro('importantes')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors ${
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors flex-shrink-0 ${
               filtro === 'importantes'
                 ? 'bg-brand-red border-brand-red text-white'
                 : 'bg-zinc-800 border-gray-700 text-gray-400 hover:text-white'

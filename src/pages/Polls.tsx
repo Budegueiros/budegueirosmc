@@ -1,141 +1,74 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BarChart3, Plus, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import { BarChart3, CheckCircle, Loader2 } from 'lucide-react';
+import { membroService } from '../services/membroService';
+import { pollService, EnqueteComOpcoes } from '../services/pollService';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
 import DashboardLayout from '../components/DashboardLayout';
+import { handleSupabaseError } from '../utils/errorHandler';
 
-interface Enquete {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  tipo: 'multipla_escolha' | 'texto_livre';
-  data_encerramento: string;
-  status: 'aberta' | 'encerrada';
-  created_at: string;
-}
-
-interface Opcao {
-  id: string;
-  texto: string;
-  ordem: number;
-  votos: number;
-  percentual: number;
-}
-
-interface Voto {
-  id: string;
-  opcao_id: string | null;
-  texto_livre: string | null;
-}
+// Tipos importados do pollService
+type Opcao = EnqueteComOpcoes['opcoes'][0];
+type Voto = EnqueteComOpcoes['meuVoto'] extends null ? never : NonNullable<EnqueteComOpcoes['meuVoto']>;
 
 export default function Polls() {
   const { user } = useAuth();
-  const { isAdmin } = useAdmin();
   const { error: toastError, warning: toastWarning } = useToast();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'aberta' | 'encerrada'>('aberta');
-  const [enquetes, setEnquetes] = useState<Enquete[]>([]);
+  const [enquetesComOpcoes, setEnquetesComOpcoes] = useState<EnqueteComOpcoes[]>([]);
   const [loading, setLoading] = useState(true);
   const [votando, setVotando] = useState<string | null>(null);
   const [membroId, setMembroId] = useState<string | null>(null);
 
-  // Estado para opções e votos de cada enquete
-  const [opcoesPorEnquete, setOpcoesPorEnquete] = useState<Record<string, Opcao[]>>({});
-  const [votosPorEnquete, setVotosPorEnquete] = useState<Record<string, Voto | null>>({});
   const [selecaoPorEnquete, setSelecaoPorEnquete] = useState<Record<string, string>>({});
   const [textoLivrePorEnquete, setTextoLivrePorEnquete] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    carregarDados();
-  }, [user, activeTab]);
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      // Buscar integrante
-      const { data: membroData } = await supabase
-        .from('membros')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
+      // Buscar membro
+      const membroData = await membroService.buscarIdPorUserId(user.id);
       if (!membroData) return;
-      setMembroId(membroData.id);
+      
+      setMembroId(membroData);
 
-      // Buscar enquetes
-      const { data: enquetesData, error: enquetesError } = await supabase
-        .from('enquetes')
-        .select('*')
-        .eq('status', activeTab)
-        .order('created_at', { ascending: false });
+      // Buscar enquetes com opções e votos (otimizado - evita N+1)
+      const enquetes = await pollService.buscarTodasComOpcoes(membroData, activeTab);
+      setEnquetesComOpcoes(enquetes);
 
-      if (enquetesError) throw enquetesError;
-      setEnquetes(enquetesData || []);
-
-      // Para cada enquete, buscar opções e votos
-      if (enquetesData) {
-        const opcoes: Record<string, Opcao[]> = {};
-        const votos: Record<string, Voto | null> = {};
-
-        for (const enquete of enquetesData) {
-          if (enquete.tipo === 'multipla_escolha') {
-            // Buscar opções
-            const { data: opcoesData } = await supabase
-              .from('enquete_opcoes')
-              .select('*')
-              .eq('enquete_id', enquete.id)
-              .order('ordem');
-
-            // Buscar contagem de votos por opção
-            const { data: votosData } = await supabase
-              .from('votos')
-              .select('opcao_id')
-              .eq('enquete_id', enquete.id);
-
-            const totalVotos = votosData?.length || 0;
-            const votosPorOpcao = votosData?.reduce((acc, v) => {
-              if (v.opcao_id) {
-                acc[v.opcao_id] = (acc[v.opcao_id] || 0) + 1;
-              }
-              return acc;
-            }, {} as Record<string, number>) || {};
-
-            opcoes[enquete.id] = opcoesData?.map(op => ({
-              id: op.id,
-              texto: op.texto,
-              ordem: op.ordem,
-              votos: votosPorOpcao[op.id] || 0,
-              percentual: totalVotos > 0 ? ((votosPorOpcao[op.id] || 0) / totalVotos) * 100 : 0
-            })) || [];
+      // Inicializar seleções baseado nos votos existentes
+      const novasSelecoes: Record<string, string> = {};
+      const novosTextosLivres: Record<string, string> = {};
+      
+      enquetes.forEach((enquete) => {
+        if (enquete.meuVoto) {
+          if (enquete.meuVoto.opcao_id) {
+            novasSelecoes[enquete.id] = enquete.meuVoto.opcao_id;
           }
-
-          // Buscar voto do usuário nesta enquete
-          const { data: meuVoto } = await supabase
-            .from('votos')
-            .select('*')
-            .eq('enquete_id', enquete.id)
-            .eq('membro_id', membroData.id)
-            .maybeSingle();
-
-          votos[enquete.id] = meuVoto || null;
+          if (enquete.meuVoto.texto_livre) {
+            novosTextosLivres[enquete.id] = enquete.meuVoto.texto_livre;
+          }
         }
-
-        setOpcoesPorEnquete(opcoes);
-        setVotosPorEnquete(votos);
-      }
+      });
+      
+      setSelecaoPorEnquete(novasSelecoes);
+      setTextoLivrePorEnquete(novosTextosLivres);
     } catch (error) {
-      console.error('Erro ao carregar enquetes:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar enquetes:', appError);
+      toastError('Erro ao carregar enquetes.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, activeTab, toastError]);
 
-  const handleVotar = async (enqueteId: string, tipo: 'multipla_escolha' | 'texto_livre') => {
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  const handleVotar = useCallback(async (enqueteId: string, tipo: 'multipla_escolha' | 'texto_livre') => {
     if (!membroId || votando) return;
 
     const opcaoSelecionada = selecaoPorEnquete[enqueteId];
@@ -153,42 +86,24 @@ export default function Polls() {
 
     setVotando(enqueteId);
     try {
-      const votoExistente = votosPorEnquete[enqueteId];
+      await pollService.votar(
+        enqueteId,
+        membroId,
+        tipo,
+        opcaoSelecionada || null,
+        textoLivre || null
+      );
 
-      if (votoExistente) {
-        // Atualizar voto
-        const { error } = await supabase
-          .from('votos')
-          .update({
-            opcao_id: tipo === 'multipla_escolha' ? opcaoSelecionada : null,
-            texto_livre: tipo === 'texto_livre' ? textoLivre : null
-          })
-          .eq('id', votoExistente.id);
-
-        if (error) throw error;
-      } else {
-        // Inserir novo voto
-        const { error } = await supabase
-          .from('votos')
-          .insert({
-            enquete_id: enqueteId,
-            membro_id: membroId,
-            opcao_id: tipo === 'multipla_escolha' ? opcaoSelecionada : null,
-            texto_livre: tipo === 'texto_livre' ? textoLivre : null
-          });
-
-        if (error) throw error;
-      }
-
-      // Recarregar dados
+      // Recarregar dados para atualizar estatísticas
       await carregarDados();
     } catch (error) {
-      console.error('Erro ao votar:', error);
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao votar:', appError);
       toastError('Erro ao registrar voto. Tente novamente.');
     } finally {
       setVotando(null);
     }
-  };
+  }, [membroId, votando, selecaoPorEnquete, textoLivrePorEnquete, toastWarning, toastError, carregarDados]);
 
   const formatarData = (data: string) => {
     return new Date(data).toLocaleDateString('pt-BR', {
@@ -222,15 +137,6 @@ export default function Polls() {
               <h1 className="text-2xl md:text-4xl font-oswald uppercase font-bold">Enquetes & Votações</h1>
             </div>
           </div>
-          {isAdmin && (
-            <Link
-              to="/create-poll"
-              className="bg-brand-red hover:bg-red-700 text-white px-6 py-3 rounded-lg font-oswald uppercase font-bold text-sm transition flex items-center justify-center gap-2 w-full md:w-auto"
-            >
-              <Plus className="w-5 h-5" />
-              Nova Enquete
-            </Link>
-          )}
         </div>
 
         {/* Tabs */}
@@ -259,7 +165,7 @@ export default function Polls() {
 
         {/* Lista de Enquetes */}
         <div className="space-y-6">
-          {enquetes.length === 0 ? (
+          {enquetesComOpcoes.length === 0 ? (
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
               <BarChart3 className="w-16 h-16 text-gray-700 mx-auto mb-4" />
               <p className="text-gray-500">
@@ -267,10 +173,9 @@ export default function Polls() {
               </p>
             </div>
           ) : (
-            enquetes.map((enquete) => {
-              const jaVotou = !!votosPorEnquete[enquete.id];
-              const opcoes = opcoesPorEnquete[enquete.id] || [];
-              const totalVotos = opcoes.reduce((sum, op) => sum + op.votos, 0);
+            enquetesComOpcoes.map((enquete) => {
+              const jaVotou = !!enquete.meuVoto;
+              const opcoes = enquete.opcoes || [];
 
               return (
                 <div key={enquete.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
@@ -363,7 +268,7 @@ export default function Polls() {
                         {jaVotou || activeTab === 'encerrada' ? (
                           <div className="bg-gray-800 rounded-lg p-4">
                             <p className="text-gray-400 text-sm mb-2">Sua resposta:</p>
-                            <p className="text-white">{votosPorEnquete[enquete.id]?.texto_livre}</p>
+                            <p className="text-white">{enquete.meuVoto?.texto_livre || ''}</p>
                             {activeTab === 'aberta' && (
                               <p className="text-center text-brand-red text-sm mt-4 flex items-center justify-center gap-2">
                                 <CheckCircle className="w-4 h-4" />

@@ -50,7 +50,7 @@ export default function Contato() {
   return (
     <section className="relative py-20 bg-black min-h-screen flex items-center justify-center pt-24 overflow-hidden">
 
-      <div className="container mx-auto px-4 pl-16 md:pl-24 max-w-7xl">
+      <div className="container mx-auto px-4 max-w-7xl">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-4">
           <div>

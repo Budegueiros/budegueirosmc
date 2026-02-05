@@ -6,9 +6,9 @@
 // ============================================================================
 
 /**
- * Status possíveis de um integrante no Moto Clube
+ * Status possíveis de um membro no Moto Clube
  */
-export type StatusIntegranteEnum = 
+export type StatusMembroEnum = 
   | 'Aspirante'
   | 'Prospect'
   | 'Brasionado'
@@ -23,15 +23,20 @@ export type TipoCargoEnum =
   | 'Honorario';
 
 /**
- * Interface base para integrantes
+ * Tipos sanguíneos válidos
  */
-export interface Integrante {
+export type TipoSanguineo = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+
+/**
+ * Interface base para membros
+ */
+export interface Membro {
   id: string;
   user_id: string;
   nome_completo: string;
   nome_guerra: string;
   padrinho_id: string | null;
-  status_integrante: StatusIntegranteEnum;
+  status_membro: StatusMembroEnum;
   numero_carteira: string;
   data_inicio: string | null;
   telefone: string | null;
@@ -39,6 +44,7 @@ export interface Integrante {
   endereco_cidade: string | null;
   endereco_estado: string | null;
   foto_url: string | null;
+  tipo_sanguineo: TipoSanguineo | null;
   ativo: boolean;
   is_admin: boolean;
   created_at: string;
@@ -47,7 +53,7 @@ export interface Integrante {
 }
 
 /**
- * Informações resumidas do padrinho (integrante responsável)
+ * Informações resumidas do padrinho (membro responsável)
  */
 export interface PadrinhoInfo {
   id: string;
@@ -70,11 +76,11 @@ export interface Cargo {
 }
 
 /**
- * Interface para relacionamento integrante-cargo
+ * Interface para relacionamento membro-cargo
  */
-export interface IntegranteCargo {
+export interface MembroCargo {
   id: string;
-  integrante_id: string;
+  membro_id: string;
   cargo_id: string;
   data_atribuicao: string;
   ativo: boolean;
@@ -84,16 +90,20 @@ export interface IntegranteCargo {
 }
 
 /**
- * Interface estendida: Integrante com seus cargos incluídos
+ * Interface estendida: Membro com seus cargos incluídos
  */
-export interface IntegranteComCargos extends Integrante {
+export interface MembroComCargos extends Membro {
   cargos: Cargo[];
+  conjuge?: {
+    nome_completo: string;
+    nome_guerra: string;
+  } | null;
 }
 
 /**
- * Interface para dados do join integrante_cargos
+ * Interface para dados do join membro_cargos
  */
-export interface IntegranteCargoJoin {
+export interface MembroCargoJoin {
   id: string;
   data_atribuicao: string;
   ativo: boolean;
@@ -104,7 +114,7 @@ export interface IntegranteCargoJoin {
 /**
  * Helper para verificar se um valor é um status válido
  */
-export function isStatusIntegrante(value: string): value is StatusIntegranteEnum {
+export function isStatusMembro(value: string): value is StatusMembroEnum {
   return ['Aspirante', 'Prospect', 'Brasionado', 'Nomade'].includes(value);
 }
 
@@ -118,7 +128,7 @@ export function isTipoCargo(value: string): value is TipoCargoEnum {
 /**
  * Cores e estilos para cada status
  */
-export const STATUS_STYLES: Record<StatusIntegranteEnum, { bg: string; text: string; label: string }> = {
+export const STATUS_STYLES: Record<StatusMembroEnum, { bg: string; text: string; label: string }> = {
   Aspirante: {
     bg: 'bg-yellow-100',
     text: 'text-yellow-800',
@@ -142,20 +152,20 @@ export const STATUS_STYLES: Record<StatusIntegranteEnum, { bg: string; text: str
 };
 
 /**
- * Cores para cada tipo de cargo
+ * Cores para cada tipo de cargo (Dark Mode)
  */
 export const TIPO_CARGO_STYLES: Record<TipoCargoEnum, { bg: string; text: string }> = {
   Administrativo: {
-    bg: 'bg-red-100',
-    text: 'text-red-800'
+    bg: 'bg-red-950/40 border border-red-800/30',
+    text: 'text-red-400'
   },
   Operacional: {
-    bg: 'bg-indigo-100',
-    text: 'text-indigo-800'
+    bg: 'bg-indigo-950/40 border border-indigo-800/30',
+    text: 'text-indigo-400'
   },
   Honorario: {
-    bg: 'bg-amber-100',
-    text: 'text-amber-800'
+    bg: 'bg-amber-950/40 border border-amber-800/30',
+    text: 'text-amber-400'
   }
 };
 
@@ -167,7 +177,7 @@ export type ComunicadoPrioridade = 'normal' | 'alta' | 'critica';
 /**
  * Tipo de destinatário do comunicado
  */
-export type ComunicadoTipoDestinatario = 'geral' | 'cargo' | 'integrante';
+export type ComunicadoTipoDestinatario = 'geral' | 'cargo' | 'membro';
 
 /**
  * Interface para comunicados
@@ -179,7 +189,7 @@ export interface Comunicado {
   prioridade: ComunicadoPrioridade;
   tipo_destinatario: ComunicadoTipoDestinatario;
   valor_destinatario: string | null;
-  integrante_id_autor: string;
+  membro_id_autor: string;
   created_at: string;
 }
 
@@ -189,7 +199,7 @@ export interface Comunicado {
 export interface ComunicadoLeitura {
   id: string;
   comunicado_id: string;
-  integrante_id: string;
+  membro_id: string;
   lido_em: string;
 }
 
@@ -253,7 +263,7 @@ export interface EventoComFotos extends Evento {
 /**
  * Tipo de destinatário do documento (igual ao de comunicados)
  */
-export type DocumentoTipoDestinatario = 'geral' | 'cargo' | 'integrante';
+export type DocumentoTipoDestinatario = 'geral' | 'cargo' | 'membro';
 
 /**
  * Interface para documentos
@@ -268,7 +278,7 @@ export interface Documento {
   tamanho_bytes: number | null;
   tipo_destinatario: DocumentoTipoDestinatario;
   valor_destinatario: string | null;
-  integrante_id_autor: string;
+  membro_id_autor: string;
   created_at: string;
 }
 
@@ -278,7 +288,7 @@ export interface Documento {
 export interface DocumentoAcesso {
   id: string;
   documento_id: string;
-  integrante_id: string;
+  membro_id: string;
   acessado_em: string;
 }
 
@@ -291,5 +301,131 @@ export interface DocumentoComAutor extends Documento {
     foto_url: string | null;
   };
   ja_acessado: boolean;
+}
+
+/**
+ * Tipo de fluxo de caixa (entrada ou saída)
+ */
+export type TipoFluxoCaixa = 'entrada' | 'saida';
+
+/**
+ * Categoria de lançamento no fluxo de caixa
+ * Categorias de Entrada: Mensalidade, Doação, Venda, Evento
+ * Categorias de Saída: Combustível, Sede, Eventos, Outros
+ */
+export type CategoriaFluxoCaixa = 
+  // Categorias de Entrada
+  | 'Mensalidade'
+  | 'Doação'
+  | 'Venda'
+  | 'Evento'
+  // Categorias de Saída
+  | 'Combustível'
+  | 'Sede'
+  | 'Eventos'
+  | 'Outros';
+
+/**
+ * Interface para fluxo de caixa
+ */
+export interface FluxoCaixa {
+  id: string;
+  tipo: TipoFluxoCaixa;
+  descricao: string;
+  categoria: CategoriaFluxoCaixa;
+  valor: number;
+  data: string;
+  anexo_url: string | null;
+  membro_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Interface estendida: FluxoCaixa com informações do membro
+ */
+export interface FluxoCaixaComMembro extends FluxoCaixa {
+  membros: {
+    nome_guerra: string;
+    nome_completo: string;
+  };
+}
+
+/**
+ * Helper para verificar se um valor é um tipo de fluxo válido
+ */
+export function isTipoFluxoCaixa(value: string): value is TipoFluxoCaixa {
+  return ['entrada', 'saida'].includes(value);
+}
+
+/**
+ * Helper para verificar se um valor é uma categoria válida
+ */
+export function isCategoriaFluxoCaixa(value: string): value is CategoriaFluxoCaixa {
+  return [
+    'Mensalidade', 'Doação', 'Venda', 'Evento',
+    'Combustível', 'Sede', 'Eventos', 'Outros'
+  ].includes(value);
+}
+
+/**
+ * Categorias disponíveis por tipo de fluxo
+ */
+export const CATEGORIAS_ENTRADA: CategoriaFluxoCaixa[] = [
+  'Mensalidade',
+  'Doação',
+  'Venda',
+  'Evento',
+  'Outros'
+];
+
+export const CATEGORIAS_SAIDA: CategoriaFluxoCaixa[] = [
+  'Combustível',
+  'Sede',
+  'Eventos',
+  'Outros'
+];
+
+/**
+ * Helper para verificar se um valor é um tipo sanguíneo válido
+ */
+export function isTipoSanguineo(value: string | null | undefined): value is TipoSanguineo {
+  if (!value) return false;
+  return ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(value);
+}
+
+/**
+ * Opções de tipo sanguíneo para formulários
+ */
+export const TIPOS_SANGUINEOS: TipoSanguineo[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+/**
+ * Interface para participações confirmadas pelo admin em eventos
+ */
+export interface ParticipacaoEvento {
+  id: string;
+  evento_id: string;
+  membro_id: string;
+  confirmado_por: string | null;
+  data_confirmacao: string;
+  observacao: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Interface estendida com informações do membro e evento
+ */
+export interface ParticipacaoEventoCompleta extends ParticipacaoEvento {
+  membro: {
+    nome_guerra: string;
+    nome_completo: string;
+    foto_url: string | null;
+  };
+  evento: {
+    nome: string;
+    data_evento: string;
+    distancia_km: number | null;
+  };
 }
 

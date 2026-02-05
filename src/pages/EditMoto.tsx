@@ -40,7 +40,7 @@ export default function EditMoto() {
     if (!user || !id) return;
 
     try {
-      // Buscar integrante atual
+      // Buscar membro atual
       const { data: membroData } = await supabase
         .from('membros')
         .select('id')
@@ -155,11 +155,11 @@ export default function EditMoto() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/admin')}
             className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Voltar ao Dashboard</span>
+            <span className="text-sm">Voltar para Painel Administrativo</span>
           </button>
           <h1 className="text-white font-oswald text-4xl uppercase font-bold flex items-center gap-3">
             <Bike className="w-8 h-8 text-brand-red" />

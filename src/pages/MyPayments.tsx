@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
-import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react';
+import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, Copy, TrendingUp, TrendingDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdmin } from '../hooks/useAdmin';
+import { useFluxoCaixa } from '../hooks/useFluxoCaixa';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface Mensalidade {
@@ -22,12 +24,16 @@ export default function MyPayments() {
   const { user } = useAuth();
   const { info: toastInfo } = useToast();
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
+  const { fluxoCaixa, loading: loadingCaixa } = useFluxoCaixa();
   
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    carregarDados();
+    if (user) {
+      carregarDados();
+    }
   }, [user]);
 
   const carregarDados = async () => {
@@ -35,7 +41,7 @@ export default function MyPayments() {
 
     setLoading(true);
     try {
-      // Buscar ID do integrante
+      // Buscar ID do membro
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .select('id')
@@ -49,7 +55,7 @@ export default function MyPayments() {
         return;
       }
 
-      // Carregar mensalidades do integrante
+      // Carregar mensalidades do membro
       const { data: mensalidadesData, error: mensalidadesError } = await supabase
         .from('mensalidades')
         .select('*')
@@ -64,6 +70,40 @@ export default function MyPayments() {
       setLoading(false);
     }
   };
+
+  // Calcular métricas do caixa (mesmo cálculo do ControleCaixa)
+  const metricsCaixa = useMemo(() => {
+    // Se fluxoCaixa ainda não foi carregado ou está vazio, retorna zeros
+    if (!fluxoCaixa || fluxoCaixa.length === 0) {
+      return {
+        saldoAtual: 0,
+        totalEntradas: 0,
+        totalSaidas: 0,
+        pendentesRecibo: 0
+      };
+    }
+
+    const totalEntradas = fluxoCaixa
+      .filter(l => l.tipo === 'entrada')
+      .reduce((acc, l) => acc + l.valor, 0);
+
+    const totalSaidas = fluxoCaixa
+      .filter(l => l.tipo === 'saida')
+      .reduce((acc, l) => acc + l.valor, 0);
+
+    const saldoAtual = totalEntradas - totalSaidas;
+
+    const pendentesRecibo = fluxoCaixa
+      .filter(l => l.tipo === 'saida' && !l.anexo_url)
+      .length;
+
+    return {
+      saldoAtual,
+      totalEntradas,
+      totalSaidas,
+      pendentesRecibo
+    };
+  }, [fluxoCaixa]);
 
   const formatarMes = (mesReferencia: string) => {
     const date = new Date(mesReferencia + 'T00:00:00');
@@ -112,6 +152,14 @@ export default function MyPayments() {
     return { total, pagas, pendentes, atrasadas };
   };
 
+  const formatarMoeda = (valor: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    }).format(valor);
+  };
+
   const resumo = calcularResumo();
 
   if (loading) {
@@ -146,7 +194,7 @@ export default function MyPayments() {
           </p>
         </div>
 
-        {/* Resumo */}
+        {/* Resumo Mensalidades */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-4">
             <p className="text-gray-500 text-xs uppercase mb-1">Total</p>
@@ -164,6 +212,96 @@ export default function MyPayments() {
             <p className="text-gray-500 text-xs uppercase mb-1">Atrasadas</p>
             <p className="text-red-500 font-oswald text-2xl font-bold">{resumo.atrasadas}</p>
           </div>
+        </div>
+
+        {/* Métricas do Caixa */}
+        <div className="mb-8">
+          <h2 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+            Controle de Caixa
+          </h2>
+            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {/* Saldo Atual */}
+              <div className="bg-brand-gray border border-green-600/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-green-500" />
+                  <p className="text-gray-500 text-xs uppercase">Saldo Atual</p>
+                </div>
+                {loadingCaixa ? (
+                  <div className="flex items-center justify-center h-8">
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <p className={`font-oswald text-2xl font-bold mb-1 ${
+                      metricsCaixa.saldoAtual >= 0 ? 'text-green-500' : 'text-red-500'
+                    }`}>
+                      {formatarMoeda(metricsCaixa.saldoAtual)}
+                    </p>
+                    <p className="text-gray-400 text-xs">Entradas - Saídas</p>
+                  </>
+                )}
+              </div>
+
+              {/* Total Entradas */}
+              <div className="bg-brand-gray border border-blue-600/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-5 h-5 text-blue-500" />
+                  <p className="text-gray-500 text-xs uppercase">Total Entradas</p>
+                </div>
+                {loadingCaixa ? (
+                  <div className="flex items-center justify-center h-8">
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-blue-500 font-oswald text-2xl font-bold mb-1">
+                      {formatarMoeda(metricsCaixa.totalEntradas)}
+                    </p>
+                    <p className="text-gray-400 text-xs">Recebimentos</p>
+                  </>
+                )}
+              </div>
+
+              {/* Total Saídas */}
+              <div className="bg-brand-gray border border-red-600/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingDown className="w-5 h-5 text-red-500" />
+                  <p className="text-gray-500 text-xs uppercase">Total Saídas</p>
+                </div>
+                {loadingCaixa ? (
+                  <div className="flex items-center justify-center h-8">
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-red-500 font-oswald text-2xl font-bold mb-1">
+                      {formatarMoeda(metricsCaixa.totalSaidas)}
+                    </p>
+                    <p className="text-gray-400 text-xs">Pagamentos</p>
+                  </>
+                )}
+              </div>
+
+              {/* Pendentes de Recibo */}
+              <div className="bg-brand-gray border border-orange-600/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-5 h-5 text-orange-500" />
+                  <p className="text-gray-500 text-xs uppercase">Pendentes de Recibo</p>
+                </div>
+                {loadingCaixa ? (
+                  <div className="flex items-center justify-center h-8">
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-orange-500 font-oswald text-2xl font-bold mb-1">
+                      {metricsCaixa.pendentesRecibo}
+                    </p>
+                    <p className="text-gray-400 text-xs">Sem comprovante</p>
+                  </>
+                )}
+              </div>
+            </div>
         </div>
 
         {/* Lista de Mensalidades */}
@@ -220,13 +358,18 @@ export default function MyPayments() {
                 {mensalidade.link_cobranca && mensalidade.status !== 'Pago' && (
                   <div className="mt-4 pt-4 border-t border-gray-700">
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(mensalidade.link_cobranca!);
-                        toastInfo('Código PIX copiado para a área de transferência!');
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(mensalidade.link_cobranca!);
+                          toastInfo('Código PIX copiado para a área de transferência!');
+                        } catch (error) {
+                          console.error('Erro ao copiar:', error);
+                          toastInfo('Erro ao copiar código PIX. Tente novamente.');
+                        }
                       }}
                       className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-6 rounded-lg transition"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <Copy className="w-4 h-4" />
                       Copiar Código PIX
                     </button>
                   </div>

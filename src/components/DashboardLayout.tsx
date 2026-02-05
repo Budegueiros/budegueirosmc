@@ -6,15 +6,15 @@ import { TiMessages } from "react-icons/ti";
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
-import { StatusIntegranteEnum, STATUS_STYLES } from '../types/database.types';
+import { StatusMembroEnum, STATUS_STYLES } from '../types/database.types';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-interface IntegranteData {
+interface MembroData {
   nome_guerra: string;
-  status_integrante: StatusIntegranteEnum;
+  status_membro: StatusMembroEnum;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -24,32 +24,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const [comunicadosNaoLidos, setComunicadosNaoLidos] = useState(0);
-  const [integrante, setIntegrante] = useState<IntegranteData | null>(null);
+  const [membro, setMembro] = useState<MembroData | null>(null);
 
   useEffect(() => {
     carregarComunicadosNaoLidos();
-    carregarDadosIntegrante();
+    carregarDadosMembro();
   }, []);
 
-  const carregarDadosIntegrante = async () => {
+  const carregarDadosMembro = async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return;
 
-      const { data: integranteData } = await supabase
+      const { data: membroData } = await supabase
         .from('membros')
         .select('nome_guerra, status_membro')
         .eq('user_id', userData.user.id)
         .single();
 
-      if (integranteData) {
-        setIntegrante({
-          nome_guerra: integranteData.nome_guerra,
-          status_integrante: integranteData.status_membro as StatusIntegranteEnum
-        });
+      if (membroData) {
+        setMembro(membroData);
       }
     } catch (error) {
-      console.error('Erro ao carregar dados do integrante:', error);
+      console.error('Erro ao carregar dados do membro:', error);
     }
   };
 
@@ -58,13 +55,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return;
 
-      const { data: integranteData } = await supabase
+      const { data: membroData } = await supabase
         .from('membros')
         .select('id')
         .eq('user_id', userData.user.id)
         .single();
 
-      if (!integranteData) return;
+      if (!membroData) return;
 
       // Buscar comunicados não lidos
       // Primeiro, buscar todos os comunicados
@@ -78,11 +75,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         return;
       }
 
-      // Buscar leituras do integrante
+      // Buscar leituras do membro
       const { data: leiturasData } = await supabase
         .from('comunicados_leitura')
         .select('comunicado_id')
-        .eq('membro_id', integranteData.id);
+        .eq('membro_id', membroData.id);
 
       const idsLidos = new Set(leiturasData?.map((l) => l.comunicado_id) || []);
       const naoLidos = comunicadosData.filter((c) => !idsLidos.has(c.id));
@@ -103,9 +100,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-brand-dark">
       {/* HEADER - Fixo no topo, largura total */}
-      <header className="hidden lg:flex fixed top-0 left-0 right-0 h-20 bg-black border-b border-gray-800 z-50 px-8">
+      <header className="hidden lg:flex fixed top-0 left-0 right-0 h-20 bg-brand-dark border-b border-gray-800 z-50 px-8">
         <div className="flex items-center justify-between w-full">
           {/* Logo à esquerda */}
           <div className="flex items-center gap-3 w-64">
@@ -120,7 +117,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Saudação centralizada */}
           <div className="flex-1 text-center">
             <h1 className="text-white font-oswald text-xl uppercase font-bold">
-              Bem vindo de volta, {integrante?.nome_guerra || 'Irmão'}
+              Bem vindo de volta, {membro?.nome_guerra || 'Irmão'}
             </h1>
           </div>
 
@@ -142,9 +139,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Link>
 
             {/* Badge de Status */}
-            {integrante && (
-              <div className={`px-4 py-2 rounded-lg text-xs font-oswald uppercase font-bold ${STATUS_STYLES[integrante.status_integrante]?.bg || 'bg-gray-800'} ${STATUS_STYLES[integrante.status_integrante]?.text || 'text-gray-400'} border border-gray-700`}>
-                Status: {integrante.status_integrante}
+            {membro && (
+              <div className={`px-4 py-2 rounded-lg text-xs font-oswald uppercase font-bold ${STATUS_STYLES[membro.status_membro]?.bg || 'bg-gray-800'} ${STATUS_STYLES[membro.status_membro]?.text || 'text-gray-400'} border border-gray-700`}>
+                Status: {membro.status_membro}
               </div>
             )}
           </div>
@@ -152,7 +149,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* SIDEBAR LATERAL - Desktop, abaixo do header */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-black border-r border-gray-800 fixed left-0 top-20 bottom-0 overflow-y-auto z-40">
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-brand-dark border-r border-gray-800 fixed left-0 top-20 bottom-0 overflow-y-auto z-40">
         
         {/* Menu de Navegação */}
         <nav className="flex-1 py-6">
@@ -247,7 +244,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* MENU MOBILE - Overlay */}
       {menuMobileAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 lg:hidden" onClick={() => setMenuMobileAberto(false)}>
-          <aside className="w-64 bg-black border-r border-gray-800 h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <aside className="w-64 bg-brand-dark border-r border-gray-800 h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Logo */}
             <div className="p-6 border-b border-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -365,7 +362,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}
 
       {/* HEADER MOBILE */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 bg-black border-b border-gray-800 z-30 px-4 py-3 flex items-center justify-between">
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-brand-dark border-b border-gray-800 z-30 px-4 py-3 flex items-center justify-between">
         <button onClick={() => setMenuMobileAberto(true)} className="text-brand-red hover:text-red-500 transition">
           <Menu className="w-6 h-6" />
         </button>
@@ -392,9 +389,63 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 lg:ml-64 lg:mt-20 pt-20 lg:pt-6 px-6 pb-6">
+      <main className="flex-1 lg:ml-64 lg:mt-20 pt-20 lg:pt-6 px-6 pb-20 lg:pb-6">
         {children}
       </main>
+
+      {/* BOTTOM NAVIGATION BAR - Mobile Only */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-brand-dark border-t border-gray-800 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-around h-16">
+          <Link 
+            to="/"
+            className={`flex flex-col items-center justify-center flex-1 h-full ${isActive('/') ? 'text-brand-red' : 'text-gray-400'} transition`}
+          >
+            <Home className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-oswald uppercase">Home</span>
+          </Link>
+          
+          <Link 
+            to="/dashboard"
+            className={`flex flex-col items-center justify-center flex-1 h-full ${isActive('/dashboard') ? 'text-brand-red' : 'text-gray-400'} transition`}
+          >
+            <ImProfile className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-oswald uppercase">Dashboard</span>
+          </Link>
+          
+          {isAdmin && (
+            <Link 
+              to="/admin"
+              className={`flex flex-col items-center justify-center flex-1 h-full ${isActive('/admin') ? 'text-brand-red' : 'text-gray-400'} transition`}
+            >
+              <Shield className="w-5 h-5 mb-1" />
+              <span className="text-[10px] font-oswald uppercase">Admin</span>
+            </Link>
+          )}
+          
+          <Link 
+            to="/comunicados"
+            className={`flex flex-col items-center justify-center flex-1 h-full relative ${isActive('/comunicados') ? 'text-brand-red' : 'text-gray-400'} transition`}
+          >
+            <Bell className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-oswald uppercase">Comunicados</span>
+            {comunicadosNaoLidos > 0 && (
+              <span className="absolute top-1 right-1/2 translate-x-3 flex h-4 w-4">
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-brand-red items-center justify-center text-[8px] font-bold text-white">
+                  {comunicadosNaoLidos > 9 ? '9+' : comunicadosNaoLidos}
+                </span>
+              </span>
+            )}
+          </Link>
+          
+          <Link 
+            to="/edit-profile"
+            className={`flex flex-col items-center justify-center flex-1 h-full ${isActive('/edit-profile') ? 'text-brand-red' : 'text-gray-400'} transition`}
+          >
+            <User className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-oswald uppercase">Config</span>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }

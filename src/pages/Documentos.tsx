@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Filter, Loader2, FileText } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { membroService } from '../services/membroService';
+import { documentoService } from '../services/documentoService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import DocumentoCard from '../components/DocumentoCard';
+import DocumentoPreviewModal from '../components/DocumentoPreviewModal';
 import { DocumentoComAutor } from '../types/database.types';
 import DashboardLayout from '../components/DashboardLayout';
+import { handleSupabaseError } from '../utils/errorHandler';
 
 type FiltroTipo = 'todos' | 'nao-acessados' | 'meus-documentos';
 
@@ -16,106 +19,70 @@ export default function Documentos() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<FiltroTipo>('todos');
   const [membroId, setMembroId] = useState<string | null>(null);
+  const [documentoPreview, setDocumentoPreview] = useState<DocumentoComAutor | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const carregarDados = useCallback(async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      // Buscar membro
+      const membroData = await membroService.buscarPorUserId(user.id);
+      if (!membroData) return;
+
+      setMembroId(membroData.id);
+
+      // Buscar documentos com status de acesso
+      // Extrair cargos do membro para filtrar documentos por cargo
+      const cargosIds = membroData.cargos.map((c) => c.id);
+      const documentosComAcesso = await documentoService.buscarComStatusAcesso(
+        membroData.id,
+        membroData.nome_guerra,
+        cargosIds
+      );
+
+      setDocumentos(documentosComAcesso);
+    } catch (error) {
+      const appError = handleSupabaseError(error);
+      console.error('Erro ao carregar documentos:', appError);
+      toastError('Erro ao carregar documentos.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toastError]);
 
   useEffect(() => {
     if (user) {
       carregarDados();
     }
-  }, [user]);
+  }, [user, carregarDados]);
 
-  const carregarDados = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      // Buscar integrante
-      const { data: membroData, error: membroError } = await supabase
-        .from('membros')
-        .select('id, is_admin, nome_guerra')
-        .eq('user_id', user.id)
-        .single();
-
-      if (membroError) throw membroError;
-      if (!membroData) return;
-
-      setMembroId(membroData.id);
-
-      // Buscar documentos com informações do autor e status de acesso
-      const { data: documentosData, error: documentosError } = await supabase
-        .from('documentos')
-        .select(`
-          *,
-          autor:membros!documentos_membro_id_autor_fkey (
-            nome_guerra,
-            foto_url
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (documentosError) throw documentosError;
-
-      // Buscar acessos do integrante
-      const { data: acessosData } = await supabase
-        .from('documentos_acesso')
-        .select('documento_id')
-        .eq('membro_id', membroData.id);
-
-      const idsAcessados = new Set(acessosData?.map((a) => a.documento_id) || []);
-
-      // Filtrar documentos baseado no tipo de destinatário
-      const documentosFiltrados = (documentosData || []).filter((doc: any) => {
-        if (doc.tipo_destinatario === 'geral') return true;
-        if (doc.tipo_destinatario === 'cargo') {
-          // Verificar se o integrante tem o cargo
-          // Isso precisa ser verificado de forma diferente, por enquanto aceita todos
-          // TODO: Implementar verificação de cargo
-          return true;
-        }
-        if (doc.tipo_destinatario === 'integrante') {
-          // Verificar se é para este membro específico (comparar nome de guerra)
-          return doc.valor_destinatario?.toUpperCase() === membroData.nome_guerra?.toUpperCase();
-        }
-        return false;
-      });
-
-      // Mapear documentos com status de acesso
-      const documentosComAcesso: DocumentoComAutor[] = documentosFiltrados.map((d: any) => ({
-        ...d,
-        autor: d.autor || { nome_guerra: 'Desconhecido', foto_url: null },
-        ja_acessado: idsAcessados.has(d.id)
-      }));
-
-      setDocumentos(documentosComAcesso);
-    } catch (error) {
-      console.error('Erro ao carregar documentos:', error);
-      toastError('Erro ao carregar documentos.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMarcarComoAcessado = async (documentoId: string) => {
+  const handleMarcarComoAcessado = useCallback(async (documentoId: string) => {
     if (!membroId) return;
 
     try {
-      const { error } = await supabase.from('documentos_acesso').insert({
-        documento_id: documentoId,
-        membro_id: membroId
-      });
-
-      if (error) throw error;
+      await documentoService.marcarComoAcessado(documentoId, membroId);
 
       // Atualizar estado local
       setDocumentos((prev) =>
         prev.map((d) => (d.id === documentoId ? { ...d, ja_acessado: true } : d))
       );
-    } catch (error: any) {
-      // Ignorar erro de duplicata (já foi marcado como acessado)
-      if (error?.code !== '23505') {
-        console.error('Erro ao marcar como acessado:', error);
-      }
+    } catch (error) {
+      // Erro já foi tratado no service (ignora duplicatas)
+      console.error('Erro ao marcar como acessado:', error);
     }
-  };
+  }, [membroId]);
+
+  const handleVisualizar = useCallback((documento: DocumentoComAutor) => {
+    setDocumentoPreview(documento);
+    setIsPreviewOpen(true);
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setIsPreviewOpen(false);
+    setDocumentoPreview(null);
+  }, []);
 
   const documentosFiltrados = documentos.filter((d) => {
     if (filtro === 'nao-acessados') return !d.ja_acessado;
@@ -147,10 +114,10 @@ export default function Documentos() {
         </div>
 
         {/* Filtros */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           <button
             onClick={() => setFiltro('todos')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors ${
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors flex-shrink-0 ${
               filtro === 'todos'
                 ? 'bg-brand-red border-brand-red text-white'
                 : 'bg-zinc-800 border-gray-700 text-gray-400 hover:text-white'
@@ -160,7 +127,7 @@ export default function Documentos() {
           </button>
           <button
             onClick={() => setFiltro('nao-acessados')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors ${
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors flex-shrink-0 ${
               filtro === 'nao-acessados'
                 ? 'bg-brand-red border-brand-red text-white'
                 : 'bg-zinc-800 border-gray-700 text-gray-400 hover:text-white'
@@ -170,7 +137,7 @@ export default function Documentos() {
           </button>
           <button
             onClick={() => setFiltro('meus-documentos')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors ${
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-colors flex-shrink-0 ${
               filtro === 'meus-documentos'
                 ? 'bg-brand-red border-brand-red text-white'
                 : 'bg-zinc-800 border-gray-700 text-gray-400 hover:text-white'
@@ -188,6 +155,7 @@ export default function Documentos() {
                 key={documento.id}
                 documento={documento}
                 onMarcarComoAcessado={handleMarcarComoAcessado}
+                onVisualizar={handleVisualizar}
               />
             ))
           ) : (
@@ -198,6 +166,14 @@ export default function Documentos() {
           )}
         </div>
       </div>
+
+      {/* Modal de Preview */}
+      <DocumentoPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={handleClosePreview}
+        documento={documentoPreview}
+        onMarcarComoAcessado={handleMarcarComoAcessado}
+      />
     </DashboardLayout>
   );
 }

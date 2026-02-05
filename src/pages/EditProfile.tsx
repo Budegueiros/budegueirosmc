@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { compressImage, isValidImageFile, formatFileSize } from '../utils/imageCompression';
+import { TipoSanguineo, TIPOS_SANGUINEOS } from '../types/database.types';
 
 interface Membro {
   id: string;
@@ -15,6 +16,7 @@ interface Membro {
   endereco_cidade: string | null;
   endereco_estado: string | null;
   foto_url: string | null;
+  tipo_sanguineo: TipoSanguineo | null;
 }
 
 export default function EditProfile() {
@@ -34,6 +36,7 @@ export default function EditProfile() {
     telefone: '',
     endereco_cidade: '',
     endereco_estado: '',
+    tipo_sanguineo: '' as TipoSanguineo | '',
   });
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function EditProfile() {
         telefone: data.telefone || '',
         endereco_cidade: data.endereco_cidade || '',
         endereco_estado: data.endereco_estado || '',
+        tipo_sanguineo: data.tipo_sanguineo || '',
       });
       setPreviewUrl(data.foto_url);
     } catch (error) {
@@ -155,6 +159,7 @@ export default function EditProfile() {
           telefone: formData.telefone || null,
           endereco_cidade: formData.endereco_cidade || null,
           endereco_estado: formData.endereco_estado || null,
+          tipo_sanguineo: formData.tipo_sanguineo || null,
         })
         .eq('user_id', user.id);
 
@@ -194,7 +199,7 @@ export default function EditProfile() {
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar ao Dashboard
+            Voltar para Dashboard
           </Link>
           
           <div className="flex items-center gap-3 mb-2">
@@ -359,6 +364,24 @@ export default function EditProfile() {
                   <option value="SP">São Paulo</option>
                   <option value="SE">Sergipe</option>
                   <option value="TO">Tocantins</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">
+                  Tipo Sanguíneo
+                </label>
+                <select
+                  value={formData.tipo_sanguineo}
+                  onChange={(e) => setFormData({ ...formData, tipo_sanguineo: e.target.value as TipoSanguineo | '' })}
+                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                >
+                  <option value="">Selecione</option>
+                  {TIPOS_SANGUINEOS.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

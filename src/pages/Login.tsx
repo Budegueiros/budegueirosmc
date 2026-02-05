@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { validateBeforeSend } from '../utils/validation';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,10 +18,41 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      // Validar dados antes de enviar
+      const validation = validateBeforeSend(email, password);
+      
+      if (!validation.isValid) {
+        setError(validation.errors.join(' '));
+        setLoading(false);
+        return;
+      }
+      
+      // Log dos dados validados (apenas em desenvolvimento)
+      if (import.meta.env.DEV) {
+        console.log('✅ Dados validados antes do envio:', {
+          email: validation.data?.email,
+          passwordLength: validation.data?.password.length,
+          hasWarnings: validation.warnings.length > 0,
+          warnings: validation.warnings,
+        });
+      }
+      
+      // Enviar dados validados
+      await signIn(validation.data!.email, validation.data!.password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
+      // Usar a mensagem de erro traduzida do AuthContext
+      const errorMessage = err.message || 'Erro ao fazer login. Verifique suas credenciais e tente novamente.';
+      setError(errorMessage);
+      
+      // Log do erro completo para debug (apenas em desenvolvimento)
+      if (import.meta.env.DEV) {
+        console.error('Erro de autenticação:', {
+          message: err.message,
+          status: err.status,
+          originalError: err.originalError,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -39,7 +71,7 @@ export default function Login() {
             Área do Integrante
           </h1>
           <p className="text-gray-400 text-sm mt-2">
-            Acesso exclusivo para membros da irmandade
+            Acesso exclusivo para integrantes da irmandade
           </p>
         </div>
 

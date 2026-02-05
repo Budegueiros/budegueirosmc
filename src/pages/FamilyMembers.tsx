@@ -55,7 +55,7 @@ export default function FamilyMembers() {
     if (!user) return;
 
     try {
-      // Buscar integrante
+      // Buscar membro
       const { data: membroData } = await supabase
         .from('membros')
         .select('id')
@@ -262,7 +262,7 @@ export default function FamilyMembers() {
                   <Users className="w-8 h-8 text-brand-red" />
                   Núcleo Familiar
                 </h1>
-                <p className="text-gray-400 mt-2">Gerencie os membros da sua família</p>
+                <p className="text-gray-400 mt-2">Gerencie os integrantes da sua família</p>
               </div>
               <span className="bg-yellow-900/30 border border-yellow-600/50 text-yellow-500 px-4 py-2 rounded-lg text-sm font-oswald uppercase flex items-center gap-2">
                 <Shield className="w-4 h-4" />

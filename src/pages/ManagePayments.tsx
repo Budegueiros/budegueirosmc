@@ -1,27 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DollarSign, Search, Edit2, Trash2, ArrowLeft, Plus, Loader2, Save, X, Check, Users, Calendar, Filter } from 'lucide-react';
+import { DollarSign, ArrowLeft, Plus, Loader2, Users, FileText, Download, FileDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
+import { useMensalidades } from '../hooks/useMensalidades';
+import MetricsCards from '../components/mensalidades/MetricsCards';
+import FilterBar from '../components/mensalidades/FilterBar';
+import MensalidadesTable from '../components/mensalidades/MensalidadesTable';
+import BulkActionsToolbar from '../components/mensalidades/BulkActionsToolbar';
+import MensalidadeDrawer from '../components/mensalidades/MensalidadeDrawer';
+import Pagination from '../components/mensalidades/Pagination';
+import { calcularStatus } from '../utils/mensalidadesHelpers';
+import { exportarParaCSV, exportarParaPDF } from '../utils/exportHelpers';
 
-interface Mensalidade {
-  id: string;
-  membro_id: string;
-  mes_referencia: string;
-  valor: number;
-  data_vencimento: string;
-  data_pagamento: string | null;
-  status: string;
-  link_cobranca: string | null;
-  forma_pagamento: string | null;
-  observacao: string | null;
-  membros: {
-    nome_completo: string;
-    nome_guerra: string;
-    numero_carteira: string;
-  };
-}
+// Componentes Mobile
+import MensalidadesHeader from '../components/mensalidades/mobile/MensalidadesHeader';
+import SearchBar from '../components/mensalidades/mobile/SearchBar';
+import FinancialSummary from '../components/mensalidades/mobile/FinancialSummary';
+import MensalidadeFilters from '../components/mensalidades/mobile/MensalidadeFilters';
+import BulkActionsBar from '../components/mensalidades/mobile/BulkActionsBar';
+import PaymentCard from '../components/mensalidades/mobile/PaymentCard';
+import PaymentActionSheet from '../components/mensalidades/mobile/PaymentActionSheet';
+import MonthYearPicker from '../components/mensalidades/mobile/MonthYearPicker';
 
 interface NewMensalidade {
   membro_id: string;
@@ -37,33 +38,49 @@ export default function ManagePayments() {
   const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast();
   const navigate = useNavigate();
   
-  const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [groupBy, setGroupBy] = useState<'none' | 'integrante' | 'mes' | 'status'>('none');
+  const { mensalidades, loading, error, refetch, deleteMensalidade } = useMensalidades();
+  const [filters, setFilters] = useState({
+    search: '',
+    status: 'todos',
+    periodo: ''
+  });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showNewForm, setShowNewForm] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showConfirmBatch, setShowConfirmBatch] = useState(false);
+  const [membros, setMembros] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [drawerMensalidade, setDrawerMensalidade] = useState<any>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  const [showBulkPaymentModal, setShowBulkPaymentModal] = useState(false);
+  const [bulkPaymentData, setBulkPaymentData] = useState({
+    data_pagamento: new Date().toISOString().split('T')[0],
+    forma_pagamento: ''
+  });
+  
+  // Estados Mobile
+  const [isMobile, setIsMobile] = useState(false);
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   
   const [newMensalidade, setNewMensalidade] = useState<NewMensalidade>({
     membro_id: '',
     mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
-    valor: '50.00',
+    valor: '75.00',
     data_vencimento: new Date(new Date().getFullYear(), new Date().getMonth(), 5).toISOString().split('T')[0],
     status: 'Aberto',
     link_cobranca: ''
   });
 
-  const [editingData, setEditingData] = useState<any>(null);
-  const [membros, setMembros] = useState<any[]>([]);
-
   const [batchData, setBatchData] = useState({
     mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
-    valor: '50.00',
+    valor: '75.00',
     data_vencimento: new Date(new Date().getFullYear(), new Date().getMonth(), 5).toISOString().split('T')[0],
     status: 'Aberto',
     link_cobranca: ''
@@ -77,34 +94,23 @@ export default function ManagePayments() {
 
   useEffect(() => {
     if (isAdmin) {
-      carregarDados();
+      carregarMembros();
     }
   }, [isAdmin]);
 
-  const carregarDados = async () => {
-    setLoading(true);
+  // Detectar tamanho da tela
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const carregarMembros = async () => {
     try {
-      // Carregar mensalidades com dados dos membros (incluindo integrantes inativos)
-      const { data: mensalidadesData, error: mensalidadesError } = await supabase
-        .from('mensalidades')
-        .select(`
-          *,
-          membros!inner (
-            nome_completo,
-            nome_guerra,
-            numero_carteira
-          )
-        `)
-        .order('mes_referencia', { ascending: false });
-
-      if (mensalidadesError) {
-        console.error('Erro ao carregar mensalidades:', mensalidadesError);
-        throw mensalidadesError;
-      }
-      
-      setMensalidades(mensalidadesData || []);
-
-      // Carregar lista de membros para o formulário (incluindo inativos para exibição)
       const { data: membrosData, error: membrosError } = await supabase
         .from('membros')
         .select('id, nome_completo, nome_guerra, numero_carteira, ativo')
@@ -113,12 +119,311 @@ export default function ManagePayments() {
       if (membrosError) throw membrosError;
       setMembros(membrosData || []);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toastError('Erro ao carregar dados. Verifique o console para mais detalhes.');
-    } finally {
-      setLoading(false);
+      console.error('Erro ao carregar membros:', error);
     }
   };
+
+  // Filtrar mensalidades
+  const filteredMensalidades = useMemo(() => {
+    return mensalidades.filter(m => {
+      const matchSearch = 
+        m.membros.nome_guerra.toLowerCase().includes(filters.search.toLowerCase()) ||
+        m.membros.nome_completo.toLowerCase().includes(filters.search.toLowerCase()) ||
+        m.membros.numero_carteira.includes(filters.search);
+      
+      const matchStatus = filters.status === 'todos' || m.status === filters.status;
+      const matchPeriodo = !filters.periodo || m.mes_referencia === filters.periodo;
+      
+      return matchSearch && matchStatus && matchPeriodo;
+    });
+  }, [mensalidades, filters]);
+
+  // Paginação
+  const totalPages = Math.ceil(filteredMensalidades.length / itemsPerPage);
+  const paginatedMensalidades = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredMensalidades.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredMensalidades, currentPage]);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  const handleRowClick = (id: string) => {
+    const mensalidade = mensalidades.find(m => m.id === id);
+    if (mensalidade) {
+      setDrawerMensalidade(mensalidade);
+      setIsDrawerOpen(true);
+    }
+  };
+
+  // Handlers Mobile
+  const handleToggleSelect = (paymentId: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(paymentId)) {
+        return prev.filter(id => id !== paymentId);
+      } else {
+        return [...prev, paymentId];
+      }
+    });
+  };
+
+  const openBulkPaymentModal = () => {
+    if (selectedIds.length === 0) {
+      toastWarning('Selecione pelo menos uma mensalidade');
+      return;
+    }
+    setBulkPaymentData({
+      data_pagamento: new Date().toISOString().split('T')[0],
+      forma_pagamento: ''
+    });
+    setShowBulkPaymentModal(true);
+  };
+
+  const handleBulkMarkAsPaid = async () => {
+    if (selectedIds.length === 0) return;
+    if (!bulkPaymentData.data_pagamento) {
+      toastWarning('Informe a data de pagamento');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('mensalidades')
+        .update({ 
+          status: 'Pago',
+          data_pagamento: bulkPaymentData.data_pagamento,
+          forma_pagamento: bulkPaymentData.forma_pagamento || null,
+          updated_at: new Date().toISOString()
+        })
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      toastSuccess(`${selectedIds.length} mensalidade(s) baixada(s) com sucesso!`);
+      setSelectedIds([]);
+      setShowBulkPaymentModal(false);
+      refetch();
+    } catch (error) {
+      console.error('Erro ao dar baixa nas mensalidades:', error);
+      toastError('Erro ao dar baixa nas mensalidades.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleViewPayment = (id: string) => {
+    handleRowClick(id);
+  };
+
+  const handleEditPayment = (id: string) => {
+    handleEditMensalidade(id);
+  };
+
+  const handleMoreActions = (id: string) => {
+    const payment = mensalidades.find(p => p.id === id);
+    setSelectedPayment(payment);
+    setActionSheetVisible(true);
+  };
+
+  const handleMarkAsPaid = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('mensalidades')
+        .update({ 
+          status: 'Pago',
+          data_pagamento: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toastSuccess('Mensalidade marcada como paga!');
+      refetch();
+    } catch (error) {
+      console.error('Erro ao marcar como pago:', error);
+      toastError('Erro ao marcar como pago.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMarkAsUnpaid = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('mensalidades')
+        .update({ 
+          status: 'Aberto',
+          data_pagamento: null
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toastSuccess('Mensalidade marcada como não paga!');
+      refetch();
+    } catch (error) {
+      console.error('Erro ao marcar como não pago:', error);
+      toastError('Erro ao marcar como não pago.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendReminder = async (id: string) => {
+    toastInfo('Função de envio de lembretes será implementada em breve.');
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    await handleDeleteMensalidade(id);
+  };
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters({ ...filters, [key]: value });
+    setSelectedIds([]);
+  };
+
+  const handlePeriodoSelect = (periodo: string) => {
+    setFilters({ ...filters, periodo });
+  };
+
+  // Obter mês e ano atual para o resumo
+  const getCurrentPeriod = () => {
+    const periodo = filters.periodo || new Date().toISOString().slice(0, 7) + '-01';
+    const date = new Date(periodo + 'T00:00:00');
+    return {
+      month: date.toLocaleDateString('pt-BR', { month: 'long' }),
+      year: date.getFullYear(),
+      periodo,
+    };
+  };
+
+  const currentPeriod = getCurrentPeriod();
+
+  // Calcular estatísticas para mobile
+  const mobileStats = useMemo(() => {
+    const periodoAtual = filters.periodo || new Date().toISOString().slice(0, 7) + '-01';
+    const mensalidadesFiltradas = filteredMensalidades.filter(m => 
+      !filters.periodo || m.mes_referencia === periodoAtual
+    );
+
+    const arrecadado = mensalidadesFiltradas
+      .filter(m => {
+        const status = calcularStatus(m);
+        const statusOriginal = (m.status?.trim() || '').toLowerCase();
+        return status === 'Pago' || statusOriginal === 'pago' || !!m.data_pagamento;
+      })
+      .reduce((acc, m) => acc + m.valor, 0);
+
+    const pendente = mensalidadesFiltradas
+      .filter(m => {
+        const status = calcularStatus(m);
+        const statusOriginal = m.status?.trim() || '';
+        return (status === 'Aberto' || status === 'Pendente' || 
+                statusOriginal === 'Aberto' || statusOriginal === 'Pendente') &&
+               new Date(m.data_vencimento) >= new Date();
+      })
+      .reduce((acc, m) => acc + m.valor, 0);
+
+    const atrasado = mensalidadesFiltradas
+      .filter(m => {
+        const status = calcularStatus(m);
+        return status === 'Atrasado';
+      })
+      .reduce((acc, m) => acc + m.valor, 0);
+
+    const pagoCount = mensalidadesFiltradas.filter(m => {
+      const status = calcularStatus(m);
+      const statusOriginal = (m.status?.trim() || '').toLowerCase();
+      return status === 'Pago' || statusOriginal === 'pago' || !!m.data_pagamento;
+    }).length;
+
+    return {
+      arrecadado,
+      pendente,
+      atrasado,
+      pagoCount,
+      totalCount: mensalidadesFiltradas.length,
+    };
+  }, [filteredMensalidades, filters.periodo]);
+
+  // Contadores para filtros mobile
+  const filterCounts = useMemo(() => {
+    return {
+      pago: filteredMensalidades.filter(m => {
+        const status = calcularStatus(m);
+        const statusOriginal = (m.status?.trim() || '').toLowerCase();
+        return status === 'Pago' || statusOriginal === 'pago' || !!m.data_pagamento;
+      }).length,
+      aberto: filteredMensalidades.filter(m => {
+        const status = calcularStatus(m);
+        return status === 'Aberto' || status === 'Pendente';
+      }).length,
+      atrasado: filteredMensalidades.filter(m => {
+        const status = calcularStatus(m);
+        return status === 'Atrasado';
+      }).length,
+    };
+  }, [filteredMensalidades]);
+
+  // Calcular métricas
+  const metrics = useMemo(() => {
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+
+    // Filtrar mensalidades do mês atual que estão pagas
+    // Considera pago se: status for 'Pago' OU data_pagamento estiver preenchida
+    const mesAtualStr = `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}`; // Formato: "2026-01"
+    
+    const mensalidadesMesAtualPagas = mensalidades.filter(m => {
+      // Verificar se está pago (status ou data_pagamento)
+      const statusCalculado = calcularStatus(m);
+      const statusOriginal = (m.status?.trim() || '').toLowerCase();
+      const temDataPagamento = !!m.data_pagamento;
+      const estaPago = statusCalculado === 'Pago' || statusOriginal === 'pago' || temDataPagamento;
+      
+      if (!estaPago) return false;
+      
+      // Comparar mês/ano usando string (mais confiável que Date)
+      const mesRef = m.mes_referencia.trim();
+      // Extrair YYYY-MM do mes_referencia
+      const mesRefStr = mesRef.substring(0, 7); // Pega "YYYY-MM" de "YYYY-MM-DD" ou "YYYY-MM"
+      
+      // Comparar strings diretamente
+      return mesRefStr === mesAtualStr;
+    });
+
+    return {
+      totalArrecadado: mensalidadesMesAtualPagas
+        .reduce((acc, m) => acc + m.valor, 0),
+      totalPendente: mensalidades
+        .filter(m => {
+          const status = calcularStatus(m);
+          const statusOriginal = m.status?.trim() || '';
+          return status === 'Aberto' || status === 'Pendente' || 
+                 statusOriginal === 'Aberto' || statusOriginal === 'Pendente';
+        })
+        .reduce((acc, m) => acc + m.valor, 0),
+      totalAtrasado: mensalidades
+        .filter(m => {
+          const status = calcularStatus(m);
+          return status === 'Atrasado';
+        })
+        .reduce((acc, m) => acc + m.valor, 0),
+      taxaConversao: mensalidades.length > 0
+        ? (mensalidades.filter(m => {
+            const statusCalculado = calcularStatus(m);
+            const statusOriginal = (m.status?.trim() || '').toLowerCase();
+            return statusCalculado === 'Pago' || statusOriginal === 'pago';
+          }).length / mensalidades.length) * 100
+        : 0
+    };
+  }, [mensalidades]);
 
   const handleCreateMensalidade = async () => {
     if (!newMensalidade.membro_id) {
@@ -149,7 +454,7 @@ export default function ManagePayments() {
         status: 'Aberto',
         link_cobranca: ''
       });
-      carregarDados();
+      refetch();
     } catch (error) {
       console.error('Erro ao criar mensalidade:', error);
       toastError('Erro ao criar mensalidade. Tente novamente.');
@@ -166,7 +471,6 @@ export default function ManagePayments() {
     setShowConfirmBatch(false);
     setSaving(true);
     try {
-      // Buscar todos os integrantes ativos
       const { data: membrosAtivos, error: membrosError } = await supabase
         .from('membros')
         .select('id')
@@ -175,11 +479,10 @@ export default function ManagePayments() {
       if (membrosError) throw membrosError;
 
       if (!membrosAtivos || membrosAtivos.length === 0) {
-        toastWarning('Nenhum integrante ativo encontrado.');
+        toastWarning('Nenhum membro ativo encontrado.');
         return;
       }
 
-      // Verificar quais membros já têm mensalidade para este mês
       const { data: mensalidadesExistentes, error: existentesError } = await supabase
         .from('mensalidades')
         .select('membro_id')
@@ -188,8 +491,6 @@ export default function ManagePayments() {
       if (existentesError) throw existentesError;
 
       const idsComMensalidade = new Set(mensalidadesExistentes?.map(m => m.membro_id) || []);
-
-      // Filtrar apenas membros que ainda não têm mensalidade neste mês
       const membrosParaCriar = membrosAtivos.filter(m => !idsComMensalidade.has(m.id));
 
       if (membrosParaCriar.length === 0) {
@@ -197,9 +498,8 @@ export default function ManagePayments() {
         return;
       }
 
-      // Criar mensalidades em lote
-      const mensalidadesParaInserir = integrantesParaCriar.map(integrante => ({
-        membro_id: integrante.id,
+      const mensalidadesParaInserir = membrosParaCriar.map(membro => ({
+        membro_id: membro.id,
         mes_referencia: batchData.mes_referencia,
         valor: parseFloat(batchData.valor),
         data_vencimento: batchData.data_vencimento,
@@ -225,7 +525,7 @@ export default function ManagePayments() {
         status: 'Aberto',
         link_cobranca: ''
       });
-      carregarDados();
+      refetch();
     } catch (error) {
       console.error('Erro ao gerar mensalidades em lote:', error);
       toastError('Erro ao gerar mensalidades em lote. Tente novamente.');
@@ -234,8 +534,11 @@ export default function ManagePayments() {
     }
   };
 
-  const handleEditMensalidade = (mensalidade: Mensalidade) => {
-    setEditingId(mensalidade.id);
+  const handleEditMensalidade = (id: string) => {
+    const mensalidade = mensalidades.find(m => m.id === id);
+    if (!mensalidade) return;
+
+    setEditingId(id);
     setEditingData({
       valor: mensalidade.valor.toString(),
       data_vencimento: mensalidade.data_vencimento,
@@ -247,7 +550,9 @@ export default function ManagePayments() {
     });
   };
 
-  const handleSaveMensalidade = async (id: string) => {
+  const handleSaveMensalidade = async () => {
+    if (!editingId || !editingData) return;
+
     setSaving(true);
     try {
       const updateData: any = {
@@ -260,7 +565,6 @@ export default function ManagePayments() {
         updated_at: new Date().toISOString()
       };
 
-      // Se foi marcado como pago, adicionar data de pagamento se não tiver
       if (editingData.status === 'Pago' && !editingData.data_pagamento) {
         updateData.data_pagamento = new Date().toISOString().split('T')[0];
       } else if (editingData.data_pagamento) {
@@ -270,13 +574,14 @@ export default function ManagePayments() {
       const { error } = await supabase
         .from('mensalidades')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', editingId);
 
       if (error) throw error;
 
+      toastSuccess('Mensalidade atualizada com sucesso!');
       setEditingId(null);
       setEditingData(null);
-      carregarDados();
+      refetch();
     } catch (error) {
       console.error('Erro ao atualizar mensalidade:', error);
       toastError('Erro ao atualizar mensalidade. Tente novamente.');
@@ -285,327 +590,71 @@ export default function ManagePayments() {
     }
   };
 
-  const handleDeleteMensalidade = (id: string) => {
-    setDeleteId(id);
-  };
-
-  const executeDeleteMensalidade = async () => {
-    if (!deleteId) return;
-
-    try {
-      const { error } = await supabase
-        .from('mensalidades')
-        .delete()
-        .eq('id', deleteId);
-
-      if (error) throw error;
-      setDeleteId(null);
-      carregarDados();
+  const handleDeleteMensalidade = async (id: string) => {
+    const result = await deleteMensalidade(id);
+    if (!result.error) {
       toastSuccess('Mensalidade excluída com sucesso!');
-    } catch (error) {
-      console.error('Erro ao excluir mensalidade:', error);
+    } else {
       toastError('Erro ao excluir mensalidade.');
-      setDeleteId(null);
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditingData(null);
+  const handleGerarCobrancas = async () => {
+    if (selectedIds.length === 0) {
+      toastWarning('Selecione pelo menos uma mensalidade');
+      return;
+    }
+
+    const mensalidadesSelecionadas = mensalidades.filter(m => selectedIds.includes(m.id));
+    const semLinkCobranca = mensalidadesSelecionadas.filter(m => !m.link_cobranca);
+
+    if (semLinkCobranca.length > 0) {
+      toastWarning(`${semLinkCobranca.length} mensalidade(s) não possuem código PIX. Adicione o código PIX antes de gerar cobranças.`);
+      return;
+    }
+
+    // Aqui você pode implementar a lógica de gerar cobranças
+    // Por exemplo, copiar todos os códigos PIX ou gerar um arquivo
+    const codigosPix = mensalidadesSelecionadas
+      .map(m => `${m.membros.nome_guerra}: ${m.link_cobranca}`)
+      .join('\n');
+
+    try {
+      await navigator.clipboard.writeText(codigosPix);
+      toastSuccess(`${selectedIds.length} código(s) PIX copiado(s) para a área de transferência!`);
+    } catch (error) {
+      console.error('Erro ao copiar códigos PIX:', error);
+      toastError('Erro ao copiar códigos PIX');
+    }
   };
 
-  const mensalidadesFiltradas = mensalidades.filter(m => {
-    const matchSearch = 
-      m.membros.nome_guerra.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.membros.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.membros.numero_carteira.includes(searchTerm);
+  const handleEnviarLembretes = async () => {
+    if (selectedIds.length === 0) {
+      toastWarning('Selecione pelo menos uma mensalidade');
+      return;
+    }
+
+    const mensalidadesSelecionadas = mensalidades.filter(m => selectedIds.includes(m.id));
     
-    const matchStatus = !filterStatus || m.status === filterStatus;
+    // Aqui você pode implementar a lógica de enviar lembretes
+    // Por exemplo, enviar emails ou notificações
+    toastInfo(`Função de envio de lembretes será implementada em breve. ${selectedIds.length} mensalidade(s) selecionada(s).`);
     
-    return matchSearch && matchStatus;
-  });
+    // TODO: Implementar envio de lembretes via email/notificação
+    // Por enquanto, apenas mostra uma mensagem informativa
+  };
 
   const formatarMes = (mesReferencia: string) => {
     const date = new Date(mesReferencia + 'T00:00:00');
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
-  // Função para agrupar mensalidades
-  const agruparMensalidades = () => {
-    if (groupBy === 'none') {
-      return { 'Todas': mensalidadesFiltradas };
-    }
-
-    const grupos: Record<string, Mensalidade[]> = {};
-
-    mensalidadesFiltradas.forEach(m => {
-      let key = '';
-      
-      if (groupBy === 'integrante') {
-        key = `${m.membros.nome_guerra} - ${m.membros.numero_carteira}`;
-      } else if (groupBy === 'mes') {
-        key = formatarMes(m.mes_referencia);
-      } else if (groupBy === 'status') {
-        key = m.status;
-      }
-
-      if (!grupos[key]) {
-        grupos[key] = [];
-      }
-      grupos[key].push(m);
-    });
-
-    return grupos;
-  };
-
-  const grupos = agruparMensalidades();
-  const gruposOrdenados = Object.entries(grupos).sort((a, b) => {
-    if (groupBy === 'mes') {
-      // Ordenar meses por data (mais recente primeiro)
-      return b[1][0].mes_referencia.localeCompare(a[1][0].mes_referencia);
-    } else if (groupBy === 'status') {
-      // Ordenar status: Pago, Isento, Aberto, Pendente, Atrasado
-      const ordem: Record<string, number> = { 'Pago': 0, 'Isento': 1, 'Aberto': 2, 'Pendente': 3, 'Atrasado': 4 };
-      return (ordem[a[0]] ?? 99) - (ordem[b[0]] ?? 99);
-    }
-    return a[0].localeCompare(b[0]);
-  });
-
-  const formatarData = (data: string) => {
-    if (!data) return '-';
-    const [ano, mes, dia] = data.split('T')[0].split('-');
-    return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia)).toLocaleDateString('pt-BR');
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Pago':
-        return 'text-green-500 bg-green-950/30 border-green-600/50';
-      case 'Aberto':
-      case 'Pendente':
-        return 'text-yellow-500 bg-yellow-950/30 border-yellow-600/50';
-      case 'Atrasado':
-        return 'text-red-500 bg-red-950/30 border-red-600/50';
-      case 'Isento':
-        return 'text-blue-500 bg-blue-950/30 border-blue-600/50';
-      default:
-        return 'text-gray-500 bg-gray-950/30 border-gray-600/50';
-    }
-  };
-
-  // Função para renderizar card de mensalidade
-  const renderMensalidadeCard = (mensalidade: Mensalidade) => (
-    <div
-      key={mensalidade.id}
-      className="bg-brand-gray border border-brand-red/30 rounded-xl p-5"
-    >
-      {editingId === mensalidade.id && editingData ? (
-        /* Modo de Edição */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-oswald text-lg uppercase font-bold">
-              Editando: {mensalidade.membros.nome_guerra}
-            </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleSaveMensalidade(mensalidade.id)}
-                disabled={saving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Salvar
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                disabled={saving}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={editingData.valor}
-                onChange={(e) => setEditingData({ ...editingData, valor: e.target.value })}
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
-              <select
-                value={editingData.status}
-                onChange={(e) => setEditingData({ ...editingData, status: e.target.value })}
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                disabled={saving}
-              >
-                <option value="Aberto">Aberto</option>
-                <option value="Pendente">Pendente</option>
-                <option value="Pago">Pago</option>
-                <option value="Atrasado">Atrasado</option>
-                <option value="Isento">Isento</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
-              <input
-                type="date"
-                value={editingData.data_vencimento}
-                onChange={(e) => setEditingData({ ...editingData, data_vencimento: e.target.value })}
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Data Pagamento</label>
-              <input
-                type="date"
-                value={editingData.data_pagamento}
-                onChange={(e) => setEditingData({ ...editingData, data_pagamento: e.target.value })}
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
-              <input
-                type="text"
-                value={editingData.forma_pagamento}
-                onChange={(e) => setEditingData({ ...editingData, forma_pagamento: e.target.value })}
-                placeholder="PIX, Dinheiro, Transferência..."
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                disabled={saving}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX</label>
-              <input
-                type="text"
-                value={editingData.link_cobranca}
-                onChange={(e) => setEditingData({ ...editingData, link_cobranca: e.target.value })}
-                placeholder="00020126..."
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red font-mono text-xs"
-                disabled={saving}
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-gray-400 text-xs uppercase mb-1">Observação</label>
-              <textarea
-                value={editingData.observacao}
-                onChange={(e) => setEditingData({ ...editingData, observacao: e.target.value })}
-                className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                rows={2}
-                disabled={saving}
-              />
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Modo de Visualização */
-        <div>
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-white font-oswald text-lg uppercase font-bold">
-                {mensalidade.membros.nome_guerra}
-              </h3>
-              <p className="text-gray-400 text-sm">
-                {mensalidade.membros.nome_completo} - Carteira: {mensalidade.membros.numero_carteira}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleEditMensalidade(mensalidade)}
-                className="p-2 bg-blue-600 hover:bg-blue-700 rounded transition"
-                title="Editar"
-              >
-                <Edit2 className="w-4 h-4 text-white" />
-              </button>
-              <button
-                onClick={() => handleDeleteMensalidade(mensalidade.id)}
-                className="p-2 bg-red-600 hover:bg-red-700 rounded transition"
-                title="Excluir"
-              >
-                <Trash2 className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <p className="text-gray-500 text-xs uppercase">Mês Referência</p>
-              <p className="text-white font-semibold capitalize">{formatarMes(mensalidade.mes_referencia)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs uppercase">Valor</p>
-              <p className="text-white font-semibold">R$ {mensalidade.valor.toFixed(2)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs uppercase">Vencimento</p>
-              <p className="text-white font-semibold">{formatarData(mensalidade.data_vencimento)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs uppercase">Status</p>
-              <span className={`inline-block px-3 py-1 rounded text-xs font-bold border ${getStatusColor(mensalidade.status)}`}>
-                {mensalidade.status}
-              </span>
-            </div>
-          </div>
-
-          {mensalidade.data_pagamento && (
-            <div className="mb-2">
-              <p className="text-gray-500 text-xs uppercase">Pago em</p>
-              <p className="text-green-400 font-semibold flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                {formatarData(mensalidade.data_pagamento)}
-                {mensalidade.forma_pagamento && ` - ${mensalidade.forma_pagamento}`}
-              </p>
-            </div>
-          )}
-
-          {mensalidade.link_cobranca && (
-            <div className="mb-2">
-              <p className="text-gray-500 text-xs uppercase mb-1">Link de Cobrança</p>
-              <a
-                href={mensalidade.link_cobranca}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-brand-red hover:text-red-400 text-sm underline"
-              >
-                Acessar link de pagamento
-              </a>
-            </div>
-          )}
-
-          {mensalidade.observacao && (
-            <div>
-              <p className="text-gray-500 text-xs uppercase mb-1">Observação</p>
-              <p className="text-gray-300 text-sm">{mensalidade.observacao}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
   if (adminLoading || loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center pt-20">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center pt-20">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-sm">
             Carregando...
           </p>
         </div>
@@ -617,56 +666,368 @@ export default function ManagePayments() {
     return null;
   }
 
+  // Versão Mobile
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gray-900 pb-24">
+        <MensalidadesHeader
+          onReportPress={() => {
+            // Navegar para relatório ou abrir modal
+            toastInfo('Funcionalidade de relatório será implementada em breve.');
+          }}
+        />
+
+        <SearchBar
+          onSearch={(query) => setFilters({ ...filters, search: query })}
+          placeholder="Buscar membro..."
+        />
+
+        <FinancialSummary
+          stats={mobileStats}
+          currentMonth={currentPeriod.month}
+          currentYear={currentPeriod.year}
+        />
+
+        <MensalidadeFilters
+          filters={{ status: filters.status, periodo: filters.periodo }}
+          counts={filterCounts}
+          onFilterChange={handleFilterChange}
+        />
+
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          onMarkAsPaid={openBulkPaymentModal}
+          onClear={() => setSelectedIds([])}
+        />
+
+        {error ? (
+          <div className="mx-4 mt-4 bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4">
+            Erro ao carregar: {error}
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        ) : filteredMensalidades.length === 0 ? (
+          <div className="mx-4 mt-4 bg-gray-800/50 border border-gray-700 rounded-lg p-12 text-center">
+            <p className="text-gray-400 text-base mb-2">Nenhuma mensalidade encontrada</p>
+            <p className="text-gray-500 text-sm">Tente ajustar os filtros de busca</p>
+          </div>
+        ) : (
+          <div className="px-4 py-4 space-y-3">
+            {filteredMensalidades.map((payment) => (
+              <PaymentCard
+                key={payment.id}
+                payment={payment}
+                isSelected={selectedIds.includes(payment.id)}
+                onToggleSelect={() => handleToggleSelect(payment.id)}
+                onView={handleViewPayment}
+                onEdit={handleEditPayment}
+                onMoreActions={handleMoreActions}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* FAB para nova mensalidade */}
+        <Link
+          to="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setShowNewForm(true);
+          }}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition"
+        >
+          <Plus className="w-6 h-6" />
+        </Link>
+
+        {/* Action Sheet */}
+        <PaymentActionSheet
+          visible={actionSheetVisible}
+          onClose={() => {
+            setActionSheetVisible(false);
+            setSelectedPayment(null);
+          }}
+          payment={selectedPayment}
+          onMarkAsPaid={handleMarkAsPaid}
+          onMarkAsUnpaid={handleMarkAsUnpaid}
+          onSendReminder={handleSendReminder}
+          onDelete={handleDeletePayment}
+        />
+
+        {/* Month Year Picker */}
+        <MonthYearPicker
+          visible={showMonthPicker}
+          onClose={() => setShowMonthPicker(false)}
+          onSelect={handlePeriodoSelect}
+          initialPeriodo={filters.periodo}
+        />
+
+        {/* Drawer de Detalhes */}
+        <MensalidadeDrawer
+          mensalidade={drawerMensalidade}
+          isOpen={isDrawerOpen}
+          onClose={() => {
+            setIsDrawerOpen(false);
+            setDrawerMensalidade(null);
+          }}
+          onRefresh={refetch}
+        />
+
+        {/* Modal de Edição Mobile */}
+        {editingId && editingData && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <h3 className="text-white text-xl font-bold mb-4">Editar Mensalidade</h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingData.valor}
+                    onChange={(e) => setEditingData({ ...editingData, valor: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
+                  <select
+                    value={editingData.status}
+                    onChange={(e) => setEditingData({ ...editingData, status: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  >
+                    <option value="Aberto">Aberto</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Pago">Pago</option>
+                    <option value="Atrasado">Atrasado</option>
+                    <option value="Isento">Isento</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
+                  <input
+                    type="date"
+                    value={editingData.data_vencimento}
+                    onChange={(e) => setEditingData({ ...editingData, data_vencimento: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Data Pagamento</label>
+                  <input
+                    type="date"
+                    value={editingData.data_pagamento}
+                    onChange={(e) => setEditingData({ ...editingData, data_pagamento: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
+                  <input
+                    type="text"
+                    value={editingData.forma_pagamento}
+                    onChange={(e) => setEditingData({ ...editingData, forma_pagamento: e.target.value })}
+                    placeholder="PIX, Dinheiro, Transferência..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
+                  <input
+                    type="text"
+                    value={editingData.link_cobranca}
+                    onChange={(e) => setEditingData({ ...editingData, link_cobranca: e.target.value })}
+                    placeholder="00020126..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Observação</label>
+                  <textarea
+                    value={editingData.observacao}
+                    onChange={(e) => setEditingData({ ...editingData, observacao: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    rows={3}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  onClick={() => {
+                    setEditingId(null);
+                    setEditingData(null);
+                  }}
+                  disabled={saving}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveMensalidade}
+                  disabled={saving}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Baixa em Lote */}
+        {showBulkPaymentModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-white text-xl font-bold mb-2">Dar Baixa em Lote</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                {selectedIds.length} mensalidade(s) selecionada(s)
+              </p>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Data de Pagamento</label>
+                  <input
+                    type="date"
+                    value={bulkPaymentData.data_pagamento}
+                    onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, data_pagamento: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
+                  <input
+                    type="text"
+                    value={bulkPaymentData.forma_pagamento}
+                    onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, forma_pagamento: e.target.value })}
+                    placeholder="PIX, Dinheiro, Transferência..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  onClick={() => setShowBulkPaymentModal(false)}
+                  disabled={saving}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleBulkMarkAsPaid}
+                  disabled={saving}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Confirmar Baixa'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Versão Desktop (mantém código original)
   return (
-    <div className="min-h-screen bg-black pt-20 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
-        
+    <div className="min-h-screen bg-gray-900 p-6">
         {/* Header */}
         <div className="mb-8">
           <Link
-            to="/dashboard"
+            to="/admin"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar ao Dashboard
+            Voltar para Painel Administrativo
           </Link>
           
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <DollarSign className="w-8 h-8 text-brand-red" />
-                <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
                   Gerenciar Mensalidades
                 </h1>
-              </div>
-              <p className="text-gray-400 text-sm">
-                Controle de pagamentos mensais dos integrantes
+            <p className="text-gray-400">
+              Controle de pagamentos e mensalidades dos sócios
               </p>
             </div>
 
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => setShowBatchForm(!showBatchForm)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
               >
                 <Users className="w-4 h-4" />
-                Gerar Lote
+              Gerar Mensalidades
               </button>
               <button
                 onClick={() => setShowNewForm(!showNewForm)}
-                className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
               >
                 <Plus className="w-4 h-4" />
                 Nova Mensalidade
               </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportarParaCSV(filteredMensalidades, 'mensalidades')}
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                  title="Exportar para CSV"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">CSV</span>
+                </button>
+                <button
+                  onClick={() => exportarParaPDF(filteredMensalidades, 'Relatório de Mensalidades')}
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                  title="Exportar para PDF"
+                >
+                  <FileDown className="w-4 h-4" />
+                  <span className="hidden sm:inline">PDF</span>
+              </button>
+              </div>
             </div>
           </div>
         </div>
 
+      {/* Métricas */}
+      <MetricsCards metrics={metrics} />
+
         {/* Formulário Gerar em Lote */}
         {showBatchForm && (
-          <div className="bg-brand-gray border border-green-600/30 rounded-xl p-5 mb-6">
-            <h3 className="text-white font-oswald text-lg uppercase font-bold mb-2">Gerar Mensalidades em Lote</h3>
+        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 mb-6">
+          <h3 className="text-white text-lg font-bold mb-2">Gerar Mensalidades em Lote</h3>
             <p className="text-gray-400 text-sm mb-4">
               Cria mensalidades para todos os integrantes ativos que ainda não possuem lançamento no mês selecionado
             </p>
@@ -678,7 +1039,7 @@ export default function ManagePayments() {
                   type="month"
                   value={batchData.mes_referencia.slice(0, 7)}
                   onChange={(e) => setBatchData({ ...batchData, mes_referencia: e.target.value + '-01' })}
-                  className="w-full bg-black border border-green-600/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-green-600"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -690,7 +1051,7 @@ export default function ManagePayments() {
                   step="0.01"
                   value={batchData.valor}
                   onChange={(e) => setBatchData({ ...batchData, valor: e.target.value })}
-                  className="w-full bg-black border border-green-600/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-green-600"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -701,7 +1062,7 @@ export default function ManagePayments() {
                   type="date"
                   value={batchData.data_vencimento}
                   onChange={(e) => setBatchData({ ...batchData, data_vencimento: e.target.value })}
-                  className="w-full bg-black border border-green-600/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-green-600"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -711,7 +1072,7 @@ export default function ManagePayments() {
                 <select
                   value={batchData.status}
                   onChange={(e) => setBatchData({ ...batchData, status: e.target.value })}
-                  className="w-full bg-black border border-green-600/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-green-600"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 >
                   <option value="Aberto">Aberto</option>
@@ -726,27 +1087,26 @@ export default function ManagePayments() {
                   placeholder="00020126..." 
                   value={batchData.link_cobranca}
                   onChange={(e) => setBatchData({ ...batchData, link_cobranca: e.target.value })}
-                  className="w-full bg-black border border-green-600/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-green-600 font-mono text-xs"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
                   disabled={saving}
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4">
               <button
                 onClick={handleGenerateBatch}
                 disabled={saving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                Gerar para Todos os Integrantes Ativos
+              Gerar para Todos os Integrantes Ativos
               </button>
               <button
                 onClick={() => setShowBatchForm(false)}
                 disabled={saving}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+              className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition text-sm"
               >
-                <X className="w-4 h-4" />
                 Cancelar
               </button>
             </div>
@@ -755,8 +1115,8 @@ export default function ManagePayments() {
 
         {/* Formulário Nova Mensalidade */}
         {showNewForm && (
-          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-5 mb-6">
-            <h3 className="text-white font-oswald text-lg uppercase font-bold mb-4">Nova Mensalidade</h3>
+        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 mb-6">
+          <h3 className="text-white text-lg font-bold mb-4">Nova Mensalidade</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -764,7 +1124,7 @@ export default function ManagePayments() {
                 <select
                   value={newMensalidade.membro_id}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, membro_id: e.target.value })}
-                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 >
                   <option value="">Selecione um integrante</option>
@@ -782,7 +1142,7 @@ export default function ManagePayments() {
                   type="month"
                   value={newMensalidade.mes_referencia.slice(0, 7)}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, mes_referencia: e.target.value + '-01' })}
-                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -791,10 +1151,10 @@ export default function ManagePayments() {
                 <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="5.00"
                   value={newMensalidade.valor}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, valor: e.target.value })}
-                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -805,7 +1165,7 @@ export default function ManagePayments() {
                   type="date"
                   value={newMensalidade.data_vencimento}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, data_vencimento: e.target.value })}
-                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 />
               </div>
@@ -815,7 +1175,7 @@ export default function ManagePayments() {
                 <select
                   value={newMensalidade.status}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, status: e.target.value })}
-                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
                   disabled={saving}
                 >
                   <option value="Aberto">Aberto</option>
@@ -827,33 +1187,32 @@ export default function ManagePayments() {
               </div>
 
               <div>
-                <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX</label>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
                 <input
                   type="text"
                   value={newMensalidade.link_cobranca}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, link_cobranca: e.target.value })}
                   placeholder="00020126..."
-                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red font-mono text-xs"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
                   disabled={saving}
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4">
               <button
                 onClick={handleCreateMensalidade}
                 disabled={saving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
                 Criar
               </button>
               <button
                 onClick={() => setShowNewForm(false)}
                 disabled={saving}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+              className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition text-sm"
               >
-                <X className="w-4 h-4" />
                 Cancelar
               </button>
             </div>
@@ -861,117 +1220,189 @@ export default function ManagePayments() {
         )}
 
         {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <FilterBar filters={filters} setFilters={setFilters} />
+
+      {/* Toolbar de ações em lote */}
+      <BulkActionsToolbar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onMarkAsPaid={openBulkPaymentModal}
+        onGerarCobrancas={handleGerarCobrancas}
+        onEnviarLembretes={handleEnviarLembretes}
+      />
+
+      {/* Tabela */}
+      {error ? (
+        <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4">
+          Erro ao carregar: {error}
+        </div>
+      ) : (
+        <>
+          <MensalidadesTable
+            mensalidades={paginatedMensalidades}
+            selectedIds={selectedIds}
+            setSelectedIds={setSelectedIds}
+            onDelete={handleDeleteMensalidade}
+            onEdit={handleEditMensalidade}
+            onRowClick={handleRowClick}
+          />
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredMensalidades.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </>
+      )}
+
+      {/* Drawer de Detalhes */}
+      <MensalidadeDrawer
+        mensalidade={drawerMensalidade}
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setDrawerMensalidade(null);
+        }}
+        onRefresh={refetch}
+      />
+
+      {/* Modal de Edição */}
+      {editingId && editingData && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-white text-xl font-bold mb-4">Editar Mensalidade</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
             <input
-              type="text"
-              placeholder="Buscar por nome ou número da carteira..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-red"
+                  type="number"
+                  step="0.01"
+                  value={editingData.valor}
+                  onChange={(e) => setEditingData({ ...editingData, valor: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
             />
           </div>
 
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
           <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-brand-gray border border-brand-red/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-red"
-          >
-            <option value="">Todos os Status</option>
+                  value={editingData.status}
+                  onChange={(e) => setEditingData({ ...editingData, status: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                >
             <option value="Aberto">Aberto</option>
             <option value="Pendente">Pendente</option>
             <option value="Pago">Pago</option>
             <option value="Atrasado">Atrasado</option>
             <option value="Isento">Isento</option>
           </select>
+              </div>
 
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <select
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value as 'none' | 'integrante' | 'mes' | 'status')}
-              className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-brand-red appearance-none"
-            >
-              <option value="none">Sem Agrupamento</option>
-              <option value="integrante">Agrupar por Integrante</option>
-              <option value="mes">Agrupar por Mês</option>
-              <option value="status">Agrupar por Status</option>
-          </select>
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
+                <input
+                  type="date"
+                  value={editingData.data_vencimento}
+                  onChange={(e) => setEditingData({ ...editingData, data_vencimento: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
           </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Data Pagamento</label>
+                <input
+                  type="date"
+                  value={editingData.data_pagamento}
+                  onChange={(e) => setEditingData({ ...editingData, data_pagamento: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
         </div>
 
-        {/* Lista de Mensalidades */}
-        <div className="space-y-4">
-          {mensalidadesFiltradas.length === 0 ? (
-            <div className="text-center py-12 bg-brand-gray border border-brand-red/30 rounded-xl">
-              <DollarSign className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">Nenhuma mensalidade encontrada.</p>
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
+                <input
+                  type="text"
+                  value={editingData.forma_pagamento}
+                  onChange={(e) => setEditingData({ ...editingData, forma_pagamento: e.target.value })}
+                  placeholder="PIX, Dinheiro, Transferência..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
             </div>
-          ) : groupBy === 'none' ? (
-            // Modo sem agrupamento (listagem padrão)
-            mensalidadesFiltradas.map((mensalidade) => (
-              renderMensalidadeCard(mensalidade)
-            ))
-          ) : (
-            // Modo com agrupamento
-            gruposOrdenados.map(([grupoKey, mensalidadesGrupo]) => {
-              const totalGrupo = mensalidadesGrupo.reduce((sum, m) => sum + m.valor, 0);
-              const totalPago = mensalidadesGrupo.filter(m => m.status === 'Pago').reduce((sum, m) => sum + m.valor, 0);
-              const countTotal = mensalidadesGrupo.length;
-              const countPago = mensalidadesGrupo.filter(m => m.status === 'Pago').length;
 
-              return (
-                <div key={grupoKey} className="space-y-3">
-                  {/* Cabeçalho do Grupo */}
-                  <div className="bg-gradient-to-r from-brand-red/20 to-transparent border border-brand-red/30 rounded-lg p-4">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex items-center gap-3">
-                        {groupBy === 'integrante' && <Users className="w-5 h-5 text-brand-red" />}
-                        {groupBy === 'mes' && <Calendar className="w-5 h-5 text-brand-red" />}
-                        {groupBy === 'status' && <Filter className="w-5 h-5 text-brand-red" />}
-                        <div>
-                          <h3 className="text-white font-oswald text-lg uppercase font-bold">
-                            {grupoKey}
-                          </h3>
-                          <p className="text-gray-400 text-sm">
-                            {countTotal} mensalidade{countTotal !== 1 ? 's' : ''}
-                            {countPago > 0 && ` • ${countPago} paga${countPago !== 1 ? 's' : ''}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-gray-400 text-xs uppercase">Total do Grupo</p>
-                        <p className="text-white font-bold text-lg">R$ {totalGrupo.toFixed(2)}</p>
-                        {totalPago > 0 && (
-                          <p className="text-green-400 text-sm">R$ {totalPago.toFixed(2)} pago</p>
-                        )}
-                      </div>
-                    </div>
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
+                <input
+                  type="text"
+                  value={editingData.link_cobranca}
+                  onChange={(e) => setEditingData({ ...editingData, link_cobranca: e.target.value })}
+                  placeholder="00020126..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
+                  disabled={saving}
+                />
                   </div>
 
-                  {/* Mensalidades do Grupo */}
-                  <div className="space-y-3 ml-4 md:ml-8">
-                    {mensalidadesGrupo.map((mensalidade) => renderMensalidadeCard(mensalidade))}
+              <div className="md:col-span-2">
+                <label className="block text-gray-400 text-xs uppercase mb-1">Observação</label>
+                <textarea
+                  value={editingData.observacao}
+                  onChange={(e) => setEditingData({ ...editingData, observacao: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  rows={2}
+                  disabled={saving}
+                />
                   </div>
                 </div>
-              );
-            })
-          )}
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => {
+                  setEditingId(null);
+                  setEditingData(null);
+                }}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveMensalidade}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Salvar'
+                )}
+              </button>
         </div>
       </div>
+        </div>
+      )}
 
       {/* Modal de Confirmação - Gerar em Lote */}
       {showConfirmBatch && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-white text-xl font-bold mb-4">
               Confirmar Geração em Lote
             </h3>
             <p className="text-gray-300 mb-4">
               Deseja gerar mensalidades para todos os integrantes ativos?
             </p>
-            <div className="bg-black/50 border border-brand-red/20 rounded-lg p-4 mb-4 space-y-2">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-400">Mês:</span>
                 <span className="text-white font-semibold capitalize">{formatarMes(batchData.mes_referencia)}</span>
@@ -1008,29 +1439,61 @@ export default function ManagePayments() {
         </div>
       )}
 
-      {/* Modal de Confirmação - Excluir Mensalidade */}
-      {deleteId && (
+      {/* Modal de Baixa em Lote */}
+      {showBulkPaymentModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-white font-oswald text-xl uppercase font-bold mb-4">
-              Confirmar Exclusão
-            </h3>
-            <p className="text-gray-300 mb-6">
-              Tem certeza que deseja excluir esta mensalidade?
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-white text-xl font-bold mb-2">Dar Baixa em Lote</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              {selectedIds.length} mensalidade(s) selecionada(s)
             </p>
-            <div className="flex gap-3 justify-end">
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Data de Pagamento</label>
+                <input
+                  type="date"
+                  value={bulkPaymentData.data_pagamento}
+                  onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, data_pagamento: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
+                <input
+                  type="text"
+                  value={bulkPaymentData.forma_pagamento}
+                  onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, forma_pagamento: e.target.value })}
+                  placeholder="PIX, Dinheiro, Transferência..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
               <button
-                onClick={() => setDeleteId(null)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                onClick={() => setShowBulkPaymentModal(false)}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
-                onClick={executeDeleteMensalidade}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition flex items-center gap-2"
+                onClick={handleBulkMarkAsPaid}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
               >
-                <Trash2 className="w-4 h-4" />
-                Excluir
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Confirmar Baixa'
+                )}
               </button>
             </div>
           </div>

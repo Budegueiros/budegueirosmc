@@ -196,7 +196,7 @@ export default function CreateDocumentoForm({ membroId, onSuccess, onCancel }: C
           >
             <option value="geral">Geral (Todos os Integrantes)</option>
             <option value="cargo">Por Cargo/Função</option>
-            <option value="integrante">Integrante Específico (Privado)</option>
+            <option value="membro">Integrante Específico (Privado)</option>
           </select>
         </div>
 
@@ -223,11 +223,11 @@ export default function CreateDocumentoForm({ membroId, onSuccess, onCancel }: C
           </div>
         )}
 
-        {/* Campo condicional para integrante específico */}
-        {tipoDestinatario === 'integrante' && (
+        {/* Campo condicional para membro específico */}
+        {tipoDestinatario === 'membro' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nome de Guerra do Integrante <span className="text-red-500">*</span>
+              Nome de Guerra do Membro <span className="text-red-500">*</span>
             </label>
             <input
               type="text"

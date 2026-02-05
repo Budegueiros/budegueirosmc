@@ -1,27 +1,34 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Search, Edit2, Shield, ShieldOff, UserPlus, ArrowLeft, X, Loader2, Save, Upload, Camera } from 'lucide-react';
+import { UserPlus, ArrowLeft, Loader2, Download, FileDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { compressImage, isValidImageFile } from '../utils/imageCompression';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
-import { Integrante, StatusIntegranteEnum, STATUS_STYLES } from '../types/database.types';
+import { useManageMembers } from '../hooks/useManageMembers';
+import { Membro } from '../types/database.types';
+import MembersFilterBar, { FilterState } from '../components/membros/MembersFilterBar';
+import MembersTable from '../components/membros/MembersTable';
+import MembersMetricsCards from '../components/membros/MembersMetricsCards';
+import Pagination from '../components/mensalidades/Pagination';
+import EditMemberModal from '../components/membros/EditMemberModal';
+import { exportarMembrosParaCSV, exportarMembrosParaPDF } from '../utils/membersExportHelpers';
 
-interface EditingIntegrante {
-  nome_completo: string;
-  nome_guerra: string;
-  status_integrante: StatusIntegranteEnum;
-  numero_carteira: string;
-  data_inicio: string;
-  telefone: string;
-  endereco_cidade: string;
-  endereco_estado: string;
-  foto_url: string | null;
-  padrinho_id: string | null;
-}
+// Componentes Mobile
+import MobileHeader from '../components/membros/mobile/MobileHeader';
+import SearchBar from '../components/membros/mobile/SearchBar';
+import StatsCarousel from '../components/membros/mobile/StatsCarousel';
+import QuickFilters from '../components/membros/mobile/QuickFilters';
+import MemberCard from '../components/membros/mobile/MemberCard';
+import FilterDrawer, { FilterState as MobileFilterState } from '../components/membros/mobile/FilterDrawer';
+import ActionSheet from '../components/membros/mobile/ActionSheet';
+import FAB from '../components/membros/mobile/FAB';
+import EmptyState from '../components/membros/mobile/EmptyState';
+import LoadingSkeleton from '../components/membros/mobile/LoadingSkeleton';
+import InfiniteScrollTrigger from '../components/membros/mobile/InfiniteScrollTrigger';
+import { useMembersMobile } from '../hooks/useMembersMobile';
 
-interface IntegranteWithCargos extends Integrante {
+interface MembroWithCargos extends Membro {
   cargos_ativos?: Array<{
     id: string;
     nome: string;
@@ -32,25 +39,68 @@ interface IntegranteWithCargos extends Integrante {
 export default function ManageMembers() {
   const { user } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
-  const { error: toastError, warning: toastWarning } = useToast();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
+  const { toggleActive, toggleAdmin } = useManageMembers();
   const navigate = useNavigate();
-  
-  const [integrantes, setIntegrantes] = useState<IntegranteWithCargos[]>([]);
+
+  const [membros, setMembros] = useState<MembroWithCargos[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<EditingIntegrante | null>(null);
-  const [saving, setSaving] = useState(false);
-  
-  // Estados para gerenciamento de cargos
-    // Upload de foto
-    const [uploading, setUploading] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [todosOsCargos, setTodosOsCargos] = useState<Array<{ id: string; nome: string; tipo_cargo: string; nivel: number }>>([]);
-  const [cargosSelecionados, setCargosSelecionados] = useState<string[]>([]);
-  const [cargosOriginais, setCargosOriginais] = useState<string[]>([]);
-  const [padrinhosDisponiveis, setPadrinhosDisponiveis] = useState<Array<{ id: string; nome_guerra: string; nome_completo: string }>>([]);
+  const [filters, setFilters] = useState<FilterState>({
+    search: '',
+    cargoId: null,
+    status: 'all',
+  });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedMember, setSelectedMember] = useState<MembroWithCargos | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  // Estados para versão mobile
+  const [mobileFilters, setMobileFilters] = useState<MobileFilterState>({
+    status: 'todos',
+    cargo: '',
+    cidade: '',
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedMemberForActions, setSelectedMemberForActions] = useState<MembroWithCargos | null>(null);
+  const [cargos, setCargos] = useState<Array<{ id: string; nome: string }>>([]);
+
+  // Hook mobile
+  const {
+    members: mobileMembers,
+    stats: mobileStats,
+    loading: mobileLoading,
+    refetch: mobileRefetch,
+    hasMore: mobileHasMore,
+    loadMore: mobileLoadMore,
+  } = useMembersMobile({
+    searchQuery,
+    filters: mobileFilters,
+  });
+
+  // Carregar cargos para filtros
+  useEffect(() => {
+    const carregarCargos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cargos')
+          .select('id, nome')
+          .eq('ativo', true)
+          .order('nivel', { ascending: true });
+
+        if (error) throw error;
+        setCargos(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar cargos:', error);
+      }
+    };
+    if (isAdmin) {
+      carregarCargos();
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     // Redirecionar se não for admin
@@ -65,15 +115,20 @@ export default function ManageMembers() {
     }
   }, [isAdmin]);
 
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
   const carregarDados = async () => {
     setLoading(true);
     try {
-      // Carregar todos os integrantes com seus cargos ativos (LEFT JOIN para incluir integrantes sem cargos)
-      const { data: integrantesData, error: integrantesError } = await supabase
-        .from('integrantes')
+      // Carregar todos os membros com seus cargos ativos
+      const { data: membrosData, error: membrosError } = await supabase
+        .from('membros')
         .select(`
           *,
-          integrante_cargos (
+          membro_cargos (
             id,
             ativo,
             cargos (
@@ -85,230 +140,170 @@ export default function ManageMembers() {
         `)
         .order('created_at', { ascending: false });
 
-      if (integrantesError) throw integrantesError;
-      
+      if (membrosError) throw membrosError;
+
       // Transformar dados para incluir apenas cargos ativos
-      const integrantesTransformados = (integrantesData || []).map((m: any) => ({
+      const membrosTransformados = (membrosData || []).map((m: any) => ({
         ...m,
-        cargos_ativos: m.integrante_cargos
+        cargos_ativos: m.membro_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
-          .map((mc: any) => mc.cargos) || []
+          .map((mc: any) => mc.cargos) || [],
       }));
-      
-      setIntegrantes(integrantesTransformados);
-      
-      // Carregar todos os cargos disponíveis
-      const { data: cargosData, error: cargosError } = await supabase
-        .from('cargos')
-        .select('id, nome, tipo_cargo, nivel')
-        .eq('ativo', true)
-        .order('nivel', { ascending: true });
-      
-      if (cargosError) throw cargosError;
-      setTodosOsCargos(cargosData || []);
-      
-      // Carregar integrantes disponíveis para serem padrinhos
-      const { data: padrinhosData, error: padrinhosError } = await supabase
-        .from('integrantes')
-        .select('id, nome_guerra, nome_completo')
-        .eq('ativo', true)
-        .order('nome_guerra', { ascending: true });
-      
-      if (padrinhosError) throw padrinhosError;
-      setPadrinhosDisponiveis(padrinhosData || []);
+
+      setMembros(membrosTransformados);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      toastError('Erro ao carregar membros');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditIntegrante = (integrante: IntegranteWithCargos) => {
-    setEditingId(integrante.id);
-    setEditingData({
-      nome_completo: integrante.nome_completo,
-      nome_guerra: integrante.nome_guerra,
-      status_integrante: integrante.status_integrante,
-      numero_carteira: integrante.numero_carteira,
-      data_inicio: integrante.data_inicio || '',
-      telefone: integrante.telefone || '',
-      endereco_cidade: integrante.endereco_cidade || '',
-      endereco_estado: integrante.endereco_estado || '',
-      foto_url: integrante.foto_url || null,
-      padrinho_id: integrante.padrinho_id || null,
-    });
-    setPreviewUrl(integrante.foto_url || null);
-    // Carregar cargos atuais do integrante
-    const cargosAtuaisIds = integrante.cargos_ativos?.map(c => c.id) || [];
-    setCargosSelecionados(cargosAtuaisIds);
-    setCargosOriginais(cargosAtuaisIds);
+  // Filtrar membros baseado nos filtros
+  const membrosFiltrados = useMemo(() => {
+    let filtered = [...membros];
+
+    // Filtro de busca
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(
+        (m) =>
+          m.nome_guerra.toLowerCase().includes(searchLower) ||
+          m.nome_completo.toLowerCase().includes(searchLower) ||
+          (m.email && m.email.toLowerCase().includes(searchLower)) ||
+          m.numero_carteira.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Filtro por cargo
+    if (filters.cargoId) {
+      filtered = filtered.filter(
+        (m) =>
+          m.cargos_ativos?.some((cargo) => cargo.id === filters.cargoId) || false
+      );
+    }
+
+    // Filtro por status
+    if (filters.status === 'ativo') {
+      filtered = filtered.filter((m) => m.ativo);
+    } else if (filters.status === 'inativo') {
+      filtered = filtered.filter((m) => !m.ativo);
+    }
+
+    return filtered;
+  }, [membros, filters]);
+
+  // Paginação
+  const totalPages = Math.ceil(membrosFiltrados.length / itemsPerPage);
+  const paginatedMembros = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return membrosFiltrados.slice(startIndex, startIndex + itemsPerPage);
+  }, [membrosFiltrados, currentPage]);
+
+  // Calcular métricas
+  const metrics = useMemo(() => {
+    return {
+      totalIntegrantes: membros.length,
+      brasionados: membros.filter((m) =>
+        m.cargos_ativos?.some((cargo) => cargo.nome === 'Brasionado')
+      ).length,
+      prospects: membros.filter((m) =>
+        m.cargos_ativos?.some((cargo) => cargo.nome === 'Prospect')
+      ).length,
+      inativos: membros.filter((m) => !m.ativo).length,
+    };
+  }, [membros]);
+
+  const handleEdit = (membro: MembroWithCargos) => {
+    setSelectedMember(membro);
+    setIsModalOpen(true);
   };
 
-  const handleSaveCargos = async (integranteId: string) => {
-    // Identificar cargos a adicionar e remover
-    const cargosParaAdicionar = cargosSelecionados.filter(id => !cargosOriginais.includes(id));
-    const cargosParaRemover = cargosOriginais.filter(id => !cargosSelecionados.includes(id));
-    
-    // Adicionar novos cargos
-    for (const cargoId of cargosParaAdicionar) {
-      const { error } = await supabase
-        .from('integrante_cargos')
-        .insert({
-          integrante_id: integranteId,
-          cargo_id: cargoId,
-          ativo: true
-        });
-      
-      if (error) throw error;
-    }
-    
-    // Remover cargos (desativar)
-    for (const cargoId of cargosParaRemover) {
-      const { error } = await supabase
-        .from('integrante_cargos')
-        .update({ ativo: false })
-        .eq('integrante_id', integranteId)
-        .eq('cargo_id', cargoId);
-      
-      if (error) throw error;
-    }
-  };
-
-  const handleSaveIntegrante = async (integranteId: string) => {
-    if (!editingData) return;
-    setSaving(true);
+  const handleToggleAtivo = async (membro: MembroWithCargos) => {
     try {
-      let fotoUrl = editingData.foto_url;
-      // Se previewUrl mudou e não é igual ao original, fazer upload
-      if (previewUrl && previewUrl !== editingData.foto_url && previewUrl.startsWith('blob:')) {
-        setUploading(true);
-        // Buscar arquivo do input
-        const file = fileInputRef.current?.files?.[0];
-        if (file && user) {
-          // Comprimir imagem
-          const compressed = await compressImage(file, 2);
-          const ext = file.name.split('.').pop();
-          // Usar estrutura de pastas permitida pelas políticas RLS
-          const filePath = `${user.id}/integrantes/${integranteId}_${Date.now()}.${ext}`;
-          const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, compressed, { upsert: true });
-          if (uploadError) throw uploadError;
-          const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-          fotoUrl = publicUrlData?.publicUrl || null;
-        }
-        setUploading(false);
-      }
-      const { error } = await supabase
-        .from('integrantes')
-        .update({
-          nome_completo: editingData.nome_completo,
-          nome_guerra: editingData.nome_guerra.toUpperCase(),
-          status_integrante: editingData.status_integrante,
-          numero_carteira: editingData.numero_carteira,
-          data_inicio: editingData.data_inicio || null,
-          telefone: editingData.telefone || null,
-          endereco_cidade: editingData.endereco_cidade || null,
-          endereco_estado: editingData.endereco_estado || null,
-          foto_url: fotoUrl,
-          padrinho_id: editingData.padrinho_id || null,
-        })
-        .eq('id', integranteId);
-      if (error) throw error;
-      await handleSaveCargos(integranteId);
-      await carregarDados();
-      setEditingId(null);
-      setEditingData(null);
-      setCargosSelecionados([]);
-      setCargosOriginais([]);
-      setPreviewUrl(null);
-    } catch (error) {
-      console.error('Erro ao atualizar integrante:', error);
-      toastError('Erro ao atualizar dados do integrante');
-    } finally {
-      setSaving(false);
-      setUploading(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditingData(null);
-    setCargosSelecionados([]);
-    setCargosOriginais([]);
-    setPreviewUrl(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-  // Manipulador de upload de foto
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!isValidImageFile(file)) {
-      toastWarning('Selecione uma imagem válida (jpg, jpeg, png, webp)');
-      return;
-    }
-    setUploading(true);
-    // Compressão e preview
-    const compressed = await compressImage(file, 2);
-    setPreviewUrl(URL.createObjectURL(compressed));
-    setUploading(false);
-  };
-
-  const handleToggleAtivo = async (integrante: Integrante) => {
-    try {
-      const { error } = await supabase
-        .from('integrantes')
-        .update({ ativo: !integrante.ativo })
-        .eq('id', integrante.id);
-
-      if (error) throw error;
-
-      // Atualizar lista local
-      setIntegrantes(integrantes.map(m => 
-        m.id === integrante.id ? { ...m, ativo: !m.ativo } : m
-      ));
+      const newStatus = await toggleActive(membro.id, membro.ativo);
+      setMembros(
+        membros.map((m) => (m.id === membro.id ? { ...m, ativo: newStatus } : m))
+      );
+      toastSuccess(
+        `Membro ${newStatus ? 'ativado' : 'desativado'} com sucesso!`
+      );
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      toastError('Erro ao alterar status do integrante');
+      toastError('Erro ao alterar status do membro');
     }
   };
 
-  const handleToggleAdmin = async (integrante: Integrante) => {
+  const handleToggleAdmin = async (membro: MembroWithCargos) => {
     // Não permitir remover admin de si mesmo
-    if (integrante.user_id === user?.id && integrante.is_admin) {
+    if (membro.user_id === user?.id && membro.is_admin) {
       toastWarning('Você não pode remover seus próprios privilégios de administrador');
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('integrantes')
-        .update({ is_admin: !integrante.is_admin })
-        .eq('id', integrante.id);
-
-      if (error) throw error;
-
-      // Atualizar lista local
-      setIntegrantes(integrantes.map(m => 
-        m.id === integrante.id ? { ...m, is_admin: !m.is_admin } : m
-      ));
+      const newStatus = await toggleAdmin(membro.id, membro.is_admin);
+      setMembros(
+        membros.map((m) => (m.id === membro.id ? { ...m, is_admin: newStatus } : m))
+      );
+      toastSuccess(
+        `Privilégios de administrador ${newStatus ? 'concedidos' : 'removidos'} com sucesso!`
+      );
     } catch (error) {
       console.error('Erro ao alterar admin:', error);
       toastError('Erro ao alterar privilégios de administrador');
     }
   };
 
-  const integrantesFiltrados = integrantes.filter(m => 
-    m.nome_guerra.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.numero_carteira.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedMember(null);
+  };
+
+  const handleModalSuccess = () => {
+    carregarDados();
+  };
+
+  const handleExportCSV = () => {
+    const membrosExport = membrosFiltrados.map((m) => ({
+      nome_guerra: m.nome_guerra,
+      nome_completo: m.nome_completo,
+      numero_carteira: m.numero_carteira,
+      email: m.email,
+      telefone: m.telefone,
+      status_membro: m.status_membro,
+      ativo: m.ativo,
+      is_admin: m.is_admin,
+      endereco_cidade: m.endereco_cidade,
+      endereco_estado: m.endereco_estado,
+      cargos: m.cargos_ativos?.map((c) => c.nome) || [],
+    }));
+    exportarMembrosParaCSV(membrosExport, 'integrantes');
+  };
+
+  const handleExportPDF = () => {
+    const membrosExport = membrosFiltrados.map((m) => ({
+      nome_guerra: m.nome_guerra,
+      nome_completo: m.nome_completo,
+      numero_carteira: m.numero_carteira,
+      email: m.email,
+      telefone: m.telefone,
+      status_membro: m.status_membro,
+      ativo: m.ativo,
+      is_admin: m.is_admin,
+      endereco_cidade: m.endereco_cidade,
+      endereco_estado: m.endereco_estado,
+      cargos: m.cargos_ativos?.map((c) => c.nome) || [],
+    }));
+    exportarMembrosParaPDF(membrosExport, 'Relatório de Integrantes');
+  };
 
   if (adminLoading || loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center pt-20">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center pt-20">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand-red animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-oswald uppercase text-sm tracking-wider">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-sm">
             Carregando...
           </p>
         </div>
@@ -320,404 +315,225 @@ export default function ManageMembers() {
     return null;
   }
 
+  // Handlers mobile
+  const handleMobileView = (memberId: string) => {
+    navigate(`/manage-members/${memberId}`);
+  };
+
+  const handleMobileEdit = (memberId: string) => {
+    const member = mobileMembers.find((m) => m.id === memberId);
+    if (member) {
+      setSelectedMember(member);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleMobileMoreActions = (memberId: string) => {
+    const member = mobileMembers.find((m) => m.id === memberId);
+    if (member) {
+      setSelectedMemberForActions(member);
+      setActionSheetVisible(true);
+    }
+  };
+
+  const handleMobileRemove = async (memberId: string) => {
+    const member = mobileMembers.find((m) => m.id === memberId);
+    if (member) {
+      await handleToggleAtivo(member);
+      mobileRefetch();
+    }
+  };
+
+  const handleMobileStatPress = (filter: 'todos' | 'brasionado' | 'prospect' | 'inativo') => {
+    setMobileFilters({ ...mobileFilters, status: filter });
+  };
+
+  const handleMobileFilterChange = (key: 'status' | 'cargo', value: string) => {
+    setMobileFilters({ ...mobileFilters, [key]: value });
+  };
+
+  const handleMobileFilterApply = (newFilters: MobileFilterState) => {
+    setMobileFilters(newFilters);
+  };
+
+  const handleClearMobileFilters = () => {
+    setSearchQuery('');
+    setMobileFilters({
+      status: 'todos',
+      cargo: '',
+      cidade: '',
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-black pt-20 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar ao Dashboard
-          </Link>
-          
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <Users className="w-8 h-8 text-brand-red" />
-                <h1 className="text-brand-red font-oswald text-3xl md:text-4xl uppercase font-bold">
-                  Gerenciar Integrantes
-                </h1>
-              </div>
-              <p className="text-gray-400 text-sm">
-                Gerencie os integrantes do clube, cargos e permissões
-              </p>
-            </div>
+    <>
+      {/* Versão Mobile */}
+      <div className="lg:hidden min-h-screen bg-gray-900 pb-24">
+        <MobileHeader title="Gerenciar Integrantes" />
 
-            <Link
-              to="/invite-member"
-              className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold text-sm py-3 px-4 rounded-lg transition whitespace-nowrap"
-            >
-              <UserPlus className="w-4 h-4" />
-              Convidar Integrante
-            </Link>
-          </div>
-        </div>
+        <SearchBar
+          onSearch={setSearchQuery}
+          onFilterPress={() => setFilterDrawerVisible(true)}
+        />
 
-        {/* Busca */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Buscar integrante por nome, email ou carteira..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-brand-gray border border-brand-red/30 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-red"
+        <StatsCarousel stats={mobileStats} onStatPress={handleMobileStatPress} />
+
+        <QuickFilters
+          filters={mobileFilters}
+          activeFilters={mobileFilters}
+          onFilterChange={handleMobileFilterChange}
+          stats={mobileStats}
+        />
+
+        {mobileLoading ? (
+          <LoadingSkeleton />
+        ) : mobileMembers.length === 0 ? (
+          <EmptyState onClearFilters={handleClearMobileFilters} />
+        ) : (
+          <div className="py-3">
+            {mobileMembers.map((member, index) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                index={index}
+                onView={handleMobileView}
+                onEdit={handleMobileEdit}
+                onMoreActions={handleMobileMoreActions}
+              />
+            ))}
+            <InfiniteScrollTrigger
+              onLoadMore={mobileLoadMore}
+              hasMore={mobileHasMore}
+              loading={mobileLoading}
             />
           </div>
-        </div>
+        )}
 
-        {/* Lista de Integrantes */}
-        <div className="space-y-4">
-          {integrantesFiltrados.map((integrante) => (
-            <div
-              key={integrante.id}
-              className={`bg-brand-gray border ${
-                integrante.ativo ? 'border-brand-red/30' : 'border-gray-700'
-              } rounded-xl p-5 ${!integrante.ativo ? 'opacity-60' : ''}`}
+        <FAB to="/invite-member" />
+
+        <FilterDrawer
+          visible={filterDrawerVisible}
+          onClose={() => setFilterDrawerVisible(false)}
+          onApply={handleMobileFilterApply}
+          initialFilters={mobileFilters}
+          cargos={cargos}
+        />
+
+        {selectedMemberForActions && (
+          <ActionSheet
+            visible={actionSheetVisible}
+            onClose={() => {
+              setActionSheetVisible(false);
+              setSelectedMemberForActions(null);
+            }}
+            memberId={selectedMemberForActions.id}
+            memberName={selectedMemberForActions.nome_guerra}
+            onRemove={handleMobileRemove}
+          />
+        )}
+
+        <EditMemberModal
+          membro={selectedMember}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedMember(null);
+          }}
+          onSuccess={() => {
+            carregarDados();
+            mobileRefetch();
+          }}
+        />
+      </div>
+
+      {/* Versão Desktop */}
+      <div className="hidden lg:block min-h-screen bg-gray-900 p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <Link
+          to="/admin"
+          className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar para Painel Administrativo
+        </Link>
+        
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Gerenciar Integrantes
+            </h1>
+            <p className="text-gray-400">
+              Gerencie os integrantes do clube, cargos e permissões
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link
+              to="/invite-member"
+              className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
             >
-              {editingId === integrante.id && editingData ? (
-                /* Modo de Edição */
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-oswald text-lg uppercase font-bold">Editando Integrante</h3>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleSaveIntegrante(integrante.id)}
-                        disabled={saving}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50"
-                      >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Salvar
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        disabled={saving}
-                        className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition disabled:opacity-50"
-                      >
-                        <X className="w-4 h-4" />
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Upload de Foto */}
-                    <div className="md:col-span-2">
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Foto do Integrante (opcional)</label>
-                      <div className="flex items-center gap-4">
-                        <div>
-                          {previewUrl ? (
-                            <img src={previewUrl} alt="Preview" className="w-16 h-16 rounded-full object-cover border-2 border-brand-red/30" />
-                          ) : (
-                            <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center border-2 border-gray-700 text-gray-500">
-                              <Camera className="w-7 h-7" />
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            disabled={saving || uploading}
-                            className="hidden"
-                            id="foto-upload"
-                          />
-                          <label htmlFor="foto-upload" className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-3 py-2 rounded cursor-pointer text-xs font-bold transition disabled:opacity-50">
-                            <Upload className="w-4 h-4" />
-                            {uploading ? 'Enviando...' : 'Selecionar Foto'}
-                          </label>
-                          {previewUrl && (
-                            <button
-                              type="button"
-                              className="ml-2 text-xs text-gray-400 hover:text-red-500 underline"
-                              onClick={() => { setPreviewUrl(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                              disabled={saving || uploading}
-                            >
-                              Remover
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-gray-500 text-xs mt-2">Formatos aceitos: jpg, jpeg, png, webp. Tamanho máximo: 2MB.</p>
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Nome Completo</label>
-                      <input
-                        type="text"
-                        value={editingData.nome_completo}
-                        onChange={(e) => setEditingData({ ...editingData, nome_completo: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Nome de Guerra</label>
-                      <input
-                        type="text"
-                        value={editingData.nome_guerra}
-                        onChange={(e) => setEditingData({ ...editingData, nome_guerra: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red uppercase"
-                        disabled={saving}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
-                      <select
-                        value={editingData.status_integrante}
-                        onChange={(e) => setEditingData({ ...editingData, status_integrante: e.target.value as StatusIntegranteEnum })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                      >
-                        <option value="Aspirante">Aspirante</option>
-                        <option value="Prospect">Prospect</option>
-                        <option value="Brasionado">Brasionado</option>
-                        <option value="Nomade">Nômade</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Número da Carteira</label>
-                      <input
-                        type="text"
-                        value={editingData.numero_carteira}
-                        onChange={(e) => setEditingData({ ...editingData, numero_carteira: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                        placeholder="000"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Data de Início</label>
-                      <input
-                        type="date"
-                        value={editingData.data_inicio}
-                        onChange={(e) => setEditingData({ ...editingData, data_inicio: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Telefone</label>
-                      <input
-                        type="tel"
-                        value={editingData.telefone}
-                        onChange={(e) => setEditingData({ ...editingData, telefone: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                        placeholder="(11) 99999-9999"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Cidade</label>
-                      <input
-                        type="text"
-                        value={editingData.endereco_cidade}
-                        onChange={(e) => setEditingData({ ...editingData, endereco_cidade: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Estado</label>
-                      <select
-                        value={editingData.endereco_estado}
-                        onChange={(e) => setEditingData({ ...editingData, endereco_estado: e.target.value })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                      >
-                        <option value="">Selecione</option>
-                        <option value="SP">São Paulo</option>
-                        <option value="RJ">Rio de Janeiro</option>
-                        <option value="MG">Minas Gerais</option>
-                        <option value="ES">Espírito Santo</option>
-                        <option value="PR">Paraná</option>
-                        <option value="SC">Santa Catarina</option>
-                        <option value="RS">Rio Grande do Sul</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-xs uppercase mb-1">Padrinho</label>
-                      <select
-                        value={editingData.padrinho_id || ''}
-                        onChange={(e) => setEditingData({ ...editingData, padrinho_id: e.target.value || null })}
-                        className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
-                        disabled={saving}
-                      >
-                        <option value="">Nenhum</option>
-                        {padrinhosDisponiveis
-                          .filter(p => p.id !== editingId) // Excluir o próprio integrante da lista
-                          .map((padrinho) => (
-                            <option key={padrinho.id} value={padrinho.id}>
-                              {padrinho.nome_guerra} - {padrinho.nome_completo}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Seção de Cargos */}
-                  <div className="pt-4 border-t border-gray-700">
-                    <h4 className="text-white font-oswald text-sm uppercase font-bold mb-3">Cargos</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {todosOsCargos.map((cargo) => {
-                        const isSelected = cargosSelecionados.includes(cargo.id);
-                        return (
-                          <button
-                            key={cargo.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setCargosSelecionados(cargosSelecionados.filter(id => id !== cargo.id));
-                              } else {
-                                setCargosSelecionados([...cargosSelecionados, cargo.id]);
-                              }
-                            }}
-                            disabled={saving}
-                            className={`px-3 py-2 rounded text-xs transition ${
-                              isSelected
-                                ? 'bg-brand-red text-white border border-brand-red'
-                                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-brand-red/50'
-                            } disabled:opacity-50`}
-                          >
-                            <div className="font-semibold">{cargo.nome}</div>
-                            <div className="text-xs opacity-75">{cargo.tipo_cargo}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {cargosSelecionados.length === 0 && (
-                      <p className="text-gray-500 text-xs mt-2">Nenhum cargo selecionado</p>
-                    )}
-                  </div>
-
-                  <div className="pt-3 border-t border-gray-700">
-                    <p className="text-gray-500 text-xs">
-                      📧 Email: <span className="text-gray-400">{integrante.email}</span> (não editável)
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* Modo de Visualização */
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  {/* Info Principal */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-white font-oswald text-xl uppercase font-bold">
-                        {integrante.nome_guerra}
-                      </h3>
-                      {integrante.is_admin && (
-                        <span className="inline-flex items-center gap-1 bg-brand-red/20 border border-brand-red/50 text-brand-red px-2 py-0.5 rounded text-xs font-oswald uppercase">
-                          <Shield className="w-3 h-3" />
-                          Admin
-                        </span>
-                      )}
-                      {!integrante.ativo && (
-                        <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-400 px-2 py-0.5 rounded text-xs font-oswald uppercase">
-                          Inativo
-                        </span>
-                      )}
-                    </div>
-                    
-                    <p className="text-gray-400 text-sm mb-2">{integrante.nome_completo}</p>
-                    
-                    {/* Badge de Status */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${STATUS_STYLES[integrante.status_integrante].bg} ${STATUS_STYLES[integrante.status_integrante].text}`}>
-                        {integrante.status_integrante}
-                      </span>
-                      
-                      {/* Cargos Ativos */}
-                      {integrante.cargos_ativos && integrante.cargos_ativos.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {integrante.cargos_ativos.map((cargo) => (
-                            <span
-                              key={cargo.id}
-                              className="inline-flex px-2 py-1 rounded text-xs bg-gray-700 text-gray-300"
-                              title={cargo.tipo_cargo}
-                            >
-                              {cargo.nome}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                      <span>📧 {integrante.email}</span>
-                      <span>🎫 {integrante.numero_carteira}</span>
-                      {integrante.data_inicio && (
-                        <span>📅 {new Date(integrante.data_inicio).toLocaleDateString('pt-BR')}</span>
-                      )}
-                      {integrante.telefone && <span>📱 {integrante.telefone}</span>}
-                      {integrante.endereco_cidade && integrante.endereco_estado && (
-                        <span>📍 {integrante.endereco_cidade} - {integrante.endereco_estado}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Ações */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditIntegrante(integrante)}
-                      className="bg-brand-red/20 hover:bg-brand-red/30 text-brand-red p-2 rounded transition"
-                      title="Editar integrante"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    
-                    <button
-                      onClick={() => handleToggleAdmin(integrante)}
-                      className={`${
-                        integrante.is_admin
-                          ? 'bg-brand-red/20 hover:bg-brand-red/30 text-brand-red'
-                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                      } p-2 rounded transition`}
-                      title={integrante.is_admin ? 'Remover admin' : 'Tornar admin'}
-                    >
-                      {integrante.is_admin ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
-                    </button>
-                    
-                    <button
-                      onClick={() => handleToggleAtivo(integrante)}
-                      className={`${
-                        integrante.ativo
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          : 'bg-green-600/20 hover:bg-green-600/30 text-green-500'
-                      } px-3 py-2 rounded transition text-sm font-oswald uppercase`}
-                      title={integrante.ativo ? 'Desativar integrante' : 'Ativar integrante'}
-                    >
-                      {integrante.ativo ? 'Desativar' : 'Ativar'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              <UserPlus className="w-4 h-4" />
+              Convidar Membro
+            </Link>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                title="Exportar para CSV"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">CSV</span>
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                title="Exportar para PDF"
+              >
+                <FileDown className="w-4 h-4" />
+                <span className="hidden sm:inline">PDF</span>
+              </button>
             </div>
-          ))}
-
-          {integrantesFiltrados.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">
-                {searchTerm ? 'Nenhum integrante encontrado' : 'Nenhum integrante cadastrado'}
-              </p>
-            </div>
-          )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Métricas */}
+      <MembersMetricsCards metrics={metrics} />
+
+      {/* Filtros */}
+      <MembersFilterBar filters={filters} onFiltersChange={setFilters} />
+
+      {/* Tabela */}
+      <MembersTable
+        membros={paginatedMembros}
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        onEdit={handleEdit}
+        onToggleActive={handleToggleAtivo}
+        onToggleAdmin={handleToggleAdmin}
+        currentUserId={user?.id}
+      />
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={membrosFiltrados.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
+      )}
+
+      {/* Modal de Edição */}
+      <EditMemberModal
+        membro={selectedMember}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSuccess={handleModalSuccess}
+      />
+      </div>
+    </>
   );
 }

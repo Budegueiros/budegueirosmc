@@ -23,6 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 *.env
+*.env.local
+*.env.*.local
+.env
+.env.local
+.env.production
+.env.development
 
 # Backups do banco de dados (dados sensíveis)
 backups/backup-*.sql

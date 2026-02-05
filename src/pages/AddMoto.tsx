@@ -48,7 +48,7 @@ export default function AddMoto() {
     e.preventDefault();
     
     if (!membroId) {
-      toastError('Erro ao identificar o integrante. Tente novamente.');
+      toastError('Erro ao identificar o membro. Tente novamente.');
       return;
     }
 
@@ -84,11 +84,11 @@ export default function AddMoto() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/admin')}
             className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Voltar ao Dashboard</span>
+            <span className="text-sm">Voltar para Painel Administrativo</span>
           </button>
           <h1 className="text-white font-oswald text-4xl uppercase font-bold flex items-center gap-3">
             <Bike className="w-8 h-8 text-brand-red" />

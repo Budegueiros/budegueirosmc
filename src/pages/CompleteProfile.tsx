@@ -12,7 +12,7 @@ export default function CompleteProfile() {
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
 
-  // Dados do Integrante
+  // Dados do Membro
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeGuerra, setNomeGuerra] = useState('');
   const [statusMembro, setStatusMembro] = useState<StatusMembroEnum>('Aspirante');
@@ -51,7 +51,7 @@ export default function CompleteProfile() {
       const ano = new Date().getFullYear();
       const numeroCarteira = `BMC-${ano}-${Math.floor(Math.random() * 9000) + 1000}`;
 
-      // 1. Inserir dados do integrante
+      // 1. Inserir dados do membro
       const { data: membroData, error: membroError } = await supabase
         .from('membros')
         .insert({

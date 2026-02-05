@@ -6,6 +6,7 @@ export default function Home() {
 
     useEffect(() => {
         // Detectar se é um link de convite e redirecionar para /accept-invite
+        // Ou se é um link de recovery e redirecionar para /reset-password
         const hash = window.location.hash;
         const hashParams = new URLSearchParams(hash.substring(1));
         const type = hashParams.get('type');
@@ -14,11 +15,14 @@ export default function Home() {
         if (type === 'invite' && accessToken) {
             // Manter o hash e redirecionar
             navigate(`/accept-invite${hash}`);
+        } else if (type === 'recovery' && accessToken) {
+            // Redirecionar para reset-password mantendo o hash
+            navigate(`/reset-password${hash}`);
         }
     }, [navigate]);
 
     return (
-        <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-0">
+        <section id="home" className="relative h-screen w-full overflow-hidden bg-brand-dark pt-20 md:pt-0">
             {/* Background com Caveira (apenas desktop) */}
             <div 
                 className="hidden md:block absolute inset-0 bg-cover bg-center"
@@ -33,9 +37,9 @@ export default function Home() {
             />
 
             {/* Conteúdo Principal */}
-            <div className="relative z-10 h-full flex flex-col md:flex-row items-center justify-center md:justify-start px-4 md:pl-32 lg:pl-48 py-8 md:py-0">
+            <div className="relative z-40 h-full flex flex-col md:flex-row items-center justify-center md:justify-start px-4 md:pl-32 lg:pl-48 py-8 md:py-0">
                 {/* Brasão no Mobile - acima do texto */}
-                <div className="md:hidden mb-8 flex-shrink-0">
+                <div className="md:hidden mb-8 flex-shrink-0 relative z-40">
                     <img 
                         src="/brasao.jpg" 
                         alt="Brasão Budegueiros MC" 

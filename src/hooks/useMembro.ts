@@ -1,19 +1,27 @@
 // ============================================================================
-// Hook customizado para buscar integrantes com cargos
+// Hook customizado para buscar membros com cargos
 // ============================================================================
-// Descrição: Hook React para buscar dados de integrantes incluindo seus cargos ativos
+// Descrição: Hook React para buscar dados de membros incluindo seus cargos ativos
 // Data: 2025-12-28
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Integrante, Cargo, PadrinhoInfo } from '../types/database.types';
+import { Membro, Cargo, PadrinhoInfo, MembroComCargos } from '../types/database.types';
 
 /**
- * Interface estendida de Integrante com cargos incluídos
+ * Interface para resposta do Supabase ao buscar membro com cargos
  */
-export interface IntegranteComCargos extends Integrante {
-  cargos: Cargo[];
+interface MembroCargoJoin {
+  id: string;
+  data_atribuicao: string;
+  ativo: boolean;
+  observacao: string | null;
+  cargos: Cargo | null;
+}
+
+interface MembroFromSupabase extends Membro {
+  membro_cargos: MembroCargoJoin[];
 }
 
 const fetchPadrinhoInfo = async (padrinhoId: string | null): Promise<PadrinhoInfo | null> => {
@@ -34,28 +42,28 @@ const fetchPadrinhoInfo = async (padrinhoId: string | null): Promise<PadrinhoInf
 };
 
 /**
- * Hook para buscar dados de um integrante específico incluindo seus cargos ativos
+ * Hook para buscar dados de um membro específico incluindo seus cargos ativos
  * 
- * @param integranteId - ID do integrante a ser buscado
- * @returns Objeto contendo o integrante com cargos, estado de loading e função de refresh
+ * @param membroId - ID do membro a ser buscado
+ * @returns Objeto contendo o membro com cargos, estado de loading e função de refresh
  * 
  * @example
  * ```tsx
- * const { integrante, loading, refresh } = useIntegrante(integranteId);
+ * const { membro, loading, refresh } = useMembro(membroId);
  * 
  * if (loading) return <Loader />;
- * if (!integrante) return <NotFound />;
+ * if (!membro) return <NotFound />;
  * 
- * return <IntegranteCard integrante={integrante} />;
+ * return <MembroCard membro={membro} />;
  * ```
  */
-export function useIntegrante(integranteId: string | null) {
-  const [integrante, setIntegrante] = useState<IntegranteComCargos | null>(null);
+export function useMembro(membroId: string | null) {
+  const [membro, setMembro] = useState<MembroComCargos | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchIntegrante = async () => {
-    if (!integranteId) {
+  const fetchMembro = async () => {
+    if (!membroId) {
       setLoading(false);
       return;
     }
@@ -83,20 +91,20 @@ export function useIntegrante(integranteId: string | null) {
             )
           )
         `)
-        .eq('id', integranteId)
+        .eq('id', membroId)
         .eq('membro_cargos.ativo', true)
         .single();
 
       if (fetchError) throw fetchError;
 
       if (!data) {
-        throw new Error('Integrante não encontrado');
+        throw new Error('Membro não encontrado');
       }
 
       const padrinhoInfo = await fetchPadrinhoInfo(data.padrinho_id || null);
 
       // Transformar dados para o formato esperado
-      const integranteComCargos: IntegranteComCargos = {
+      const membroComCargos: MembroComCargos = {
         ...data,
         cargos: data.membro_cargos
           ?.filter((mc: any) => mc.cargos && mc.ativo)
@@ -105,41 +113,41 @@ export function useIntegrante(integranteId: string | null) {
         padrinho: padrinhoInfo
       };
 
-      setIntegrante(integranteComCargos);
+      setMembro(membroComCargos);
     } catch (err) {
-      console.error('Erro ao buscar integrante:', err);
+      console.error('Erro ao buscar membro:', err);
       setError(err instanceof Error ? err : new Error('Erro desconhecido'));
-      setIntegrante(null);
+      setMembro(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchIntegrante();
-  }, [integranteId]);
+    fetchMembro();
+  }, [membroId]);
 
-  return { integrante, loading, error, refresh: fetchIntegrante };
+  return { membro, loading, error, refresh: fetchMembro };
 }
 
 /**
- * Hook para buscar o integrante atual (usuário logado) incluindo seus cargos
+ * Hook para buscar o membro atual (usuário logado) incluindo seus cargos
  * 
  * @param userId - ID do usuário autenticado
- * @returns Objeto contendo o integrante com cargos, estado de loading e função de refresh
+ * @returns Objeto contendo o membro com cargos, estado de loading e função de refresh
  * 
  * @example
  * ```tsx
  * const { user } = useAuth();
- * const { integrante, loading } = useIntegranteAtual(user?.id);
+ * const { membro, loading } = useMembroAtual(user?.id);
  * ```
  */
-export function useIntegranteAtual(userId: string | undefined) {
-  const [integrante, setIntegrante] = useState<IntegranteComCargos | null>(null);
+export function useMembroAtual(userId: string | undefined) {
+  const [membro, setMembro] = useState<MembroComCargos | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchIntegrante = async () => {
+  const fetchMembro = async () => {
     if (!userId) {
       setLoading(false);
       return;
@@ -175,57 +183,60 @@ export function useIntegranteAtual(userId: string | undefined) {
       if (fetchError) throw fetchError;
 
       if (!data) {
-        throw new Error('Integrante não encontrado');
+        throw new Error('Membro não encontrado');
       }
 
       const padrinhoInfo = await fetchPadrinhoInfo(data.padrinho_id || null);
 
       // Transformar dados para o formato esperado
-      const integranteComCargos: IntegranteComCargos = {
-        ...data,
-        cargos: data.membro_cargos
-          ?.filter((mc: any) => mc.cargos && mc.ativo)
-          .map((mc: any) => mc.cargos)
+      const membroData = data as MembroFromSupabase;
+      const membroComCargos: MembroComCargos = {
+        ...membroData,
+        cargos: membroData.membro_cargos
+          ?.filter((mc): mc is MembroCargoJoin & { cargos: Cargo } => 
+            mc.cargos !== null && mc.ativo
+          )
+          .map((mc) => mc.cargos)
           .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
         padrinho: padrinhoInfo
       };
 
-      setIntegrante(integranteComCargos);
+      setMembro(membroComCargos);
     } catch (err) {
-      console.error('Erro ao buscar integrante atual:', err);
+      console.error('Erro ao buscar membro atual:', err);
       setError(err instanceof Error ? err : new Error('Erro desconhecido'));
-      setIntegrante(null);
+      setMembro(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchIntegrante();
+    fetchMembro();
   }, [userId]);
 
-  return { integrante, loading, error, refresh: fetchIntegrante };
+  return { membro, loading, error, refresh: fetchMembro };
 }
 
 /**
- * Hook para buscar todos os integrantes ativos com seus cargos
+ * Hook para buscar todos os membros ativos com seus cargos
  * 
- * @param apenasAtivos - Se true, retorna apenas integrantes ativos (padrão: true)
- * @returns Objeto contendo lista de integrantes, estado de loading e função de refresh
+ * @param apenasAtivos - Se true, retorna apenas membros ativos (padrão: true)
+ * @returns Objeto contendo lista de membros, estado de loading e função de refresh
  * 
  * @example
  * ```tsx
- * const { integrantes, loading } = useIntegrantes();
+ * const { membros, loading } = useMembros();
  * 
- * return integrantes.map(integrante => <IntegranteCard key={integrante.id} integrante={integrante} />);
+ * return membros.map(membro => <MembroCard key={membro.id} membro={membro} />);
  * ```
  */
-export function useIntegrantes(apenasAtivos: boolean = true) {
-  const [integrantes, setIntegrantes] = useState<IntegranteComCargos[]>([]);
+export function useMembros(apenasAtivos: boolean = true) {
+  const [membros, setMembros] = useState<MembroComCargos[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchIntegrantes = async () => {
+  const fetchMembros = async () => {
     setLoading(true);
     setError(null);
 
@@ -261,31 +272,36 @@ export function useIntegrantes(apenasAtivos: boolean = true) {
       if (fetchError) throw fetchError;
 
       // Transformar dados para o formato esperado (incluindo padrinho)
-      const integrantesComCargos: IntegranteComCargos[] = await Promise.all((data || []).map(async (m: any) => {
-        const padrinhoInfo = await fetchPadrinhoInfo(m.padrinho_id || null);
-        return {
-          ...m,
-          cargos: m.membro_cargos
-            ?.filter((mc: any) => mc.cargos && mc.ativo)
-            .map((mc: any) => mc.cargos)
-            .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
-          padrinho: padrinhoInfo
-        };
-      }));
+      const membrosComCargos: MembroComCargos[] = await Promise.all(
+        (data || []).map(async (m) => {
+          const membroData = m as MembroFromSupabase;
+          const padrinhoInfo = await fetchPadrinhoInfo(membroData.padrinho_id || null);
+          return {
+            ...membroData,
+            cargos: membroData.membro_cargos
+              ?.filter((mc): mc is MembroCargoJoin & { cargos: Cargo } => 
+                mc.cargos !== null && mc.ativo
+              )
+              .map((mc) => mc.cargos)
+              .sort((a: Cargo, b: Cargo) => a.nivel - b.nivel) || [],
+            padrinho: padrinhoInfo
+          };
+        })
+      );
 
-      setIntegrantes(integrantesComCargos);
+      setMembros(membrosComCargos);
     } catch (err) {
-      console.error('Erro ao buscar integrantes:', err);
+      console.error('Erro ao buscar membros:', err);
       setError(err instanceof Error ? err : new Error('Erro desconhecido'));
-      setIntegrantes([]);
+      setMembros([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchIntegrantes();
+    fetchMembros();
   }, [apenasAtivos]);
 
-  return { integrantes, loading, error, refresh: fetchIntegrantes };
+  return { membros, loading, error, refresh: fetchMembros };
 }
