@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { AgendaEventCard } from './AgendaEventCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import ConfirmarPresencaModal from './eventos/ConfirmarPresencaModal';
 
 interface Evento {
   id: string;
@@ -40,6 +41,8 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
   const [confirmacoes, setConfirmacoes] = useState<Record<string, string | null>>({});
   const [confirmandoPresenca, setConfirmandoPresenca] = useState<Record<string, boolean>>({});
   const [confirmadosCount, setConfirmadosCount] = useState<Record<string, number>>({});
+  const [presencaModalOpen, setPresencaModalOpen] = useState(false);
+  const [presencaEventoId, setPresencaEventoId] = useState<string | null>(null);
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -124,7 +127,10 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
     carregarDados();
   }, [user, isLoggedIn]);
 
-  const handleRSVP = async (eventId: string, status: 'confirmed' | 'maybe') => {
+  const confirmarPresenca = async (
+    eventId: string,
+    detalhes?: { vaiComBudegueira: boolean; quantidadeVisitantes: number }
+  ) => {
     if (!membro || confirmandoPresenca[eventId]) return;
 
     setConfirmandoPresenca(prev => ({ ...prev, [eventId]: true }));
@@ -151,7 +157,9 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
             evento_id: eventId,
             membro_id: membro.id,
             status: 'Confirmado',
-            data_confirmacao: new Date().toISOString()
+            data_confirmacao: new Date().toISOString(),
+            vai_com_budegueira: detalhes?.vaiComBudegueira ?? false,
+            quantidade_visitantes: detalhes?.quantidadeVisitantes ?? 0,
           })
           .select('id')
           .single();
@@ -167,6 +175,32 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
     } finally {
       setConfirmandoPresenca(prev => ({ ...prev, [eventId]: false }));
     }
+  };
+
+  const handleRSVP = async (eventId: string, tipoEvento: string) => {
+    if (!membro || confirmandoPresenca[eventId]) return;
+
+    const confirmacaoId = confirmacoes[eventId];
+
+    if (confirmacaoId) {
+      await confirmarPresenca(eventId);
+      return;
+    }
+
+    if (tipoEvento === 'Role') {
+      setPresencaEventoId(eventId);
+      setPresencaModalOpen(true);
+      return;
+    }
+
+    await confirmarPresenca(eventId);
+  };
+
+  const handleConfirmarPresencaDetalhes = async (detalhes: { vaiComBudegueira: boolean; quantidadeVisitantes: number }) => {
+    if (!presencaEventoId) return;
+    await confirmarPresenca(presencaEventoId, detalhes);
+    setPresencaModalOpen(false);
+    setPresencaEventoId(null);
   };
 
   const now = new Date();
@@ -272,6 +306,16 @@ export default function AgendaContent({ isLoggedIn = false }: AgendaContentProps
           </div>
         </div>
       </div>
+
+      <ConfirmarPresencaModal
+        isOpen={presencaModalOpen}
+        onClose={() => {
+          setPresencaModalOpen(false);
+          setPresencaEventoId(null);
+        }}
+        onConfirm={handleConfirmarPresencaDetalhes}
+        confirmando={presencaEventoId ? (confirmandoPresenca[presencaEventoId] || false) : false}
+      />
     </section>
   );
 }

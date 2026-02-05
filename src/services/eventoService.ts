@@ -68,7 +68,11 @@ export const eventoService = {
   async toggleConfirmacaoPresenca(
     membroId: string,
     eventoId: string,
-    confirmacaoId: string | null
+    confirmacaoId: string | null,
+    detalhes?: {
+      vaiComBudegueira?: boolean;
+      quantidadeVisitantes?: number;
+    }
   ): Promise<{ id: string; action: 'created' | 'deleted' }> {
     if (confirmacaoId) {
       // Cancelar confirmação existente
@@ -91,6 +95,8 @@ export const eventoService = {
           membro_id: membroId,
           status: 'Confirmado',
           data_confirmacao: new Date().toISOString(),
+          vai_com_budegueira: detalhes?.vaiComBudegueira ?? false,
+          quantidade_visitantes: detalhes?.quantidadeVisitantes ?? 0,
         })
         .select('id')
         .single();

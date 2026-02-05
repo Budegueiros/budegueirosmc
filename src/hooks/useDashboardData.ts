@@ -22,7 +22,7 @@ interface UseDashboardDataReturn {
   confirmacaoId: string | null;
   loading: boolean;
   error: string | null;
-  confirmarPresenca: () => Promise<void>;
+  confirmarPresenca: (detalhes?: { vaiComBudegueira: boolean; quantidadeVisitantes: number }) => Promise<void>;
   confirmandoPresenca: boolean;
   recarregar: () => Promise<void>;
 }
@@ -110,7 +110,7 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
   }, [carregarDados]);
 
   // Função para confirmar/cancelar presença
-  const confirmarPresenca = useCallback(async () => {
+  const confirmarPresenca = useCallback(async (detalhes?: { vaiComBudegueira: boolean; quantidadeVisitantes: number }) => {
     if (!membro || !proximoEvento || confirmandoPresenca) return;
 
     setConfirmandoPresenca(true);
@@ -119,7 +119,8 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
       const resultado = await eventoService.toggleConfirmacaoPresenca(
         membro.id,
         proximoEvento.id,
-        confirmacaoId
+        confirmacaoId,
+        detalhes
       );
 
       // Atualizar estado baseado no resultado
