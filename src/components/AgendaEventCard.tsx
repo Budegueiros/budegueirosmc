@@ -1,4 +1,6 @@
-import { MapPin, Clock, Navigation, ThumbsUp, Loader2, Users } from 'lucide-react';
+import { MapPin, Clock, Navigation, ThumbsUp, Loader2, Users, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import ShareEventoModal from './eventos/ShareEventoModal';
 
 interface Evento {
   id: string;
@@ -23,19 +25,34 @@ interface MembroData {
 interface AgendaEventCardProps {
   event: Evento;
   currentMember?: MembroData | null;
-  onRSVP?: (eventId: string, status: 'confirmed' | 'maybe') => void;
+  onRSVP?: (eventId: string, tipoEvento: string) => void;
   isConfirmed?: boolean;
   isConfirming?: boolean;
   confirmadosCount?: number;
+  budegueirasCount?: number;
+  visitantesCount?: number;
 }
 
-export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, currentMember, onRSVP, isConfirmed = false, isConfirming = false, confirmadosCount = 0 }) => {
+export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({
+  event,
+  currentMember,
+  onRSVP,
+  isConfirmed = false,
+  isConfirming = false,
+  confirmadosCount = 0,
+  budegueirasCount = 0,
+  visitantesCount = 0,
+}) => {
   const eventDate = new Date(`${event.data_evento}T00:00:00`);
   const day = eventDate.getDate();
   const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
   const weekDay = eventDate.toLocaleDateString('pt-BR', { weekday: 'long' });
+  const [shareOpen, setShareOpen] = useState(false);
 
   const formattedTime = event.hora_saida ? event.hora_saida.substring(0, 5) : '00:00';
+  const dataFormatada = eventDate.toLocaleDateString('pt-BR');
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/agenda?evento=${event.id}` : '';
+  const shareText = `Evento Budegueiros: ${event.nome} • ${dataFormatada} ${formattedTime} • Saída: ${event.local_saida}${event.local_destino ? ` • Destino: ${event.local_destino}` : ''} • ${event.cidade}/${event.estado}.`;
 
   // Determine Tag Color based on Type
   const getTypeColor = () => {
@@ -132,7 +149,11 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, current
           {currentMember && confirmadosCount > 0 && (
             <div className="flex items-center gap-2 text-gray-400 text-sm">
               <Users className="w-5 h-5" />
-              <span>{confirmadosCount} irmãos confirmados</span>
+              <span>
+                {confirmadosCount} {confirmadosCount === 1 ? 'irmão confirmado' : 'irmãos confirmados'}
+                {budegueirasCount > 0 && ` • ${budegueirasCount} ${budegueirasCount === 1 ? 'Budegueira' : 'Budegueiras'}`}
+                {visitantesCount > 0 && ` • ${visitantesCount} ${visitantesCount === 1 ? 'Visitante' : 'Visitantes'}`}
+              </span>
             </div>
           )}
 
@@ -140,7 +161,7 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, current
           {currentMember && onRSVP && (
             <div className="flex gap-2 w-full sm:w-auto">
               <button 
-                onClick={() => onRSVP && onRSVP(event.id, 'confirmed')}
+                onClick={() => onRSVP && onRSVP(event.id, event.tipo_evento)}
                 disabled={isConfirming}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-bold transition-all ${
                   isConfirmed
@@ -162,10 +183,25 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({ event, current
                   </>
                 )}
               </button>
+              <button
+                onClick={() => setShareOpen(true)}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-bold transition-all bg-[#0f1014] border border-gray-700 text-gray-300 hover:border-gray-600"
+              >
+                <Share2 size={14} /> Compartilhar
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      <ShareEventoModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareText={shareText}
+        shareUrl={shareUrl}
+        shareTitle="Evento Budegueiros"
+        shareImageUrl={event.foto_capa_url || null}
+      />
     </div>
   );
 };

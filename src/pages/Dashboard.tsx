@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,11 +10,13 @@ import { DashboardMensalidades } from '../components/dashboard/DashboardMensalid
 import { ProximoEventoCard } from '../components/dashboard/ProximoEventoCard';
 import { MinhasMaquinasCard } from '../components/dashboard/MinhasMaquinasCard';
 import { MensalidadesAtrasadasAlert } from '../components/dashboard/MensalidadesAtrasadasAlert';
+import ConfirmarPresencaModal from '../components/eventos/ConfirmarPresencaModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const [presencaModalOpen, setPresencaModalOpen] = useState(false);
   
   const {
     membro,
@@ -24,6 +26,8 @@ export default function Dashboard() {
     mensalidadesAtrasadas,
     kmAnual,
     confirmados,
+    budegueiras,
+    visitantes,
     confirmacaoId,
     loading,
     error,
@@ -62,9 +66,28 @@ export default function Dashboard() {
   // Tratar confirmação de presença com erro
   const handleConfirmarPresencaComErro = async () => {
     try {
+      if (confirmacaoId) {
+        await confirmarPresenca();
+        return;
+      }
+
+      if (proximoEvento?.tipo_evento === 'Role') {
+        setPresencaModalOpen(true);
+        return;
+      }
+
       await confirmarPresenca();
     } catch (err) {
       // Erro já foi logado no hook, apenas mostrar toast ao usuário
+      toast.error('Erro ao processar confirmação. Tente novamente.');
+    }
+  };
+
+  const handleConfirmarPresencaDetalhes = async (detalhes: { vaiComBudegueira: boolean; quantidadeVisitantes: number }) => {
+    try {
+      await confirmarPresenca(detalhes);
+      setPresencaModalOpen(false);
+    } catch (err) {
       toast.error('Erro ao processar confirmação. Tente novamente.');
     }
   };
@@ -118,6 +141,8 @@ export default function Dashboard() {
           <ProximoEventoCard
             evento={proximoEvento}
             confirmados={confirmados}
+            budegueiras={budegueiras}
+            visitantes={visitantes}
             membroId={membro.id}
             confirmacaoId={confirmacaoId}
             confirmandoPresenca={confirmandoPresenca}
@@ -128,6 +153,13 @@ export default function Dashboard() {
           <MinhasMaquinasCard motos={motos} kmAnual={kmAnual} />
         </div>
       </div>
+
+      <ConfirmarPresencaModal
+        isOpen={presencaModalOpen}
+        onClose={() => setPresencaModalOpen(false)}
+        onConfirm={handleConfirmarPresencaDetalhes}
+        confirmando={confirmandoPresenca}
+      />
     </DashboardLayout>
   );
 }

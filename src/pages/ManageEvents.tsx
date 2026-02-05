@@ -624,6 +624,8 @@ export default function ManageEvents() {
                     key={evento.id}
                     evento={evento}
                     confirmados={evento.confirmados}
+                    budegueiras={evento.budegueiras}
+                    visitantes={evento.visitantes}
                     totalMembros={evento.totalMembros}
                     usuarioConfirmou={evento.usuarioConfirmou}
                     onConfirmar={() => handleConfirmarPresenca(evento.id)}
@@ -644,6 +646,8 @@ export default function ManageEvents() {
                     key={evento.id}
                     evento={evento}
                     confirmados={evento.confirmados}
+                    budegueiras={evento.budegueiras}
+                    visitantes={evento.visitantes}
                     totalMembros={evento.totalMembros}
                     usuarioConfirmou={evento.usuarioConfirmou}
                     onVer={() => handleEditEvento(evento.id)}

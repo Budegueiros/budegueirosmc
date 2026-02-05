@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 interface BulkActionsToolbarProps {
   selectedCount: number;
   onClearSelection: () => void;
+  onMarkAsPaid?: () => void;
   onGerarCobrancas?: () => void;
   onEnviarLembretes?: () => void;
 }
@@ -10,6 +11,7 @@ interface BulkActionsToolbarProps {
 export default function BulkActionsToolbar({
   selectedCount,
   onClearSelection,
+  onMarkAsPaid,
   onGerarCobrancas,
   onEnviarLembretes
 }: BulkActionsToolbarProps) {
@@ -21,6 +23,14 @@ export default function BulkActionsToolbar({
         {selectedCount} {selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}
       </span>
       <div className="flex gap-2">
+        {onMarkAsPaid && (
+          <button
+            onClick={onMarkAsPaid}
+            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded transition text-sm font-medium"
+          >
+            Dar Baixa
+          </button>
+        )}
         {onGerarCobrancas && (
           <button
             onClick={onGerarCobrancas}

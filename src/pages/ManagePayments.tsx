@@ -57,6 +57,11 @@ export default function ManagePayments() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [showBulkPaymentModal, setShowBulkPaymentModal] = useState(false);
+  const [bulkPaymentData, setBulkPaymentData] = useState({
+    data_pagamento: new Date().toISOString().split('T')[0],
+    forma_pagamento: ''
+  });
   
   // Estados Mobile
   const [isMobile, setIsMobile] = useState(false);
@@ -67,7 +72,7 @@ export default function ManagePayments() {
   const [newMensalidade, setNewMensalidade] = useState<NewMensalidade>({
     membro_id: '',
     mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
-    valor: '50.00',
+    valor: '75.00',
     data_vencimento: new Date(new Date().getFullYear(), new Date().getMonth(), 5).toISOString().split('T')[0],
     status: 'Aberto',
     link_cobranca: ''
@@ -75,7 +80,7 @@ export default function ManagePayments() {
 
   const [batchData, setBatchData] = useState({
     mes_referencia: new Date().toISOString().slice(0, 7) + '-01',
-    valor: '50.00',
+    valor: '75.00',
     data_vencimento: new Date(new Date().getFullYear(), new Date().getMonth(), 5).toISOString().split('T')[0],
     status: 'Aberto',
     link_cobranca: ''
@@ -164,8 +169,24 @@ export default function ManagePayments() {
     });
   };
 
+  const openBulkPaymentModal = () => {
+    if (selectedIds.length === 0) {
+      toastWarning('Selecione pelo menos uma mensalidade');
+      return;
+    }
+    setBulkPaymentData({
+      data_pagamento: new Date().toISOString().split('T')[0],
+      forma_pagamento: ''
+    });
+    setShowBulkPaymentModal(true);
+  };
+
   const handleBulkMarkAsPaid = async () => {
     if (selectedIds.length === 0) return;
+    if (!bulkPaymentData.data_pagamento) {
+      toastWarning('Informe a data de pagamento');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -173,18 +194,21 @@ export default function ManagePayments() {
         .from('mensalidades')
         .update({ 
           status: 'Pago',
-          data_pagamento: new Date().toISOString().split('T')[0]
+          data_pagamento: bulkPaymentData.data_pagamento,
+          forma_pagamento: bulkPaymentData.forma_pagamento || null,
+          updated_at: new Date().toISOString()
         })
         .in('id', selectedIds);
 
       if (error) throw error;
 
-      toastSuccess(`${selectedIds.length} mensalidade(s) marcada(s) como paga(s)!`);
+      toastSuccess(`${selectedIds.length} mensalidade(s) baixada(s) com sucesso!`);
       setSelectedIds([]);
+      setShowBulkPaymentModal(false);
       refetch();
     } catch (error) {
-      console.error('Erro ao marcar como pago:', error);
-      toastError('Erro ao marcar mensalidades como pagas.');
+      console.error('Erro ao dar baixa nas mensalidades:', error);
+      toastError('Erro ao dar baixa nas mensalidades.');
     } finally {
       setSaving(false);
     }
@@ -672,7 +696,7 @@ export default function ManagePayments() {
 
         <BulkActionsBar
           selectedCount={selectedIds.length}
-          onMarkAsPaid={handleBulkMarkAsPaid}
+          onMarkAsPaid={openBulkPaymentModal}
           onClear={() => setSelectedIds([])}
         />
 
@@ -866,6 +890,67 @@ export default function ManagePayments() {
                     </>
                   ) : (
                     'Salvar'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Baixa em Lote */}
+        {showBulkPaymentModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-white text-xl font-bold mb-2">Dar Baixa em Lote</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                {selectedIds.length} mensalidade(s) selecionada(s)
+              </p>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Data de Pagamento</label>
+                  <input
+                    type="date"
+                    value={bulkPaymentData.data_pagamento}
+                    onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, data_pagamento: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
+                  <input
+                    type="text"
+                    value={bulkPaymentData.forma_pagamento}
+                    onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, forma_pagamento: e.target.value })}
+                    placeholder="PIX, Dinheiro, Transferência..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  onClick={() => setShowBulkPaymentModal(false)}
+                  disabled={saving}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleBulkMarkAsPaid}
+                  disabled={saving}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Confirmar Baixa'
                   )}
                 </button>
               </div>
@@ -1066,7 +1151,7 @@ export default function ManagePayments() {
                 <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="5.00"
                   value={newMensalidade.valor}
                   onChange={(e) => setNewMensalidade({ ...newMensalidade, valor: e.target.value })}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
@@ -1141,6 +1226,7 @@ export default function ManagePayments() {
       <BulkActionsToolbar
         selectedCount={selectedIds.length}
         onClearSelection={() => setSelectedIds([])}
+        onMarkAsPaid={openBulkPaymentModal}
         onGerarCobrancas={handleGerarCobrancas}
         onEnviarLembretes={handleEnviarLembretes}
       />
@@ -1346,6 +1432,67 @@ export default function ManagePayments() {
                   </>
                 ) : (
                   'Confirmar'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Baixa em Lote */}
+      {showBulkPaymentModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-white text-xl font-bold mb-2">Dar Baixa em Lote</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              {selectedIds.length} mensalidade(s) selecionada(s)
+            </p>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Data de Pagamento</label>
+                <input
+                  type="date"
+                  value={bulkPaymentData.data_pagamento}
+                  onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, data_pagamento: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Forma de Pagamento</label>
+                <input
+                  type="text"
+                  value={bulkPaymentData.forma_pagamento}
+                  onChange={(e) => setBulkPaymentData({ ...bulkPaymentData, forma_pagamento: e.target.value })}
+                  placeholder="PIX, Dinheiro, Transferência..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowBulkPaymentModal(false)}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleBulkMarkAsPaid}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Confirmar Baixa'
                 )}
               </button>
             </div>

@@ -19,10 +19,12 @@ interface UseDashboardDataReturn {
   mensalidadesAtrasadas: MensalidadeData[];
   kmAnual: number;
   confirmados: number;
+  budegueiras: number;
+  visitantes: number;
   confirmacaoId: string | null;
   loading: boolean;
   error: string | null;
-  confirmarPresenca: () => Promise<void>;
+  confirmarPresenca: (detalhes?: { vaiComBudegueira: boolean; quantidadeVisitantes: number }) => Promise<void>;
   confirmandoPresenca: boolean;
   recarregar: () => Promise<void>;
 }
@@ -38,6 +40,8 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
   const [mensalidadesAtrasadas, setMensalidadesAtrasadas] = useState<MensalidadeData[]>([]);
   const [kmAnual, setKmAnual] = useState<number>(0);
   const [confirmados, setConfirmados] = useState<number>(0);
+  const [budegueiras, setBudegueiras] = useState<number>(0);
+  const [visitantes, setVisitantes] = useState<number>(0);
   const [confirmacaoId, setConfirmacaoId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,15 +86,19 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
 
       // Se há próximo evento, buscar dados de confirmação
       if (proximoEventoData) {
-        const [confirmadosCount, minhaConfirmacao] = await Promise.all([
+        const [contagemConfirmados, minhaConfirmacao] = await Promise.all([
           eventoService.contarConfirmados(proximoEventoData.id),
           eventoService.verificarConfirmacao(membroData.id, proximoEventoData.id),
         ]);
 
-        setConfirmados(confirmadosCount);
+        setConfirmados(contagemConfirmados.confirmados);
+        setBudegueiras(contagemConfirmados.budegueiras);
+        setVisitantes(contagemConfirmados.visitantes);
         setConfirmacaoId(minhaConfirmacao);
       } else {
         setConfirmados(0);
+        setBudegueiras(0);
+        setVisitantes(0);
         setConfirmacaoId(null);
       }
     } catch (err) {
@@ -110,7 +118,7 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
   }, [carregarDados]);
 
   // Função para confirmar/cancelar presença
-  const confirmarPresenca = useCallback(async () => {
+  const confirmarPresenca = useCallback(async (detalhes?: { vaiComBudegueira: boolean; quantidadeVisitantes: number }) => {
     if (!membro || !proximoEvento || confirmandoPresenca) return;
 
     setConfirmandoPresenca(true);
@@ -119,16 +127,21 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
       const resultado = await eventoService.toggleConfirmacaoPresenca(
         membro.id,
         proximoEvento.id,
-        confirmacaoId
+        confirmacaoId,
+        detalhes
       );
 
       // Atualizar estado baseado no resultado
       if (resultado.action === 'created') {
         setConfirmacaoId(resultado.id);
         setConfirmados((prev) => prev + 1);
+        setBudegueiras((prev) => prev + (resultado.detalhes?.vaiComBudegueira ? 1 : 0));
+        setVisitantes((prev) => prev + (resultado.detalhes?.quantidadeVisitantes || 0));
       } else {
         setConfirmacaoId(null);
         setConfirmados((prev) => Math.max(0, prev - 1));
+        setBudegueiras((prev) => Math.max(0, prev - (resultado.detalhes?.vaiComBudegueira ? 1 : 0)));
+        setVisitantes((prev) => Math.max(0, prev - (resultado.detalhes?.quantidadeVisitantes || 0)));
       }
     } catch (err) {
       const appError = handleSupabaseError(err);
@@ -147,6 +160,8 @@ export function useDashboardData(userId: string | undefined): UseDashboardDataRe
     mensalidadesAtrasadas,
     kmAnual,
     confirmados,
+    budegueiras,
+    visitantes,
     confirmacaoId,
     loading,
     error,

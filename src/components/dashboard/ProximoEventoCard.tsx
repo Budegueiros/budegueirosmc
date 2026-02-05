@@ -8,6 +8,8 @@ import { Evento } from '../../types/database.types';
 interface ProximoEventoCardProps {
   evento: Evento | null;
   confirmados: number;
+  budegueiras: number;
+  visitantes: number;
   membroId: string;
   confirmacaoId: string | null;
   confirmandoPresenca: boolean;
@@ -17,6 +19,8 @@ interface ProximoEventoCardProps {
 export function ProximoEventoCard({
   evento,
   confirmados,
+  budegueiras,
+  visitantes,
   membroId,
   confirmacaoId,
   confirmandoPresenca,
@@ -86,7 +90,11 @@ export function ProximoEventoCard({
           {/* Confirmados */}
           <div className="flex items-center gap-2 mb-5 text-gray-400 text-sm">
             <Users className="w-5 h-5" />
-            <span>{confirmados} irmãos confirmados</span>
+            <span>
+              {confirmados} {confirmados === 1 ? 'irmão confirmado' : 'irmãos confirmados'}
+              {budegueiras > 0 && ` • ${budegueiras} ${budegueiras === 1 ? 'Budegueira' : 'Budegueiras'}`}
+              {visitantes > 0 && ` • ${visitantes} ${visitantes === 1 ? 'Visitante' : 'Visitantes'}`}
+            </span>
           </div>
 
           {/* Spacer para empurrar o botão para baixo */}

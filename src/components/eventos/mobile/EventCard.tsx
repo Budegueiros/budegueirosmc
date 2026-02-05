@@ -1,4 +1,6 @@
-import { CheckCircle2, Eye, MoreVertical, FileText } from 'lucide-react';
+import { CheckCircle2, Eye, MoreVertical, FileText, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import ShareEventoModal from '../ShareEventoModal';
 
 interface Evento {
   id: string;
@@ -18,6 +20,8 @@ interface Evento {
 interface EventCardProps {
   evento: Evento;
   confirmados?: number;
+  budegueiras?: number;
+  visitantes?: number;
   totalMembros?: number;
   usuarioConfirmou?: boolean;
   onConfirmar?: () => void;
@@ -74,6 +78,8 @@ const TIPO_CONFIG: Record<string, {
 export default function EventCard({
   evento,
   confirmados = 0,
+  budegueiras = 0,
+  visitantes = 0,
   totalMembros = 0,
   usuarioConfirmou = false,
   onConfirmar,
@@ -82,6 +88,7 @@ export default function EventCard({
   onRelatorio,
   index = 0
 }: EventCardProps) {
+  const [shareOpen, setShareOpen] = useState(false);
   const tipoConfig = TIPO_CONFIG[evento.tipo_evento] || {
     icon: '📅',
     color: '#9E9E9E',
@@ -103,6 +110,8 @@ export default function EventCard({
     return hora.substring(0, 5); // HH:MM
   };
 
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/agenda?evento=${evento.id}` : '';
+
   const percentualConfirmados = totalMembros > 0 
     ? Math.round((confirmados / totalMembros) * 100) 
     : 0;
@@ -114,6 +123,7 @@ export default function EventCard({
   const localizacao = evento.local_destino 
     ? `${evento.local_destino} - ${evento.cidade}, ${evento.estado}`
     : `${evento.local_saida} - ${evento.cidade}, ${evento.estado}`;
+  const shareText = `Evento Budegueiros: ${evento.nome} • ${formatarData(evento.data_evento)}${evento.hora_saida ? ` ${formatarHora(evento.hora_saida)}` : ''} • Saída: ${evento.local_saida}${evento.local_destino ? ` • Destino: ${evento.local_destino}` : ''} • ${evento.cidade}/${evento.estado}.`;
 
   const delayClass = index < 5 ? `animate-delay-${index * 50}` : 'animate-delay-200';
 
@@ -197,6 +207,13 @@ export default function EventCard({
                   {confirmados}/{totalMembros} ({percentualConfirmados}%)
                 </span>
               </div>
+              {(budegueiras > 0 || visitantes > 0) && (
+                <div className="text-xs text-gray-400">
+                  {budegueiras > 0 && `${budegueiras} ${budegueiras === 1 ? 'Budegueira' : 'Budegueiras'}`}
+                  {budegueiras > 0 && visitantes > 0 && ' • '}
+                  {visitantes > 0 && `${visitantes} ${visitantes === 1 ? 'Visitante' : 'Visitantes'}`}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -206,6 +223,8 @@ export default function EventCard({
             <span className="text-gray-400 w-5">👥</span>
             <span className="text-gray-300">
               {confirmados} presentes ({percentualConfirmados}%)
+              {budegueiras > 0 && ` • ${budegueiras} ${budegueiras === 1 ? 'Budegueira' : 'Budegueiras'}`}
+              {visitantes > 0 && ` • ${visitantes} ${visitantes === 1 ? 'Visitante' : 'Visitantes'}`}
             </span>
           </div>
         )}
@@ -238,6 +257,14 @@ export default function EventCard({
             )}
           </button>
         )}
+
+        <button
+          onClick={() => setShareOpen(true)}
+          className="flex items-center justify-center w-11 h-11 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition active:scale-95"
+          aria-label="Compartilhar"
+        >
+          <Share2 className="w-5 h-5" />
+        </button>
 
         {showRelatorio && (
           <button
@@ -272,6 +299,14 @@ export default function EventCard({
           </button>
         )}
       </div>
+
+      <ShareEventoModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareText={shareText}
+        shareUrl={shareUrl}
+        shareTitle="Evento Budegueiros"
+      />
     </div>
   );
 }
