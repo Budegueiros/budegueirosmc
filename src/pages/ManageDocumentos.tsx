@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FileText, ArrowLeft, Plus, Loader2, Download, FileDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Plus, Loader2, Download, FileDown } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { membroService } from '../services/membroService';
 import { documentoService } from '../services/documentoService';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,9 +34,8 @@ interface DocumentoComEstatisticas extends DocumentoComAutor {
 
 export default function ManageDocumentos() {
   const { user } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { loading: adminLoading } = useAdmin();
   const { success: toastSuccess, error: toastError } = useToast();
-  const navigate = useNavigate();
   const [documentos, setDocumentos] = useState<DocumentoComEstatisticas[]>([]);
   const [loading, setLoading] = useState(true);
   const [membroId, setMembroId] = useState<string | null>(null);
@@ -54,12 +54,6 @@ export default function ManageDocumentos() {
     tipo_destinatario: 'geral' as DocumentoTipoDestinatario,
     valor_destinatario: ''
   });
-
-  useEffect(() => {
-    if (user) {
-      carregarDados();
-    }
-  }, [user, carregarDados]);
 
   const carregarDados = useCallback(async () => {
     if (!user) return;
@@ -83,6 +77,12 @@ export default function ManageDocumentos() {
       setLoading(false);
     }
   }, [user, toastError]);
+
+  useEffect(() => {
+    if (user) {
+      carregarDados();
+    }
+  }, [user, carregarDados]);
 
   // Filtrar documentos
   const filteredDocumentos = useMemo(() => {
