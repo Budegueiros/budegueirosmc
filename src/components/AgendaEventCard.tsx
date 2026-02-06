@@ -1,6 +1,7 @@
 import { MapPin, Clock, Navigation, ThumbsUp, Loader2, Users, Share2 } from 'lucide-react';
 import { useState } from 'react';
 import ShareEventoModal from './eventos/ShareEventoModal';
+import MembrosConfirmadosModal from './eventos/MembrosConfirmadosModal';
 
 interface Evento {
   id: string;
@@ -48,6 +49,7 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({
   const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
   const weekDay = eventDate.toLocaleDateString('pt-BR', { weekday: 'long' });
   const [shareOpen, setShareOpen] = useState(false);
+  const [membrosModalOpen, setMembrosModalOpen] = useState(false);
 
   const formattedTime = event.hora_saida ? event.hora_saida.substring(0, 5) : '00:00';
   const dataFormatada = eventDate.toLocaleDateString('pt-BR');
@@ -147,14 +149,17 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({
         <div className="pt-4 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
           {/* Confirmados - só exibe se houver membro logado e contagem > 0 */}
           {currentMember && confirmadosCount > 0 && (
-            <div className="flex items-center gap-2 text-gray-400 text-sm">
-              <Users className="w-5 h-5" />
+            <button
+              onClick={() => setMembrosModalOpen(true)}
+              className="flex items-center gap-2 text-gray-400 text-sm hover:text-white transition-colors group cursor-pointer"
+            >
+              <Users className="w-5 h-5 group-hover:text-red-500 transition-colors" />
               <span>
                 {confirmadosCount} {confirmadosCount === 1 ? 'irmão confirmado' : 'irmãos confirmados'}
                 {budegueirasCount > 0 && ` • ${budegueirasCount} ${budegueirasCount === 1 ? 'Budegueira' : 'Budegueiras'}`}
                 {visitantesCount > 0 && ` • ${visitantesCount} ${visitantesCount === 1 ? 'Visitante' : 'Visitantes'}`}
               </span>
-            </div>
+            </button>
           )}
 
           {/* Actions */}
@@ -201,6 +206,13 @@ export const AgendaEventCard: React.FC<AgendaEventCardProps> = ({
         shareUrl={shareUrl}
         shareTitle="Evento Budegueiros"
         shareImageUrl={event.foto_capa_url || null}
+      />
+
+      <MembrosConfirmadosModal
+        eventId={event.id}
+        eventoNome={event.nome}
+        isOpen={membrosModalOpen}
+        onClose={() => setMembrosModalOpen(false)}
       />
     </div>
   );
