@@ -20,3 +20,4 @@ ADD COLUMN IF NOT EXISTS nome_guerra TEXT;
 -- - IF NOT EXISTS garante que não haverá erro se a coluna já existir
 -- ============================================================================
 
+
