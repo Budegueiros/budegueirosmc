@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
-import { DollarSign, ArrowLeft, Loader2, Check, AlertCircle, Copy, TrendingUp, TrendingDown } from 'lucide-react';
+import { DollarSign, Loader2, Check, AlertCircle, Copy, TrendingUp, TrendingDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdmin } from '../hooks/useAdmin';
 import { useFluxoCaixa } from '../hooks/useFluxoCaixa';
 import DashboardLayout from '../components/DashboardLayout';
+import SaidasDetalhamentoModal from '../components/caixa/SaidasDetalhamentoModal';
+import AnexoPreviewModal from '../components/caixa/AnexoPreviewModal';
 
 interface Mensalidade {
   id: string;
@@ -24,11 +25,14 @@ export default function MyPayments() {
   const { user } = useAuth();
   const { info: toastInfo } = useToast();
   const navigate = useNavigate();
-  const { isAdmin } = useAdmin();
   const { fluxoCaixa, loading: loadingCaixa } = useFluxoCaixa();
   
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSaidasModal, setShowSaidasModal] = useState(false);
+  const [showAnexoModal, setShowAnexoModal] = useState(false);
+  const [anexoUrl, setAnexoUrl] = useState<string>('');
+  const [anexoFileName, setAnexoFileName] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -162,6 +166,20 @@ export default function MyPayments() {
 
   const resumo = calcularResumo();
 
+  const saidasFiltradas = useMemo(() => {
+    return fluxoCaixa.filter(l => l.tipo === 'saida');
+  }, [fluxoCaixa]);
+
+  const totalSaidasFiltradas = useMemo(() => {
+    return saidasFiltradas.reduce((acc, l) => acc + l.valor, 0);
+  }, [saidasFiltradas]);
+
+  const handleViewAnexo = useCallback((url: string, fileName?: string) => {
+    setAnexoUrl(url);
+    setAnexoFileName(fileName || 'Comprovante');
+    setShowAnexoModal(true);
+  }, []);
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -263,7 +281,11 @@ export default function MyPayments() {
               </div>
 
               {/* Total Saídas */}
-              <div className="bg-brand-gray border border-red-600/30 rounded-xl p-4">
+              <button
+                type="button"
+                onClick={() => setShowSaidasModal(true)}
+                className="bg-brand-gray border border-red-600/30 rounded-xl p-4 text-left cursor-pointer hover:border-red-500/70 hover:scale-[1.02] transition"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingDown className="w-5 h-5 text-red-500" />
                   <p className="text-gray-500 text-xs uppercase">Total Saídas</p>
@@ -277,10 +299,10 @@ export default function MyPayments() {
                     <p className="text-red-500 font-oswald text-2xl font-bold mb-1">
                       {formatarMoeda(metricsCaixa.totalSaidas)}
                     </p>
-                    <p className="text-gray-400 text-xs">Pagamentos</p>
+                    <p className="text-gray-400 text-xs">Clique para ver detalhes</p>
                   </>
                 )}
-              </div>
+              </button>
 
               {/* Pendentes de Recibo */}
               <div className="bg-brand-gray border border-orange-600/30 rounded-xl p-4">
@@ -386,6 +408,21 @@ export default function MyPayments() {
           )}
         </div>
       </div>
+
+      <SaidasDetalhamentoModal
+        isOpen={showSaidasModal}
+        onClose={() => setShowSaidasModal(false)}
+        saidas={saidasFiltradas}
+        total={totalSaidasFiltradas}
+        onViewAnexo={handleViewAnexo}
+      />
+
+      <AnexoPreviewModal
+        isOpen={showAnexoModal}
+        onClose={() => setShowAnexoModal(false)}
+        anexoUrl={anexoUrl}
+        fileName={anexoFileName}
+      />
     </DashboardLayout>
   );
 }

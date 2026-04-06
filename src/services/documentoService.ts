@@ -236,24 +236,51 @@ export const documentoService = {
       return acc;
     }, {} as Record<string, typeof todosAcessos>);
 
-    // Buscar membros que acessaram em batch
-    const membrosIds = [...new Set((todosAcessos || []).map((a) => a.membro_id))];
-    const { data: membrosData } = membrosIds.length > 0
-      ? await supabase
-          .from('membros')
-          .select('id, nome_guerra, foto_url')
-          .in('id', membrosIds)
-      : { data: [] };
+    // Buscar todos os membros ativos com seus cargos em batch
+    const { data: todosMembroAtivos } = await supabase
+      .from('membros')
+      .select(`
+        id, nome_guerra, foto_url,
+        membro_cargos (
+          ativo,
+          cargos (
+            nome
+          )
+        )
+      `)
+      .eq('ativo', true);
 
-    const membrosMap = new Map((membrosData || []).map((m) => [m.id, m]));
+    const membrosAtivos = todosMembroAtivos || [];
+    const totalMembrosAtivos = membrosAtivos.length;
+
+    // Pré-calcular contagem de membros ativos por cargo
+    const membrosPorCargo = new Map<string, number>();
+    for (const membro of membrosAtivos) {
+      const cargosAtivos = (membro.membro_cargos || [])
+        .filter((mc: { ativo: boolean; cargos: { nome: string } | null }) => mc.ativo && mc.cargos)
+        .map((mc: { ativo: boolean; cargos: { nome: string } | null }) => mc.cargos!.nome);
+      for (const cargo of cargosAtivos) {
+        membrosPorCargo.set(cargo, (membrosPorCargo.get(cargo) ?? 0) + 1);
+      }
+    }
 
     // Calcular estatísticas para cada documento
     return documentos.map((documento) => {
       const acessos = acessosPorDocumento[documento.id] || [];
       const totalAcessos = acessos.length;
 
-      // Calcular destinatários (simplificado - pode ser otimizado mais)
-      const totalDestinatarios = totalAcessos; // Aproximação - pode ser melhorado
+      // Calcular destinatários baseado no tipo de destinatário
+      let totalDestinatarios: number;
+      if (documento.tipo_destinatario === 'geral') {
+        totalDestinatarios = totalMembrosAtivos;
+      } else if (documento.tipo_destinatario === 'cargo' && documento.valor_destinatario) {
+        totalDestinatarios = membrosPorCargo.get(documento.valor_destinatario) ?? 0;
+      } else if (documento.tipo_destinatario === 'membro') {
+        totalDestinatarios = 1;
+      } else {
+        totalDestinatarios = totalMembrosAtivos;
+      }
+
       const percentualAcesso = totalDestinatarios > 0
         ? Math.round((totalAcessos / totalDestinatarios) * 100)
         : 0;

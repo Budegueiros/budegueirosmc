@@ -13,6 +13,7 @@ import CaixaTable from '../components/caixa/CaixaTable';
 import FilterBarCaixa from '../components/caixa/FilterBarCaixa';
 import RegistrarLancamentoModal from '../components/caixa/RegistrarSaidaModal';
 import AnexoPreviewModal from '../components/caixa/AnexoPreviewModal';
+import SaidasDetalhamentoModal from '../components/caixa/SaidasDetalhamentoModal';
 import BulkActionsToolbar from '../components/caixa/BulkActionsToolbar';
 import { exportarFluxoCaixaParaCSV, exportarFluxoCaixaParaPDF } from '../utils/exportHelpers';
 import { groupTransactionsByDate } from '../utils/dateHelpers';
@@ -39,6 +40,7 @@ export default function ControleCaixa() {
   const [lancamentoEdit, setLancamentoEdit] = useState<FluxoCaixaComMembro | null>(null);
   const [membroId, setMembroId] = useState<string | null>(null);
   const [showAnexoModal, setShowAnexoModal] = useState(false);
+  const [showSaidasModal, setShowSaidasModal] = useState(false);
   const [anexoUrl, setAnexoUrl] = useState<string>('');
   const [anexoFileName, setAnexoFileName] = useState<string>('');
   const [categorias, setCategorias] = useState<Array<{ nome: string; tipo: string }>>([]);
@@ -126,6 +128,15 @@ export default function ControleCaixa() {
       return true;
     });
   }, [fluxoCaixa, filters]);
+
+  // Saídas para o modal de detalhamento (sem filtros aplicados, todas as saídas)
+  const saidasFiltradas = useMemo(() => {
+    return fluxoCaixa.filter(l => l.tipo === 'saida');
+  }, [fluxoCaixa]);
+
+  const totalSaidasFiltradas = useMemo(() => {
+    return saidasFiltradas.reduce((acc, l) => acc + l.valor, 0);
+  }, [saidasFiltradas]);
 
   // Calcular métricas
   const metrics = useMemo(() => {
@@ -450,6 +461,7 @@ export default function ControleCaixa() {
       <CaixaMetricsCards 
         metrics={metrics} 
         onPendentesClick={handlePendentesClick}
+        onTotalSaidasClick={() => setShowSaidasModal(true)}
       />
 
       {/* Barra de Filtros */}
@@ -512,6 +524,15 @@ export default function ControleCaixa() {
         onClose={() => setShowAnexoModal(false)}
         anexoUrl={anexoUrl}
         fileName={anexoFileName}
+      />
+
+      {/* Modal de Detalhamento das Saídas */}
+      <SaidasDetalhamentoModal
+        isOpen={showSaidasModal}
+        onClose={() => setShowSaidasModal(false)}
+        saidas={saidasFiltradas}
+        total={totalSaidasFiltradas}
+        onViewAnexo={handleViewAnexo}
       />
     </>
   );
