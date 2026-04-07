@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFluxoCaixa } from '../hooks/useFluxoCaixa';
 import DashboardLayout from '../components/DashboardLayout';
 import SaidasDetalhamentoModal from '../components/caixa/SaidasDetalhamentoModal';
+import EntradasDetalhamentoModal from '../components/caixa/EntradasDetalhamentoModal';
 import AnexoPreviewModal from '../components/caixa/AnexoPreviewModal';
 
 interface Mensalidade {
@@ -30,6 +31,7 @@ export default function MyPayments() {
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSaidasModal, setShowSaidasModal] = useState(false);
+  const [showEntradasModal, setShowEntradasModal] = useState(false);
   const [showAnexoModal, setShowAnexoModal] = useState(false);
   const [anexoUrl, setAnexoUrl] = useState<string>('');
   const [anexoFileName, setAnexoFileName] = useState<string>('');
@@ -170,6 +172,14 @@ export default function MyPayments() {
     return fluxoCaixa.filter(l => l.tipo === 'saida');
   }, [fluxoCaixa]);
 
+  const entradasFiltradas = useMemo(() => {
+    return fluxoCaixa.filter(l => l.tipo === 'entrada');
+  }, [fluxoCaixa]);
+
+  const totalEntradasFiltradas = useMemo(() => {
+    return entradasFiltradas.reduce((acc, l) => acc + l.valor, 0);
+  }, [entradasFiltradas]);
+
   const totalSaidasFiltradas = useMemo(() => {
     return saidasFiltradas.reduce((acc, l) => acc + l.valor, 0);
   }, [saidasFiltradas]);
@@ -261,7 +271,11 @@ export default function MyPayments() {
               </div>
 
               {/* Total Entradas */}
-              <div className="bg-brand-gray border border-blue-600/30 rounded-xl p-4">
+              <button
+                type="button"
+                onClick={() => setShowEntradasModal(true)}
+                className="bg-brand-gray border border-blue-600/30 rounded-xl p-4 text-left cursor-pointer hover:border-blue-500/70 hover:scale-[1.02] transition"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingUp className="w-5 h-5 text-blue-500" />
                   <p className="text-gray-500 text-xs uppercase">Total Entradas</p>
@@ -275,10 +289,10 @@ export default function MyPayments() {
                     <p className="text-blue-500 font-oswald text-2xl font-bold mb-1">
                       {formatarMoeda(metricsCaixa.totalEntradas)}
                     </p>
-                    <p className="text-gray-400 text-xs">Recebimentos</p>
+                    <p className="text-gray-400 text-xs">Clique para ver detalhes</p>
                   </>
                 )}
-              </div>
+              </button>
 
               {/* Total Saídas */}
               <button
@@ -415,6 +429,13 @@ export default function MyPayments() {
         saidas={saidasFiltradas}
         total={totalSaidasFiltradas}
         onViewAnexo={handleViewAnexo}
+      />
+
+      <EntradasDetalhamentoModal
+        isOpen={showEntradasModal}
+        onClose={() => setShowEntradasModal(false)}
+        entradas={entradasFiltradas}
+        total={totalEntradasFiltradas}
       />
 
       <AnexoPreviewModal
