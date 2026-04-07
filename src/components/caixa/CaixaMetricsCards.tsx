@@ -8,9 +8,10 @@ interface CaixaMetricsCardsProps {
     pendentesRecibo: number;
   };
   onPendentesClick?: () => void;
+  onTotalSaidasClick?: () => void;
 }
 
-export default function CaixaMetricsCards({ metrics, onPendentesClick }: CaixaMetricsCardsProps) {
+export default function CaixaMetricsCards({ metrics, onPendentesClick, onTotalSaidasClick }: CaixaMetricsCardsProps) {
   const formatarValor = (valor: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -54,7 +55,10 @@ export default function CaixaMetricsCards({ metrics, onPendentesClick }: CaixaMe
       </div>
 
       {/* Total Saídas */}
-      <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-lg p-6">
+      <div
+        className={`bg-gray-800/50 backdrop-blur border border-gray-700 rounded-lg p-6 ${onTotalSaidasClick ? 'cursor-pointer hover:border-red-500/50 transition hover:scale-[1.02]' : ''}`}
+        onClick={onTotalSaidasClick}
+      >
         <div className="flex items-center justify-between mb-4">
           <div className="p-3 bg-red-500/10 rounded-lg">
             <TrendingDown className="w-6 h-6 text-red-500" />
@@ -65,7 +69,9 @@ export default function CaixaMetricsCards({ metrics, onPendentesClick }: CaixaMe
           <p className="text-3xl font-bold text-white mb-1">
             {formatarValor(metrics.totalSaidas)}
           </p>
-          <p className="text-xs text-gray-500">Pagamentos</p>
+          <p className="text-xs text-gray-500">
+            {onTotalSaidasClick ? 'Clique para ver detalhes' : 'Pagamentos'}
+          </p>
         </div>
       </div>
 
