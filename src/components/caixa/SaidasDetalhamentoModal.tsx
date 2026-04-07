@@ -36,9 +36,9 @@ export default function SaidasDetalhamentoModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-6xl rounded-2xl bg-gray-900 border border-gray-800 shadow-2xl">
+      <div className="w-full max-w-6xl rounded-2xl bg-gray-900 border border-gray-800 shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4 shrink-0">
           <div>
             <h2 className="text-xl font-semibold text-white">Detalhamento das saídas</h2>
             <p className="text-sm text-gray-400">
@@ -57,7 +57,7 @@ export default function SaidasDetalhamentoModal({
         </div>
 
         {/* Conteúdo */}
-        <div className="max-h-[70vh] overflow-auto px-6 py-4">
+        <div className="flex-1 overflow-auto px-6 py-4">
           {saidas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <p className="text-sm">Nenhuma saída encontrada para este período</p>
@@ -163,7 +163,7 @@ export default function SaidasDetalhamentoModal({
         </div>
 
         {/* Footer com contador */}
-        <div className="border-t border-gray-800 px-6 py-3">
+        <div className="border-t border-gray-800 px-6 py-3 shrink-0">
           <p className="text-xs text-gray-500">
             {saidas.length} {saidas.length === 1 ? 'saída encontrada' : 'saídas encontradas'}
           </p>
