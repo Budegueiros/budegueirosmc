@@ -41,7 +41,7 @@ export default function Contato() {
       icon: <Users size={24} className="text-brand-red" />,
       title: 'Reuniões Mensais',
       value: '1º domingo de cada mês',
-      subValue: 'Horário: 11:00 (confirmar presença)',
+      subValue: 'Horário: 12:00 (confirmar presença)',
       link: null,
       action: null
     }
