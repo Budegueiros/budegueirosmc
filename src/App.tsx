@@ -13,6 +13,7 @@ const Sobre = lazy(() => import('./pages/Sobre'));
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Eventos = lazy(() => import('./pages/Eventos'));
 const Contato = lazy(() => import('./pages/Contato'));
+const CadastroClubes = lazy(() => import('./pages/CadastroClubes'));
 
 // Lazy load de páginas de autenticação
 const Login = lazy(() => import('./pages/Login'));
@@ -97,6 +98,7 @@ function AppContent() {
             <Route path="/agenda" element={<Agenda />} />
             <Route path="/eventos" element={<Eventos />} />
             <Route path="/contato" element={<Contato />} />
+            <Route path="/cadastro-clubes" element={<CadastroClubes />} />
             
             {/* Rotas de autenticação */}
             <Route path="/login" element={<Login />} />
