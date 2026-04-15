@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Award, MapPin, Phone, Shield, User, Users } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '../lib/supabase';
@@ -96,11 +96,8 @@ export default function CadastroClubes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const inputClass = useMemo(
-    () =>
-      'w-full rounded-xl border border-gray-800 bg-black px-5 py-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-red transition',
-    []
-  );
+  const inputClass =
+    'w-full rounded-xl border border-gray-800 bg-black px-5 py-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-red transition';
 
   const handleChange = (field: keyof FormData, value: string) => {
     setFormData((current) => ({ ...current, [field]: value }));

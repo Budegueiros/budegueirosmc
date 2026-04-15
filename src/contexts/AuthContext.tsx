@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { translateAuthError } from '../utils/errorHandler';
@@ -29,16 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Só considerar loading completo se não for uma página de convite
-      const isInvitePage = window.location.hash.includes('type=invite') || 
-                          window.location.pathname.includes('/accept-invite');
-      
-      if (!isInvitePage) {
-        setLoading(false);
-      } else {
-        // Para páginas de convite, liberar imediatamente
-        setLoading(false);
-      }
+      setLoading(false);
     }).catch(() => {
       setSession(null);
       setUser(null);
@@ -54,27 +45,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       
       // Se o evento for TOKEN_REFRESHED com falha, fazer logout
-      if (_event === 'TOKEN_REFRESHED' && !session) {
-        // Token refresh failed, logout handled by state change
-      }
+      // TOKEN_REFRESHED sem sessão é tratado pela mudança de estado acima
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   }, []);
 
   // Sistema de detecção de inatividade (5 minutos)
   useEffect(() => {
     if (!user) return;
 
-    const INACTIVITY_TIME = 5 * 60 * 1000; // 5 minutos em milissegundos
-    let inactivityTimer: NodeJS.Timeout;
+    const INACTIVITY_TIME = 5 * 60 * 1000;
+    let inactivityTimer: ReturnType<typeof setTimeout>;
 
     const resetTimer = () => {
       clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        // Fazer logout após 5 minutos de inatividade
-        signOut();
-      }, INACTIVITY_TIME);
+      inactivityTimer = setTimeout(signOut, INACTIVITY_TIME);
     };
 
     // Eventos que indicam atividade do usuário
@@ -88,14 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Iniciar o timer
     resetTimer();
 
-    // Cleanup
     return () => {
       clearTimeout(inactivityTimer);
       events.forEach(event => {
         document.removeEventListener(event, resetTimer, true);
       });
     };
-  }, [user]);
+  }, [user, signOut]);
 
   const signIn = async (email: string, password: string) => {
     // Validar dados antes de enviar (validação adicional de segurança)
@@ -107,20 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw validationError;
     }
     
-    // Preparar payload no formato esperado pelo Supabase
     const payload = {
       email: validation.data!.email,
       password: validation.data!.password,
     };
-    
-    // Log do payload (sem senha completa) em desenvolvimento
-    if (import.meta.env.DEV) {
-      console.log('📤 Enviando dados de autenticação:', {
-        email: payload.email,
-        passwordLength: payload.password.length,
-        payloadFormat: 'signInWithPassword',
-      });
-    }
     
     const { data, error } = await supabase.auth.signInWithPassword(payload);
     
@@ -133,33 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (translatedError as any).status = error.status;
       (translatedError as any).originalError = error;
       
-      // Log do erro em desenvolvimento para debug
-      if (import.meta.env.DEV) {
-        console.error('❌ Erro de autenticação:', {
-          status: error.status,
-          message: error.message,
-          translatedMessage: errorMessage,
-          email: payload.email,
-        });
-      }
-      
       throw translatedError;
     }
     
-    // Log de sucesso em desenvolvimento
-    if (import.meta.env.DEV) {
-      console.log('✅ Autenticação bem-sucedida:', {
-        userId: data.user?.id,
-        email: data.user?.email,
-      });
-    }
-    
     return data;
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
   };
 
   return (

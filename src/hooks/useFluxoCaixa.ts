@@ -12,17 +12,47 @@ export const useFluxoCaixa = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchFluxoCaixa = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await caixaService.buscarTodos();
+        if (!cancelled) {
+          setFluxoCaixa(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const appError = handleSupabaseError(err);
+          setError(appError.message);
+          logError(appError, { context: 'useFluxoCaixa' });
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
       const data = await caixaService.buscarTodos();
       setFluxoCaixa(data);
     } catch (err) {
       const appError = handleSupabaseError(err);
       setError(appError.message);
-      logError(appError, { context: 'fetchFluxoCaixa' });
+      logError(appError, { context: 'refetchFluxoCaixa' });
     } finally {
       setLoading(false);
     }
@@ -64,42 +94,11 @@ export const useFluxoCaixa = () => {
     }
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadData() {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await caixaService.buscarTodos();
-        if (!cancelled) {
-          setFluxoCaixa(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const appError = handleSupabaseError(err);
-          setError(appError.message);
-          logError(appError, { context: 'useFluxoCaixa' });
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return {
     fluxoCaixa,
     loading,
     error,
-    refetch: fetchFluxoCaixa,
+    refetch,
     createLancamento,
     updateLancamento,
     deleteLancamento

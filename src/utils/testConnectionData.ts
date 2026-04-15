@@ -9,8 +9,8 @@ import { supabase } from '../lib/supabase';
  * Testa os dados específicos fornecidos pelo usuário
  */
 export async function testConnectionData() {
-  const testEmail = 'wosantos2@gmail.com';
-  const testPassword = '3052*Lei';
+  const testEmail = prompt('Digite o email de teste:') ?? '';
+  const testPassword = prompt('Digite a senha de teste:') ?? '';
   
   console.group('🧪 TESTE DE DADOS DE CONEXÃO');
   console.log('Dados de teste:', {

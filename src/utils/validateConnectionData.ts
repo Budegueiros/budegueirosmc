@@ -81,8 +81,8 @@ export function validateConnectionData(email: string, password: string) {
  */
 export function validateProvidedData() {
   const testData = {
-    email: 'wosantos2@gmail.com',
-    password: '3052*Lei',
+    email: prompt('Digite o email de teste:') ?? '',
+    password: prompt('Digite a senha de teste:') ?? '',
     gotrue_meta_security: {},
   };
   
@@ -107,8 +107,8 @@ export function validateProvidedData() {
     
     // Comparar com o formato esperado
     const matchesExpected = 
-      payload.email === 'wosantos2@gmail.com' && // Email sanitizado (lowercase)
-      payload.password === '3052*Lei' &&
+      payload.email === testData.email.trim().toLowerCase() &&
+      payload.password === testData.password &&
       JSON.stringify(payload.gotrue_meta_security) === '{}';
     
     if (matchesExpected) {
