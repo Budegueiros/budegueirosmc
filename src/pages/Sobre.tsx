@@ -126,7 +126,8 @@ export default function Sobre() {
     const fullMembers = sortedMembers.filter(m => {
         const priority = getRolePriority(m.cargos);
         // Excluir membros que já aparecem em outras seções e prospects
-        return priority > 3 && priority < 100 && m.status_membro !== 'Prospect' && !membrosJaExibidos.has(m.id);
+        // priority === 100 = membro sem cargo atribuído, deve aparecer aqui
+        return priority > 3 && m.status_membro !== 'Prospect' && !membrosJaExibidos.has(m.id);
     });
     
     // Adicionar fullMembers ao Set de membros já exibidos antes de filtrar prospects
