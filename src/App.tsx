@@ -42,6 +42,7 @@ const ManagePolls = lazy(() => import('./pages/ManagePolls'));
 const ManageDocumentos = lazy(() => import('./pages/ManageDocumentos'));
 const ManageCategoriasCaixa = lazy(() => import('./pages/ManageCategoriasCaixa'));
 const ControleCaixa = lazy(() => import('./pages/ControleCaixa'));
+const ManageKm = lazy(() => import('./pages/ManageKm'));
 
 // Lazy load de páginas de membros
 const AddMoto = lazy(() => import('./pages/AddMoto'));
@@ -79,7 +80,8 @@ function AppContent() {
     '/manage-polls',
     '/documentos',
     '/manage-documentos',
-    '/controle-caixa'
+    '/controle-caixa',
+    '/manage-km'
   ];
   
   const shouldHideHeader = hideHeaderRoutes.some(route => 
@@ -308,6 +310,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <ControleCaixa />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manage-km"
+              element={
+                <ProtectedRoute>
+                  <ManageKm />
                 </ProtectedRoute>
               }
             />

@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Shield, User, DollarSign, Menu, X, BarChart3, Bell, Home, FileText } from 'lucide-react';
+import { Calendar, Users, LogOut, Shield, User, DollarSign, Menu, X, BarChart3, Bell, Home, FileText, Trophy } from 'lucide-react';
 import { ImProfile } from "react-icons/im";
 import { TiMessages } from "react-icons/ti";
 import { useAuth } from '../contexts/AuthContext';
@@ -226,6 +226,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               Admin
             </Link>
           )}
+          {isAdmin && (
+            <Link 
+              to="/manage-km" 
+              className={`flex items-center gap-3 px-6 py-3 ${isActive('/manage-km') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
+            >
+              <Trophy className="w-5 h-5" />
+              KM Rodados
+            </Link>
+          )}
         </nav>
 
         {/* Footer Sidebar */}
@@ -342,6 +351,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <Shield className="w-5 h-5" />
                   Admin
+                </Link>
+              )}
+              {isAdmin && (
+                <Link 
+                  to="/manage-km" 
+                  onClick={() => setMenuMobileAberto(false)} 
+                  className={`flex items-center gap-3 px-6 py-3 ${isActive('/manage-km') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
+                >
+                  <Trophy className="w-5 h-5" />
+                  KM Rodados
                 </Link>
               )}
             </nav>

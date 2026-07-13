@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Users, DollarSign, Bike, Shield, Bell, BarChart3, FileText, ChevronRight, AlertCircle, Wallet, Tag } from 'lucide-react';
+import { Calendar, Users, DollarSign, Bike, Shield, Bell, BarChart3, FileText, ChevronRight, AlertCircle, Wallet, Tag, Trophy } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { supabase } from '../lib/supabase';
 import DashboardLayout from '../components/DashboardLayout';
@@ -496,6 +496,36 @@ export default function Admin() {
                     </div>
                   </div>
                 )}
+                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                  <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
+                  <span className="group-hover:text-zinc-400 transition">Acessar</span>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* Grupo Atividades */}
+          <div>
+            <h3 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-3 md:mb-4 flex items-center gap-2">
+              <Bike className="w-5 h-5 text-brand-red" />
+              Atividades
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <Link
+                to="/manage-km"
+                className="bg-[#111111] rounded-lg border border-gray-800 p-4 md:p-5 hover:border-brand-red/50 hover:bg-[#161616] transition-all duration-200 group"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-brand-red/20 rounded-lg flex items-center justify-center group-hover:bg-brand-red/30 transition">
+                    <Trophy className="w-6 h-6 text-brand-red" />
+                  </div>
+                </div>
+                <h4 className="text-white text-base md:text-lg font-oswald uppercase font-bold mb-1.5">
+                  KM Rodados
+                </h4>
+                <p className="text-zinc-400 text-xs md:text-sm mb-2">
+                  Ranking e quilometragem acumulada dos integrantes
+                </p>
                 <div className="flex items-center gap-2 text-zinc-500 text-xs">
                   <ChevronRight className="w-4 h-4 group-hover:text-brand-red transition" />
                   <span className="group-hover:text-zinc-400 transition">Acessar</span>
