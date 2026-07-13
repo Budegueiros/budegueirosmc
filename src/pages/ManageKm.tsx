@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Bike, Trophy, ChevronDown, ChevronUp, Medal, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAdmin } from '../hooks/useAdmin';
 import { useToast } from '../contexts/ToastContext';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -24,8 +23,6 @@ interface MembroKm {
 }
 
 export default function ManageKm() {
-  const { isAdmin, loading: adminLoading } = useAdmin();
-  const navigate = useNavigate();
   const { error: toastError } = useToast();
 
   const anoAtual = new Date().getFullYear();
@@ -36,12 +33,6 @@ export default function ManageKm() {
   const [busca, setBusca] = useState('');
 
   const anosDisponiveis = Array.from({ length: 5 }, (_, i) => anoAtual - i);
-
-  useEffect(() => {
-    if (!adminLoading && !isAdmin) {
-      navigate('/dashboard');
-    }
-  }, [isAdmin, adminLoading, navigate]);
 
   const carregarDados = useCallback(async () => {
     setLoading(true);
@@ -122,10 +113,8 @@ export default function ManageKm() {
   }, [anoSelecionado, toastError]);
 
   useEffect(() => {
-    if (isAdmin) {
-      carregarDados();
-    }
-  }, [isAdmin, carregarDados]);
+    carregarDados();
+  }, [carregarDados]);
 
   const totalKmClube = membros.reduce((acc, m) => acc + m.total_km, 0);
   const membrosComKm = membros.filter((m) => m.total_km > 0).length;
@@ -152,29 +141,17 @@ export default function ManageKm() {
     return { icon: '', cor: 'text-white', bg: 'border-gray-800 bg-[#111]' };
   };
 
-  if (adminLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="w-10 h-10 text-brand-red animate-spin" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (!isAdmin) return null;
-
   return (
     <DashboardLayout>
       <div className="container mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-6">
           <Link
-            to="/admin"
+            to="/dashboard"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4 text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar para Admin
+            Voltar para Dashboard
           </Link>
           <div className="flex items-center gap-3 mb-1">
             <Bike className="w-7 h-7 text-brand-red" />

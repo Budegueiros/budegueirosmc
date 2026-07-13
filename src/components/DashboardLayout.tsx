@@ -182,6 +182,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             Agenda
           </Link>
           <Link 
+            to="/manage-km" 
+            className={`flex items-center gap-3 px-6 py-3 ${isActive('/manage-km') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
+          >
+            <Trophy className="w-5 h-5" />
+            KM Rodados
+          </Link>
+          <Link 
             to="/polls" 
             className={`flex items-center gap-3 px-6 py-3 ${isActive('/polls') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
           >
@@ -224,15 +231,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <Shield className="w-5 h-5" />
               Admin
-            </Link>
-          )}
-          {isAdmin && (
-            <Link 
-              to="/manage-km" 
-              className={`flex items-center gap-3 px-6 py-3 ${isActive('/manage-km') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
-            >
-              <Trophy className="w-5 h-5" />
-              KM Rodados
             </Link>
           )}
         </nav>
@@ -305,6 +303,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 Agenda
               </Link>
               <Link 
+                to="/manage-km" 
+                onClick={() => setMenuMobileAberto(false)} 
+                className={`flex items-center gap-3 px-6 py-3 ${isActive('/manage-km') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
+              >
+                <Trophy className="w-5 h-5" />
+                KM Rodados
+              </Link>
+              <Link 
                 to="/polls" 
                 onClick={() => setMenuMobileAberto(false)} 
                 className={`flex items-center gap-3 px-6 py-3 ${isActive('/polls') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
@@ -351,16 +357,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <Shield className="w-5 h-5" />
                   Admin
-                </Link>
-              )}
-              {isAdmin && (
-                <Link 
-                  to="/manage-km" 
-                  onClick={() => setMenuMobileAberto(false)} 
-                  className={`flex items-center gap-3 px-6 py-3 ${isActive('/manage-km') ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white hover:bg-gray-900'} font-oswald uppercase text-sm transition`}
-                >
-                  <Trophy className="w-5 h-5" />
-                  KM Rodados
                 </Link>
               )}
             </nav>
