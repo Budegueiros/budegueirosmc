@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, ArrowLeft, Upload, Loader2, Save, Camera } from 'lucide-react';
+import { User, ArrowLeft, Upload, Loader2, Save, Camera, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -29,6 +29,9 @@ export default function EditProfile() {
   const [uploading, setUploading] = useState(false);
   const [membro, setMembro] = useState<Membro | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [newEmail, setNewEmail] = useState('');
+  const [confirmNewEmail, setConfirmNewEmail] = useState('');
+  const [changingEmail, setChangingEmail] = useState(false);
   
   const [formData, setFormData] = useState({
     nome_completo: '',
@@ -142,6 +145,47 @@ export default function EditProfile() {
       toastError('Erro ao fazer upload da foto. Tente novamente.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleEmailChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (!newEmail.trim()) {
+      toastWarning('Informe o novo e-mail');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail.trim())) {
+      toastWarning('Informe um e-mail válido');
+      return;
+    }
+
+    if (newEmail.trim() !== confirmNewEmail.trim()) {
+      toastWarning('Os e-mails não coincidem');
+      return;
+    }
+
+    if (newEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
+      toastWarning('O novo e-mail é igual ao atual');
+      return;
+    }
+
+    setChangingEmail(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail.trim() });
+      if (error) throw error;
+
+      toastSuccess('Confirmação enviada! Verifique o novo e-mail para confirmar a alteração.');
+      setNewEmail('');
+      setConfirmNewEmail('');
+    } catch (error: any) {
+      console.error('Erro ao alterar e-mail:', error);
+      toastError(error?.message || 'Erro ao solicitar alteração de e-mail');
+    } finally {
+      setChangingEmail(false);
     }
   };
 
@@ -387,6 +431,70 @@ export default function EditProfile() {
             </div>
           </div>
 
+          {/* Alterar E-mail */}
+          <div className="bg-brand-gray border border-brand-red/30 rounded-xl p-6">
+            <h2 className="text-white font-oswald text-xl uppercase font-bold mb-1 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-brand-red" />
+              Alterar E-mail
+            </h2>
+            <p className="text-gray-500 text-xs mb-4">
+              E-mail atual: <span className="text-gray-300">{user?.email}</span>
+            </p>
+
+            <form onSubmit={handleEmailChange} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">
+                  Novo E-mail
+                </label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                  placeholder="novo@email.com"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">
+                  Confirmar Novo E-mail
+                </label>
+                <input
+                  type="email"
+                  value={confirmNewEmail}
+                  onChange={(e) => setConfirmNewEmail(e.target.value)}
+                  className="w-full bg-black border border-brand-red/30 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-red"
+                  placeholder="novo@email.com"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={changingEmail}
+                  className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white font-oswald uppercase font-bold py-2 px-5 rounded-lg transition disabled:opacity-50 text-sm"
+                >
+                  {changingEmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      Solicitar Alteração
+                    </>
+                  )}
+                </button>
+                <p className="text-gray-500 text-xs mt-2">
+                  Um link de confirmação será enviado para o novo e-mail.
+                </p>
+              </div>
+            </form>
+          </div>
+
           {/* Informações Somente Leitura */}
           <div className="bg-brand-gray border border-gray-700 rounded-xl p-6">
             <h2 className="text-white font-oswald text-xl uppercase font-bold mb-4">
@@ -394,12 +502,7 @@ export default function EditProfile() {
             </h2>
             
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Email:</span>
-                <span className="text-white">{membro?.user_id ? user?.email : '-'}</span>
-              </div>
-              
-              <p className="text-gray-500 text-xs mt-4">
+              <p className="text-gray-500 text-xs">
                 Para alterar status, cargos, número da carteira ou outros dados administrativos, entre em contato com um administrador.
               </p>
             </div>
