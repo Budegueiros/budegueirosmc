@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { TipoFluxoCaixa } from '../types/database.types';
+import { handleSupabaseError } from '../utils/errorHandler';
 
 export interface CategoriaFluxoCaixa {
   id: string;
@@ -62,6 +63,34 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  const normalizeCategoriaNome = (nome: string): string => nome.trim().replace(/\s+/g, ' ');
+
+  const ensureCategoriaNomeDisponivel = async (
+    nome: string,
+    tipo: TipoFluxoCaixa,
+    categoriaId?: string
+  ): Promise<void> => {
+    let query = supabase
+      .from('categorias_fluxo_caixa')
+      .select('id, nome', { head: false })
+      .eq('tipo', tipo)
+      .ilike('nome', nome);
+
+    if (categoriaId) {
+      query = query.neq('id', categoriaId);
+    }
+
+    const { data: categoriaExistente, error: duplicateError } = await query.limit(1).maybeSingle();
+
+    if (duplicateError) {
+      throw handleSupabaseError(duplicateError);
+    }
+
+    if (categoriaExistente) {
+      throw new Error(`Já existe uma categoria de ${tipo === 'entrada' ? 'entrada' : 'saída'} com esse nome.`);
+    }
+  };
+
   /**
    * Busca todas as categorias com contagem de lançamentos vinculados
    */
@@ -112,10 +141,14 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
     setError(null);
 
     try {
+      const nomeNormalizado = normalizeCategoriaNome(data.nome);
+
+      await ensureCategoriaNomeDisponivel(nomeNormalizado, data.tipo);
+
       const { data: newCategoria, error: createError } = await supabase
         .from('categorias_fluxo_caixa')
         .insert({
-          nome: data.nome.trim(),
+          nome: nomeNormalizado,
           tipo: data.tipo,
           cor: data.cor || null,
           descricao: data.descricao?.trim() || null,
@@ -133,7 +166,7 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
 
       return newCategoria;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Erro ao criar categoria');
+      const error = handleSupabaseError(err);
       setError(error);
       throw error;
     } finally {
@@ -151,12 +184,20 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
     try {
       const updateData: Partial<UpdateCategoriaData> = {};
 
-      if (data.nome !== undefined) updateData.nome = data.nome.trim();
+      if (data.nome !== undefined) updateData.nome = normalizeCategoriaNome(data.nome);
       if (data.tipo !== undefined) updateData.tipo = data.tipo;
       if (data.cor !== undefined) updateData.cor = data.cor;
       if (data.descricao !== undefined) updateData.descricao = data.descricao?.trim() || null;
       if (data.ativo !== undefined) updateData.ativo = data.ativo;
       if (data.ordem !== undefined) updateData.ordem = data.ordem;
+
+      if (updateData.nome !== undefined) {
+        await ensureCategoriaNomeDisponivel(
+          updateData.nome,
+          updateData.tipo || categorias.find((categoria) => categoria.id === categoriaId)?.tipo || 'entrada',
+          categoriaId
+        );
+      }
 
       const { error: updateError } = await supabase
         .from('categorias_fluxo_caixa')
@@ -168,7 +209,7 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
       // Recarregar lista de categorias
       await fetchCategorias();
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Erro ao atualizar categoria');
+      const error = handleSupabaseError(err);
       setError(error);
       throw error;
     } finally {
@@ -213,7 +254,7 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
       // Recarregar lista de categorias
       await fetchCategorias();
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Erro ao deletar categoria');
+      const error = handleSupabaseError(err);
       setError(error);
       throw error;
     } finally {
@@ -241,7 +282,7 @@ export function useCategoriasCaixa(): UseCategoriasCaixaReturn {
 
       return !currentStatus;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Erro ao alterar status da categoria');
+      const error = handleSupabaseError(err);
       setError(error);
       throw error;
     } finally {
