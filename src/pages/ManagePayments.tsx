@@ -730,16 +730,13 @@ export default function ManagePayments() {
         )}
 
         {/* FAB para nova mensalidade */}
-        <Link
-          to="#"
-          onClick={(e) => {
-            e.preventDefault();
-            setShowNewForm(true);
-          }}
+        <button
+          type="button"
+          onClick={() => setShowNewForm(true)}
           className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition"
         >
           <Plus className="w-6 h-6" />
-        </Link>
+        </button>
 
         {/* Action Sheet */}
         <PaymentActionSheet
@@ -773,6 +770,120 @@ export default function ManagePayments() {
           }}
           onRefresh={refetch}
         />
+
+        {/* Modal de Nova Mensalidade Mobile */}
+        {showNewForm && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <h3 className="text-white text-xl font-bold mb-4">Nova Mensalidade</h3>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Integrante</label>
+                  <select
+                    value={newMensalidade.membro_id}
+                    onChange={(e) => setNewMensalidade({ ...newMensalidade, membro_id: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  >
+                    <option value="">Selecione um integrante</option>
+                    {membros.map((membro) => (
+                      <option key={membro.id} value={membro.id}>
+                        {membro.nome_guerra} ({membro.numero_carteira})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Mês Referência</label>
+                  <input
+                    type="month"
+                    value={newMensalidade.mes_referencia.slice(0, 7)}
+                    onChange={(e) => setNewMensalidade({ ...newMensalidade, mes_referencia: e.target.value + '-01' })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    step="5.00"
+                    value={newMensalidade.valor}
+                    onChange={(e) => setNewMensalidade({ ...newMensalidade, valor: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
+                  <input
+                    type="date"
+                    value={newMensalidade.data_vencimento}
+                    onChange={(e) => setNewMensalidade({ ...newMensalidade, data_vencimento: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
+                  <select
+                    value={newMensalidade.status}
+                    onChange={(e) => setNewMensalidade({ ...newMensalidade, status: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                    disabled={saving}
+                  >
+                    <option value="Aberto">Aberto</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Pago">Pago</option>
+                    <option value="Atrasado">Atrasado</option>
+                    <option value="Isento">Isento</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs uppercase mb-1">Código PIX Copia e Cola</label>
+                  <input
+                    type="text"
+                    value={newMensalidade.link_cobranca}
+                    onChange={(e) => setNewMensalidade({ ...newMensalidade, link_cobranca: e.target.value })}
+                    placeholder="00020126..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-gray-600 font-mono text-xs"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  onClick={() => setShowNewForm(false)}
+                  disabled={saving}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateMensalidade}
+                  disabled={saving}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Criar'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal de Edição Mobile */}
         {editingId && editingData && (

@@ -1,7 +1,7 @@
 import { CategoriaFluxoCaixa } from '../../types/database.types';
 
 interface CategoriaBadgeProps {
-  categoria: CategoriaFluxoCaixa;
+  categoria: string;
 }
 
 const CATEGORIA_CONFIG: Record<CategoriaFluxoCaixa, {
@@ -72,7 +72,16 @@ const CATEGORIA_CONFIG: Record<CategoriaFluxoCaixa, {
 };
 
 export default function CategoriaBadge({ categoria }: CategoriaBadgeProps) {
-  const config = CATEGORIA_CONFIG[categoria] || CATEGORIA_CONFIG['Outros'];
+  const config = CATEGORIA_CONFIG[categoria as CategoriaFluxoCaixa];
+
+  if (!config) {
+    return (
+      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border bg-gray-500/10 text-gray-300 border-gray-500/20">
+        <span className="w-2 h-2 rounded-full bg-gray-500" />
+        <span className="text-xs font-medium">{categoria}</span>
+      </span>
+    );
+  }
 
   return (
     <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${config.bg} ${config.text} ${config.border}`}>
