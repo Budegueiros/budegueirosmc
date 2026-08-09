@@ -1,13 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-
-const COMUNICADO_EXPIRA_EM = new Date('2026-08-11T23:59:59-03:00');
+import { useEffect } from 'react';
 
 export default function Home() {
     const navigate = useNavigate();
-    const [showComunicado, setShowComunicado] = useState(
-        () => Date.now() <= COMUNICADO_EXPIRA_EM.getTime()
-    );
 
     useEffect(() => {
         // Detectar se é um link de convite e redirecionar para /accept-invite
@@ -28,82 +23,7 @@ export default function Home() {
 
     return (
         <section id="home" className="relative min-h-screen md:h-screen w-full overflow-x-hidden bg-brand-dark pt-20 md:pt-0">
-            {showComunicado && (
-                <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/80 px-4 py-6 backdrop-blur-sm">
-                    <div className="relative mx-auto my-auto w-full max-w-3xl overflow-hidden rounded-[2rem] border border-[#9f6b4d]/70 bg-[#15110f] p-3 shadow-[0_0_60px_rgba(0,0,0,0.65)]">
-                        <div className="rounded-[1.6rem] border border-[#5f4030] bg-[radial-gradient(circle_at_top,rgba(120,90,70,0.18),transparent_35%),linear-gradient(180deg,#1a1512_0%,#0d0b0a_100%)] p-6 text-center text-[#f0c6a7] md:p-8">
-                            <button
-                                type="button"
-                                onClick={() => setShowComunicado(false)}
-                                className="absolute right-6 top-6 rounded-full border border-[#9f6b4d]/60 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-[#f0c6a7] transition hover:bg-[#9f6b4d]/10"
-                            >
-                                Fechar
-                            </button>
-
-                            <div className="mx-auto mb-5 h-28 w-28 overflow-hidden rounded-full border border-[#9f6b4d]/50 bg-black/30 p-2 shadow-lg md:h-36 md:w-36">
-                                <img
-                                    src="/brasao2.jpg"
-                                    alt="Budegueiros MC"
-                                    className="h-full w-full object-cover opacity-90"
-                                />
-                            </div>
-
-                            <h2 className="mb-4 font-oswald text-3xl font-bold uppercase text-[#fff3ea] md:text-5xl">
-                                Comunicado Oficial
-                            </h2>
-
-                            <div className="space-y-4 text-base font-semibold leading-snug md:text-2xl">
-                                <p>
-                                    O Moto Clube Budegueiros informa que o colete do nosso irmão Tatu foi furtado
-                                    no último sábado, dia 01/08, no bairro Saudade.
-                                </p>
-                                <p>
-                                    Solicitamos a atenção de todos os motoclubes, irmãos de estrada e demais pessoas
-                                    de boa-fé para que, caso possuam qualquer informação que possa contribuir para a
-                                    localização do referido colete, entrem em contato com a maior brevidade possível.
-                                </p>
-                                <p>
-                                    Reforçamos que se trata de um item de uso pessoal e de representação do nosso grupo,
-                                    cuja posse e circulação indevidas não são autorizadas.
-                                </p>
-                                <p>
-                                    Sem mais para o momento, agradecemos a colaboração e o respeito de todos.
-                                </p>
-                            </div>
-
-                            <div className="mt-6 text-lg font-bold leading-tight text-[#f6d0b6] md:text-2xl">
-                                <p>Décio (Pinguin)</p>
-                                <p>Presidente do Moto Clube Budegueiros</p>
-                                <p>Telefone: (31) 99937-0691</p>
-                            </div>
-
-                            <div className="relative mx-auto mt-8 flex h-48 w-full max-w-md items-center justify-center overflow-hidden rounded-[1.8rem] border border-[#6f4b38] bg-[linear-gradient(180deg,#342821_0%,#17110e_100%)] px-6 py-8 shadow-inner md:h-60">
-                                <div
-                                    className="absolute inset-0 opacity-20"
-                                    style={{
-                                        backgroundImage: 'url(/brasao.jpg)',
-                                        backgroundPosition: 'center',
-                                        backgroundRepeat: 'no-repeat',
-                                        backgroundSize: '80%',
-                                    }}
-                                />
-                                <div className="absolute inset-y-6 left-6 w-6 rounded-full border border-[#9f6b4d]/40 bg-black/20" />
-                                <div className="absolute inset-y-6 right-6 w-6 rounded-full border border-[#9f6b4d]/40 bg-black/20" />
-                                <div className="relative flex h-full w-full items-center justify-center rounded-[1.5rem] border border-dashed border-[#b47b5c]/40 bg-black/25 px-4">
-                                    <div className="-rotate-12 rounded-xl border-4 border-[#7a130f] bg-[#d31212]/90 px-6 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.45)]">
-                                        <p className="text-5xl font-black uppercase leading-none text-black md:text-7xl">?</p>
-                                        <p className="mt-2 text-3xl font-black uppercase tracking-wide text-[#1f0f0b] md:text-5xl">
-                                            Procurado
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Background com Caveira (apenas desktop) */}
+            {/* Background com Caveira (apenas desktop) */
             <div 
                 className="hidden md:block absolute inset-0 bg-cover bg-center"
                 style={{
