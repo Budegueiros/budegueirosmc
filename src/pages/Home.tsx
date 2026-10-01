@@ -23,7 +23,7 @@ export default function Home() {
 
     return (
         <section id="home" className="relative min-h-screen md:h-screen w-full overflow-x-hidden bg-brand-dark pt-20 md:pt-0">
-            {/* Background com Caveira (apenas desktop) */
+            {/* Background com Caveira (apenas desktop) */}
             <div 
                 className="hidden md:block absolute inset-0 bg-cover bg-center"
                 style={{
