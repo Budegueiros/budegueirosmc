@@ -122,3 +122,39 @@ export function formatarMesReferencia(mesReferencia: string): string {
   });
 }
 
+
+/**
+ * Gera a lista de períodos (mês de referência + vencimento) entre dois meses, inclusive.
+ * Os meses são informados no formato YYYY-MM. O vencimento usa o dia informado,
+ * limitado ao último dia do mês (ex.: dia 31 em fevereiro vira 28/29).
+ */
+export function gerarPeriodosMensais(
+  mesInicial: string,
+  mesFinal: string,
+  diaVencimento: number
+): { mes_referencia: string; data_vencimento: string }[] {
+  const [anoIni, mesIni] = mesInicial.split('-').map(Number);
+  const [anoFim, mesFim] = mesFinal.split('-').map(Number);
+  if (!anoIni || !mesIni || !anoFim || !mesFim) return [];
+
+  const periodos: { mes_referencia: string; data_vencimento: string }[] = [];
+  let ano = anoIni;
+  let mes = mesIni;
+
+  while (ano < anoFim || (ano === anoFim && mes <= mesFim)) {
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const dia = Math.min(Math.max(1, Math.floor(diaVencimento) || 1), ultimoDia);
+    const mm = String(mes).padStart(2, '0');
+    periodos.push({
+      mes_referencia: `${ano}-${mm}-01`,
+      data_vencimento: `${ano}-${mm}-${String(dia).padStart(2, '0')}`
+    });
+    mes++;
+    if (mes > 12) {
+      mes = 1;
+      ano++;
+    }
+  }
+
+  return periodos;
+}

@@ -11,7 +11,7 @@ import MensalidadesTable from '../components/mensalidades/MensalidadesTable';
 import BulkActionsToolbar from '../components/mensalidades/BulkActionsToolbar';
 import MensalidadeDrawer from '../components/mensalidades/MensalidadeDrawer';
 import Pagination from '../components/mensalidades/Pagination';
-import { calcularStatus } from '../utils/mensalidadesHelpers';
+import { calcularStatus, gerarPeriodosMensais } from '../utils/mensalidadesHelpers';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportHelpers';
 
 // Componentes Mobile
@@ -85,6 +85,20 @@ export default function ManagePayments() {
     status: 'Aberto',
     link_cobranca: ''
   });
+
+  // Lote: 'todos' = um mês para todos os ativos; 'membro' = vários meses para um integrante
+  const [batchMode, setBatchMode] = useState<'todos' | 'membro'>('todos');
+  const [batchMembro, setBatchMembro] = useState({
+    membro_id: '',
+    mes_inicial: new Date().toISOString().slice(0, 7),
+    mes_final: new Date().toISOString().slice(0, 7),
+    dia_vencimento: '5'
+  });
+
+  const periodosMembro = useMemo(
+    () => gerarPeriodosMensais(batchMembro.mes_inicial, batchMembro.mes_final, parseInt(batchMembro.dia_vencimento, 10)),
+    [batchMembro.mes_inicial, batchMembro.mes_final, batchMembro.dia_vencimento]
+  );
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -464,10 +478,76 @@ export default function ManagePayments() {
   };
 
   const handleGenerateBatch = () => {
+    if (batchMode === 'membro') {
+      if (!batchMembro.membro_id) {
+        toastWarning('Selecione um integrante');
+        return;
+      }
+      if (periodosMembro.length === 0) {
+        toastWarning('O mês final deve ser igual ou posterior ao mês inicial');
+        return;
+      }
+    }
     setShowConfirmBatch(true);
   };
 
+  const executeGenerateBatchMembro = async () => {
+    setShowConfirmBatch(false);
+    setSaving(true);
+    try {
+      const meses = periodosMembro.map(p => p.mes_referencia);
+
+      const { data: mensalidadesExistentes, error: existentesError } = await supabase
+        .from('mensalidades')
+        .select('mes_referencia')
+        .eq('membro_id', batchMembro.membro_id)
+        .in('mes_referencia', meses);
+
+      if (existentesError) throw existentesError;
+
+      const mesesExistentes = new Set(mensalidadesExistentes?.map(m => m.mes_referencia.slice(0, 10)) || []);
+      const periodosParaCriar = periodosMembro.filter(p => !mesesExistentes.has(p.mes_referencia));
+
+      if (periodosParaCriar.length === 0) {
+        toastInfo('Este integrante já possui mensalidade em todos os meses selecionados.');
+        return;
+      }
+
+      const mensalidadesParaInserir = periodosParaCriar.map(periodo => ({
+        membro_id: batchMembro.membro_id,
+        mes_referencia: periodo.mes_referencia,
+        valor: parseFloat(batchData.valor),
+        data_vencimento: periodo.data_vencimento,
+        status: batchData.status,
+        link_cobranca: batchData.link_cobranca || null
+      }));
+
+      const { error: insertError } = await supabase
+        .from('mensalidades')
+        .insert(mensalidadesParaInserir);
+
+      if (insertError) throw insertError;
+
+      const ignoradas = periodosMembro.length - periodosParaCriar.length;
+      const mensagem = ignoradas > 0
+        ? `${periodosParaCriar.length} mensalidades criadas com sucesso! (${ignoradas} meses já tinham mensalidade)`
+        : `${periodosParaCriar.length} mensalidades criadas com sucesso!`;
+      toastSuccess(mensagem);
+      setShowBatchForm(false);
+      refetch();
+    } catch (error) {
+      console.error('Erro ao gerar mensalidades em lote para o integrante:', error);
+      toastError('Erro ao gerar mensalidades em lote. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const executeGenerateBatch = async () => {
+    if (batchMode === 'membro') {
+      await executeGenerateBatchMembro();
+      return;
+    }
     setShowConfirmBatch(false);
     setSaving(true);
     try {
@@ -1139,11 +1219,34 @@ export default function ManagePayments() {
         {showBatchForm && (
         <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 mb-6">
           <h3 className="text-white text-lg font-bold mb-2">Gerar Mensalidades em Lote</h3>
+
+            <div className="inline-flex bg-gray-900 border border-gray-700 rounded-lg p-1 mb-3">
+              <button
+                type="button"
+                onClick={() => setBatchMode('todos')}
+                disabled={saving}
+                className={`px-3 py-1.5 rounded text-sm transition ${batchMode === 'todos' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Vários integrantes
+              </button>
+              <button
+                type="button"
+                onClick={() => setBatchMode('membro')}
+                disabled={saving}
+                className={`px-3 py-1.5 rounded text-sm transition ${batchMode === 'membro' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Vários meses
+              </button>
+            </div>
+
             <p className="text-gray-400 text-sm mb-4">
-              Cria mensalidades para todos os integrantes ativos que ainda não possuem lançamento no mês selecionado
+              {batchMode === 'todos'
+                ? 'Cria mensalidades para todos os integrantes ativos que ainda não possuem lançamento no mês selecionado'
+                : 'Cria mensalidades para um integrante em cada mês do intervalo, ignorando os meses que já possuem lançamento'}
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {batchMode === 'todos' ? (
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Mês Referência</label>
                 <input
@@ -1154,6 +1257,48 @@ export default function ManagePayments() {
                   disabled={saving}
                 />
               </div>
+              ) : (
+              <>
+              <div className="md:col-span-2">
+                <label className="block text-gray-400 text-xs uppercase mb-1">Integrante</label>
+                <select
+                  value={batchMembro.membro_id}
+                  onChange={(e) => setBatchMembro({ ...batchMembro, membro_id: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                >
+                  <option value="">Selecione um integrante</option>
+                  {membros.map((membro) => (
+                    <option key={membro.id} value={membro.id}>
+                      {membro.nome_guerra} ({membro.numero_carteira})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Mês Inicial</label>
+                <input
+                  type="month"
+                  value={batchMembro.mes_inicial}
+                  onChange={(e) => setBatchMembro({ ...batchMembro, mes_inicial: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Mês Final</label>
+                <input
+                  type="month"
+                  value={batchMembro.mes_final}
+                  onChange={(e) => setBatchMembro({ ...batchMembro, mes_final: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+              </>
+              )}
 
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Valor Padrão (R$)</label>
@@ -1167,6 +1312,7 @@ export default function ManagePayments() {
                 />
               </div>
 
+              {batchMode === 'todos' ? (
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Data Vencimento</label>
                 <input
@@ -1177,6 +1323,20 @@ export default function ManagePayments() {
                   disabled={saving}
                 />
               </div>
+              ) : (
+              <div>
+                <label className="block text-gray-400 text-xs uppercase mb-1">Dia do Vencimento</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={batchMembro.dia_vencimento}
+                  onChange={(e) => setBatchMembro({ ...batchMembro, dia_vencimento: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-600"
+                  disabled={saving}
+                />
+              </div>
+              )}
 
               <div>
                 <label className="block text-gray-400 text-xs uppercase mb-1">Status</label>
@@ -1211,7 +1371,9 @@ export default function ManagePayments() {
               className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition disabled:opacity-50 text-sm"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-              Gerar para Todos os Integrantes Ativos
+              {batchMode === 'todos'
+                ? 'Gerar para Todos os Integrantes Ativos'
+                : `Gerar ${periodosMembro.length} ${periodosMembro.length === 1 ? 'Mês' : 'Meses'} para o Integrante`}
               </button>
               <button
                 onClick={() => setShowBatchForm(false)}
@@ -1511,13 +1673,36 @@ export default function ManagePayments() {
               Confirmar Geração em Lote
             </h3>
             <p className="text-gray-300 mb-4">
-              Deseja gerar mensalidades para todos os integrantes ativos?
+              {batchMode === 'todos'
+                ? 'Deseja gerar mensalidades para todos os integrantes ativos?'
+                : 'Deseja gerar mensalidades para este integrante em cada mês do intervalo?'}
             </p>
             <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 space-y-2">
+              {batchMode === 'todos' ? (
               <div className="flex justify-between">
                 <span className="text-gray-400">Mês:</span>
                 <span className="text-white font-semibold capitalize">{formatarMes(batchData.mes_referencia)}</span>
               </div>
+              ) : (
+              <>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Integrante:</span>
+                <span className="text-white font-semibold">
+                  {membros.find(m => m.id === batchMembro.membro_id)?.nome_guerra}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-400">Período:</span>
+                <span className="text-white font-semibold capitalize text-right">
+                  {formatarMes(periodosMembro[0]?.mes_referencia)} a {formatarMes(periodosMembro[periodosMembro.length - 1]?.mes_referencia)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Meses:</span>
+                <span className="text-white font-semibold">{periodosMembro.length}</span>
+              </div>
+              </>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-400">Valor:</span>
                 <span className="text-white font-semibold">R$ {parseFloat(batchData.valor).toFixed(2)}</span>
