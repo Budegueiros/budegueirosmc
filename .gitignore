@@ -39,3 +39,7 @@ backups/*.zip
 !backups/.gitkeep
 !backups/create-backup.sh
 !backups/validate-backup.sql
+
+# Salesforce CLI cache
+.sfdx/
+.sf/
