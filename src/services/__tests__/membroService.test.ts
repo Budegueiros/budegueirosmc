@@ -12,6 +12,20 @@ vi.mock('../../lib/supabase', () => ({
   },
 }));
 
+/**
+ * Cria um query builder encadeável (select/eq retornam o próprio builder)
+ * que resolve em `single()` com o resultado informado
+ */
+function mockQueryBuilder(result: { data: unknown; error: unknown }) {
+  const builder = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue(result),
+  };
+  (supabase.from as any).mockReturnValue(builder);
+  return builder;
+}
+
 describe('membroService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,20 +67,12 @@ describe('membroService', () => {
         padrinho: null,
       };
 
-      const mockSelect = vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: mockMembro,
-            error: null,
-          }),
-        }),
-      });
-
-      (supabase.from as any).mockReturnValue({
-        select: mockSelect,
-      });
+      const builder = mockQueryBuilder({ data: mockMembro, error: null });
 
       const result = await membroService.buscarPorUserId('user-1');
+
+      expect(builder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(builder.eq).toHaveBeenCalledWith('membro_cargos.ativo', true);
 
       expect(result).toBeTruthy();
       expect(result?.id).toBe('membro-1');
@@ -75,18 +81,7 @@ describe('membroService', () => {
     });
 
     it('deve retornar null quando membro não encontrado', async () => {
-      const mockSelect = vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: null,
-            error: null,
-          }),
-        }),
-      });
-
-      (supabase.from as any).mockReturnValue({
-        select: mockSelect,
-      });
+      mockQueryBuilder({ data: null, error: null });
 
       const result = await membroService.buscarPorUserId('user-inexistente');
 
@@ -96,25 +91,11 @@ describe('membroService', () => {
     it('deve lançar erro quando ocorre erro no Supabase', async () => {
       const mockError = { message: 'Erro ao buscar membro', code: 'PGRST116' };
 
-      const mockSelect = vi.fn().mockReturnThis();
-      const mockEq = vi.fn().mockReturnThis();
-      const mockSingle = vi.fn().mockResolvedValue({
-        data: null,
-        error: mockError,
-      });
+      mockQueryBuilder({ data: null, error: mockError });
 
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValue({
-        single: mockSingle,
-      });
-
-      (supabase.from as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      await expect(membroService.buscarPorUserId('user-1')).rejects.toThrow();
+      await expect(membroService.buscarPorUserId('user-1')).rejects.toThrow(
+        'Erro ao buscar membro: Erro ao buscar membro'
+      );
     });
   });
 
